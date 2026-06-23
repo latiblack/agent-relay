@@ -2,6 +2,7 @@
   "name": "@agent-relay/frontend",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "pnpm@9.15.4",
   "engines": {
     "node": "22.x"
   },
