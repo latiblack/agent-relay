@@ -1,0 +1,12 @@
+{
+  "name": "agent-relay",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:frontend": "npm run dev -w packages/frontend",
+    "dev:relay": "npm run dev -w packages/relay-server",
+    "build": "npm run build -w packages/frontend && npm run build -w packages/relay-server"
+  }
+}
