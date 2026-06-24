@@ -1297,14 +1297,18 @@ function QuestsPage({ onDeploy, messages, connected, questState, passportId, onS
 }
 
 function ProfilePage({ passport, tag, identity, onPassportUpdate }) {
-  const [pfp, setPfp] = useState(passport?.avatarUrl || null);
+  const [savedPfp, setSavedPfp] = useState(passport?.avatarUrl || null);
+  const [pfpPreview, setPfpPreview] = useState(null);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef(null);
+  const pendingDataUrl = useRef(null);
 
-  // Sync pfp when passport data updates (e.g., after API re-fetch)
+  // Sync savedPfp when passport data updates
   useEffect(() => {
-    if (passport?.avatarUrl) setPfp(passport.avatarUrl);
+    if (passport?.avatarUrl) setSavedPfp(passport.avatarUrl);
   }, [passport?.avatarUrl]);
+
+  const hasChanges = pfpPreview !== null;
 
   const details = [
     { label: 'PASSPORT ID', value: passport?.passportId, color: A },
@@ -1317,32 +1321,35 @@ function ProfilePage({ passport, tag, identity, onPassportUpdate }) {
 
   const handlePfpClick = () => fileInputRef.current?.click();
 
-  const handlePfpUpload = async (e) => {
+  const handleFileSelect = async (e) => {
     const file = e.target.files?.[0];
     if (!file || !passport?.passportId) return;
+    const dataUrl = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = () => reject(new Error('Failed to read file'));
+      reader.readAsDataURL(file);
+    });
+    pendingDataUrl.current = dataUrl;
+    setPfpPreview(dataUrl);
+    // Reset input so selecting the same file again triggers onChange
+    e.target.value = '';
+  };
 
-    // Read file FIRST, then upload
+  const handleSave = async () => {
+    if (!pendingDataUrl.current || !passport?.passportId) return;
     setUploading(true);
     try {
-      const dataUrl = await new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result);
-        reader.onerror = () => reject(new Error('Failed to read file'));
-        reader.readAsDataURL(file);
-      });
-
-      // Show local preview
-      setPfp(dataUrl);
-
-      // Upload to server
       const res = await fetch(`${RELAY_SERVER}/avatar/upload`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ passportId: passport.passportId, image: dataUrl }),
+        body: JSON.stringify({ passportId: passport.passportId, image: pendingDataUrl.current }),
       });
       const data = await res.json();
       if (data.success) {
-        setPfp(data.avatarUrl);
+        setSavedPfp(data.avatarUrl);
+        setPfpPreview(null);
+        pendingDataUrl.current = null;
         onPassportUpdate?.({ avatarUrl: data.avatarUrl });
       } else {
         console.error('Upload failed:', data.error);
@@ -1353,6 +1360,13 @@ function ProfilePage({ passport, tag, identity, onPassportUpdate }) {
       setUploading(false);
     }
   };
+
+  const handleCancel = () => {
+    setPfpPreview(null);
+    pendingDataUrl.current = null;
+  };
+
+  const displayPfp = pfpPreview || savedPfp;
 
   return (
     <div>
@@ -1382,14 +1396,14 @@ function ProfilePage({ passport, tag, identity, onPassportUpdate }) {
             {/* Avatar */}
             <div style={{
               width: 56, height: 56, borderRadius: '50%', overflow: 'hidden',
-              background: pfp ? 'transparent' : `linear-gradient(135deg, ${A}, ${B})`,
+              background: displayPfp ? 'transparent' : `linear-gradient(135deg, ${A}, ${B})`,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontSize: 22, fontWeight: 700, color: '#fff',
               fontFamily: "'JetBrains Mono', monospace",
               position: 'relative',
             }}>
-              {pfp ? (
-                <img src={pfp} alt="PFP" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              {displayPfp ? (
+                <img src={displayPfp} alt="PFP" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               ) : (
                 tag?.replace(/^@/, '').slice(0, 4).toUpperCase()
               )}
@@ -1406,7 +1420,7 @@ function ProfilePage({ passport, tag, identity, onPassportUpdate }) {
               type="file"
               accept="image/*"
               style={{ display: 'none' }}
-              onChange={handlePfpUpload}
+              onChange={handleFileSelect}
             />
           </div>
           <div>
@@ -1428,6 +1442,19 @@ function ProfilePage({ passport, tag, identity, onPassportUpdate }) {
           </div>
         ))}
       </div>
+
+      {hasChanges && (
+        <div style={{ display: 'flex', gap: 10, marginBottom: 20, justifyContent: 'flex-end' }}>
+          <button onClick={handleCancel} disabled={uploading} style={{
+            ...btnGrad, background: 'transparent', border: `1px solid ${I}`, color: E, flex: 1, maxWidth: 140,
+            opacity: uploading ? 0.5 : 1, cursor: uploading ? 'not-allowed' : 'pointer',
+          }}>Cancel</button>
+          <button onClick={handleSave} disabled={uploading} style={{
+            ...btnGrad, flex: 1, maxWidth: 200,
+            opacity: uploading ? 0.7 : 1, cursor: uploading ? 'not-allowed' : 'pointer',
+          }}>{uploading ? 'Saving...' : 'Save Changes'}</button>
+        </div>
+      )}
 
       {/* PFP hover style */}
       <style>{`
