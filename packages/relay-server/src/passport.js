@@ -22,6 +22,11 @@ export class PassportManager {
   }
 
   async init(agentMnemonic) {
+    // Auto-create the passports table if it doesn't exist
+    if (this.supabase) {
+      await this._ensureTable();
+    }
+
     // Warm cache from Supabase on startup
     if (this.supabase) {
       try {
@@ -41,6 +46,76 @@ export class PassportManager {
       }
     }
     return this;
+  }
+
+  async _ensureTable() {
+    try {
+      const { error } = await this.supabase
+        .from('passports')
+        .select('id', { count: 'exact', head: true });
+      if (error && error.message?.includes('relation')) {
+        console.log('[PassportManager] Creating passports table...');
+        // Create via the Supabase SQL API using a direct query
+        const sql = `
+          CREATE TABLE IF NOT EXISTS passports (
+            id BIGSERIAL PRIMARY KEY,
+            passport_id TEXT UNIQUE NOT NULL,
+            relay_key TEXT UNIQUE NOT NULL,
+            wallet_address TEXT NOT NULL,
+            nametag TEXT,
+            guild TEXT NOT NULL DEFAULT 'explorer',
+            quests_completed INTEGER DEFAULT 0,
+            total_xp INTEGER DEFAULT 0,
+            created_at TIMESTAMPTZ DEFAULT NOW()
+          );
+        `;
+        
+        // Try creating via REST API with the raw query
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/`, {
+          method: 'GET',
+          headers: {
+            'apikey': SUPABASE_SERVICE_KEY,
+            'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+            'Accept': 'application/json',
+          }
+        });
+        
+        if (res.ok) {
+          // PostgREST root is accessible - try executing SQL via the 
+          // built-in _sql endpoint
+          const sqlRes = await fetch(`${SUPABASE_URL}/rest/v1/rpc/`, {
+            method: 'POST',
+            headers: {
+              'apikey': SUPABASE_SERVICE_KEY,
+              'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+              'Content-Type': 'application/json',
+              'Prefer': 'params=multiple-objects',
+            },
+            body: JSON.stringify({ query: sql }),
+          });
+          
+          if (sqlRes.ok) {
+            console.log('[PassportManager] Table creation attempted via RPC');
+          }
+        }
+        
+        // Verify table exists
+        const { error: checkErr } = await this.supabase
+          .from('passports')
+          .select('id', { count: 'exact', head: true });
+          
+        if (checkErr && checkErr.message?.includes('relation')) {
+          console.log('[PassportManager] Table still missing. Trying via management API...');
+          // Last resort: print instructions
+          console.log('[PassportManager] Run this SQL in Supabase dashboard SQL editor:');
+          console.log(sql);
+        } else {
+          console.log('[PassportManager] Passports table ready');
+        }
+      }
+    } catch (err) {
+      console.warn('[PassportManager] Table check error:', err.message);
+    }
   }
 
   async createPassport({ walletAddress, guild, nametag }) {
