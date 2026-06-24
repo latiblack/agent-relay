@@ -11,6 +11,7 @@ import { LoreAgent } from './agents/lore-agent.js';
 import { TreasuryAgent } from './agents/treasury-agent.js';
 import { QuestSessionManager, QUEST_PHASES } from './quest-session.js';
 import { loadAllQuests } from './quest-loader.js';
+import { InAppAgent } from './inapp-agent.js';
 import { ACTIONS, QUESTS } from './constants.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -158,7 +159,10 @@ async function main() {
   // 3. Quest Session Manager
   const sessionManager = new QuestSessionManager();
 
-  // 4. Start all agents
+  // 4. In-App Agent instances (user's AI middleman)
+  const inAppAgents = new Map(); // passportId -> InAppAgent
+
+  // 5. Start all agents
   console.log('\nStarting quest agents...');
   await Promise.all([
     verificationAgent.init(),
@@ -214,10 +218,10 @@ async function main() {
         return;
       }
 
-      // POST /quest/deploy — Deploy a quest (start state machine)
+      // POST /quest/deploy — Deploy a quest. Spawns user's in-app agent.
       if (url.pathname === '/quest/deploy' && req.method === 'POST') {
         const body = await parseBody(req);
-        const { passportId, questId } = body;
+        const { passportId, questId, userTag } = body;
         const passport = passportManager.validatePassport(passportId)?.passport;
         if (!passport) {
           res.writeHead(400);
@@ -231,18 +235,27 @@ async function main() {
           return;
         }
 
-        // Create session
-        const session = sessionManager.createSession({
+        // Stop any existing agent for this user
+        if (inAppAgents.has(passportId)) {
+          inAppAgents.get(passportId).stop();
+        }
+
+        // Spawn in-app agent (user's AI middleman)
+        const tag = userTag || passport.nametag || '@user';
+        const agent = new InAppAgent({
           questId,
+          quest,
           passport,
+          userTag: tag,
           onMessage: (msg) => broadcastToConsole(passportId, msg),
         });
+        inAppAgents.set(passportId, agent);
 
-        // Fire-and-forget the orchestrator
-        runQuestOrchestrator(session, agents).catch(err => {
-          console.error('[Orchestrator] Error:', err);
+        // Start the agent (verification → lore → first clue)
+        agent.start().catch(err => {
+          console.error('[InAppAgent] Error:', err);
           broadcastToConsole(passportId, {
-            from: 'SYSTEM', to: 'user',
+            from: 'SYSTEM', to: tag,
             message: `[ERROR] ${err.message}`,
             phase: 'error',
           });
@@ -253,74 +266,27 @@ async function main() {
           data: {
             questId,
             quest: quest.title,
-            phase: session.phase,
             fragments: quest.fragments?.length || 0,
           },
         }));
         return;
       }
 
-      // POST /quest/submit-answer — Submit puzzle answer
+      // POST /quest/submit-answer — User submits an answer. Routes through in-app agent.
       if (url.pathname === '/quest/submit-answer' && req.method === 'POST') {
         const body = await parseBody(req);
-        const { passportId, questId, answer } = body;
-        const session = sessionManager.getSession(passportId);
-        if (!session) {
+        const { passportId, answer } = body;
+        const agent = inAppAgents.get(passportId);
+        if (!agent) {
           res.writeHead(400);
-          res.end(JSON.stringify({ error: 'No active quest session' }));
+          res.end(JSON.stringify({ error: 'No active quest. Deploy a quest first.' }));
           return;
         }
 
-        // Route answer through Puzzle Agent
-        const mockMsg = { senderNametag: 'user', senderPubkey: passportId };
-        const result = puzzleAgent._handleAnswer({ questId, answer }, mockMsg);
-        const handled = await session.handleAgentMessage('@agentrelay-puzzle', result);
+        // Route through the in-app agent (it speaks to quest agents)
+        await agent.handleUserInput(answer);
 
-        broadcastToConsole(passportId, {
-          from: '@agentrelay-puzzle',
-          to: result.data?.correct ? '@agentrelay-lore' : 'user',
-          message: result.data?.correct
-            ? '[SOLVED] All fragments collected! Signal decoded.'
-            : result.data?.fragmentIndex !== undefined
-              ? `[FRAGMENT ${result.data.fragmentIndex + 1}/${result.data.total}] Collected! Next: ${result.data.clue}`
-              : `[INCORRECT] ${result.data?.hint || 'Try again.'}`,
-          phase: 'puzzle',
-          data: result.data,
-        });
-
-        // If correct, advance to lore_complete → rewarding
-        if (result.data?.correct && handled?.next === QUEST_PHASES.LORE_COMPLETE) {
-          await delay(800);
-          session.transitionTo(QUEST_PHASES.LORE_COMPLETE);
-          const completeLore = loreAgent._advanceStory({ questId, currentChapter: 'intro' });
-          await session.handleAgentMessage('@agentrelay-lore', completeLore);
-          broadcastToConsole(passportId, {
-            from: '@agentrelay-lore', to: '@agentrelay-treasury',
-            message: `[COMPLETE] ${completeLore.data?.content || 'Quest complete!'}`,
-            phase: 'lore_complete',
-          });
-
-          await delay(800);
-          session.transitionTo(QUEST_PHASES.REWARDING);
-          const rewardMsg = { senderNametag: 'user', senderPubkey: passportId };
-          const reward = treasuryAgent._claimReward({ questId }, rewardMsg);
-          await session.handleAgentMessage('@agentrelay-treasury', reward);
-          broadcastToConsole(passportId, {
-            from: '@agentrelay-treasury', to: 'user',
-            message: `[REWARD] +${reward.data?.xpAwarded || 0} XP awarded! Total: ${reward.data?.totalXp || 0} XP`,
-            phase: 'rewarding',
-            data: reward.data,
-          });
-
-          session.transitionTo(QUEST_PHASES.COMPLETED);
-          broadcastToConsole(passportId, {
-            from: 'SYSTEM', to: 'user',
-            message: '[QUEST COMPLETE] Signal Hunt finished. Ready for next mission.',
-            phase: 'completed',
-          });
-        }
-
-        res.end(JSON.stringify({ success: true, data: result.data || result }));
+        res.end(JSON.stringify({ success: true }));
         return;
       }
 

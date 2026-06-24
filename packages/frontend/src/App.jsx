@@ -824,9 +824,8 @@ function DashboardView({ passport, wallet, identity }) {
       await fetch(`${RELAY_SERVER}/quest/deploy`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ passportId: passport.passportId, questId }),
+        body: JSON.stringify({ passportId: passport.passportId, questId, userTag: tag }),
       });
-      setPage('console');
     } catch (err) {
       console.error('Failed to deploy quest:', err);
     }
@@ -847,7 +846,6 @@ function DashboardView({ passport, wallet, identity }) {
   const navItems = [
     { id: 'overview', label: 'Overview', icon: '◉' },
     { id: 'quests', label: 'Quests', icon: '◆' },
-    { id: 'console', label: 'Agent Console', icon: '▸' },
     { id: 'profile', label: 'Profile', icon: '◎' },
   ];
 
@@ -954,8 +952,7 @@ function DashboardView({ passport, wallet, identity }) {
       {/* Main content */}
       <div style={{ padding: '48px 20px 40px', maxWidth: 800, margin: '0 auto' }}>
         {page === 'overview' && <OverviewPage passport={passport} tag={tag} />}
-        {page === 'quests' && <QuestsPage onDeploy={deployQuest} />}
-        {page === 'console' && <AgentConsolePage messages={messages} connected={connected} questState={questState} passportId={passport?.passportId} onSubmitAnswer={submitAnswer} />
+        {page === 'quests' && <QuestsPage onDeploy={deployQuest} messages={messages} connected={connected} questState={questState} passportId={passport?.passportId} onSubmitAnswer={submitAnswer} onBackToQuests={() => { clearMessages(); }} />}
         {page === 'profile' && <ProfilePage passport={passport} tag={tag} identity={identity} />}
       </div>
     </div>
@@ -1007,7 +1004,10 @@ function OverviewPage({ passport, tag }) {
   );
 }
 
-function QuestsPage({ onDeploy }) {
+function QuestsPage({ onDeploy, messages, connected, questState, passportId, onSubmitAnswer, onBackToQuests }) {
+  const [answer, setAnswer] = useState('');
+  const [activeQuest, setActiveQuest] = useState(null);
+  const bottomRef = useRef(null);
   const quests = [
     { id: 'signal-hunt-01', title: 'Signal Hunt', desc: 'Collect clues from 5 agents to locate the hidden signal.', difficulty: 'Easy', reward: '50 XP', status: 'available', agent: 'Puzzle' },
     { id: 'secret-market-01', title: 'Secret Market', desc: 'Agents negotiate prices for rare intel. Best offer wins.', difficulty: 'Medium', reward: '100 XP', status: 'available', agent: 'Treasury' },
@@ -1015,191 +1015,193 @@ function QuestsPage({ onDeploy }) {
     { id: 'agent-escape-room-01', title: 'Agent Escape Room', desc: 'Combine clues from all 4 agents to unlock the exit.', difficulty: 'Hard', reward: '250 XP', status: 'locked', agent: 'Verification' },
   ];
 
-  return (
-    <div>
-      <h2 style={{ fontFamily: "'Hubot Sans', sans-serif", fontSize: 24, fontWeight: 600, marginBottom: 4 }}>Quests</h2>
-      <p style={{ color: E, fontSize: 14, marginBottom: 28, fontFamily: "'Mona Sans', sans-serif" }}>Your agents are ready. Pick a mission and deploy.</p>
-
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        {quests.map((q, i) => (
-          <div key={i} style={{
-            ...glassCard, padding: '20px',
-            opacity: q.status === 'locked' ? 0.5 : 1,
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
-                  <span style={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace", color: 'rgba(255,255,255,0.2)' }}>{q.id}</span>
-                  <span style={{
-                    fontSize: 9, fontFamily: "'JetBrains Mono', monospace", fontWeight: 600,
-                    color: q.status === 'available' ? A : 'rgba(255,255,255,0.2)',
-                    background: q.status === 'available' ? H : 'transparent',
-                    padding: '2px 8px', borderRadius: 4,
-                  }}>{q.status.toUpperCase()}</span>
-                </div>
-                <h3 style={{ fontFamily: "'Hubot Sans', sans-serif", fontSize: 16, fontWeight: 600 }}>{q.title}</h3>
-              </div>
-              <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace", color: A }}>{q.reward}</div>
-                <div style={{ fontSize: 9, fontFamily: "'JetBrains Mono', monospace", color: E, marginTop: 2 }}>{q.difficulty}</div>
-              </div>
-            </div>
-            <p style={{ color: E, fontSize: 13, lineHeight: 1.5, margin: '0 0 12px', fontFamily: "'Mona Sans', sans-serif" }}>{q.desc}</p>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace", color: 'rgba(255,255,255,0.25)' }}>
-                Agent: {q.agent}
-              </div>
-              {q.status === 'available' && (
-                <button onClick={() => onDeploy && onDeploy(q.id)} style={{
-                  ...btnGrad, height: 32, padding: '0 16px', fontSize: 12, borderRadius: 8,
-                }}>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontFamily: "'Mona Sans', sans-serif" }}>
-                    Deploy Agent
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
-                  </span>
-                </button>
-              )}
-              {q.status === 'locked' && (
-                <span style={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace", color: 'rgba(255,255,255,0.15)' }}>Complete previous quest →</span>
-              )}
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function AgentConsolePage({ messages, connected, questState, passportId, onSubmitAnswer }) {
-  const [answer, setAnswer] = useState('');
-  const [activeQuestId, setActiveQuestId] = useState(null);
-  const bottomRef = useRef(null);
-
   useEffect(() => {
-    if (questState?.phase) {
-      setActiveQuestId(questState.questId || 'signal-hunt-01');
-    }
+    if (questState?.phase) setActiveQuest(questState.questId || 'signal-hunt-01');
   }, [questState]);
 
-  // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!answer.trim() || !activeQuestId) return;
-    onSubmitAnswer(activeQuestId, answer.trim());
+    if (!answer.trim() || !activeQuest) return;
+    onSubmitAnswer(activeQuest, answer.trim());
     setAnswer('');
   };
 
-  // Helper to get badge color by phase
+  const handleDeploy = (qId) => {
+    setActiveQuest(qId);
+    onDeploy(qId);
+  };
+
   const phaseColor = (p) => {
-    const colors = { init: A, verifying: '#3b82f6', lore_intro: '#a855f7', puzzle: A, lore_complete: '#a855f7', rewarding: '#22c55e', completed: '#22c55e', error: '#ef4444', ready: '#22c55e' };
+    const colors = { deploying: A, verifying: '#3b82f6', lore: '#a855f7', puzzle: A, lore_complete: '#a855f7', rewarding: '#22c55e', completed: '#22c55e', error: '#ef4444' };
     return colors[p] || 'rgba(255,255,255,0.25)';
   };
 
+  const phaseLabel = (p) => {
+    const labels = { deploying: 'Deploying', verifying: 'Verifying', lore: 'Narrative', puzzle: 'Puzzle Active', lore_complete: 'Closing', rewarding: 'Rewarding', completed: 'Complete', error: 'Error' };
+    return labels[p] || p;
+  };
+
+  const isQuestActive = messages.length > 0;
+
   return (
     <div>
-      <h2 style={{ fontFamily: "'Hubot Sans', sans-serif", fontSize: 24, fontWeight: 600, marginBottom: 4 }}>Agent Console</h2>
-      <p style={{ color: E, fontSize: 14, marginBottom: 16, fontFamily: "'Mona Sans', sans-serif" }}>
-        Real-time agent-to-agent communication over Sphere SDK DMs.
-        {connected ? (
-          <span style={{ color: '#22c55e', marginLeft: 8, fontSize: 11, fontFamily: "'JetBrains Mono', monospace" }}>● CONNECTED</span>
-        ) : (
-          <span style={{ color: '#ef4444', marginLeft: 8, fontSize: 11, fontFamily: "'JetBrains Mono', monospace" }}>○ DISCONNECTED</span>
+      {/* Page header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+        <h2 style={{ fontFamily: "'Hubot Sans', sans-serif", fontSize: 24, fontWeight: 600, margin: 0 }}>Quests</h2>
+        {isQuestActive && (
+          <button onClick={() => { onBackToQuests(); setActiveQuest(null); }} style={{
+            background: 'transparent', border: '1px solid rgba(255,255,255,0.08)',
+            color: E, borderRadius: 8, padding: '6px 14px', fontSize: 11,
+            fontFamily: "'JetBrains Mono', monospace", cursor: 'pointer',
+          }}>
+            ← All Quests
+          </button>
         )}
-      </p>
-
-      {/* Quest status bar */}
-      {questState && (
-        <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace", color: 'rgba(255,255,255,0.4)' }}>
-            Quest: {activeQuestId}
-          </span>
-          <span style={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace", color: phaseColor(questState.phase), display: 'flex', alignItems: 'center', gap: 4 }}>
-            <span style={{ width: 4, height: 4, borderRadius: '50%', background: phaseColor(questState.phase), display: 'inline-block' }} />
-            {questState.phase.toUpperCase()}
-          </span>
-        </div>
-      )}
-
-      {/* Message feed */}
-      <div style={{ ...glassCard, padding: 0, overflow: 'hidden' }}>
-        <div style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '12px 20px', borderBottom: '1px solid rgba(255,255,255,0.04)',
-          background: 'rgba(255,111,0,0.03)',
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontFamily: "'JetBrains Mono', monospace", fontSize: 11 }}>
-            <span style={{ color: A }}>$</span>
-            <span style={{ color: 'rgba(255,255,255,0.4)' }}>agent-relay comms --tail</span>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 9, fontFamily: "'JetBrains Mono', monospace", color: connected ? '#22c55e' : '#ef4444' }}>
-            <span style={{ width: 4, height: 4, borderRadius: '50%', background: connected ? '#22c55e' : '#ef4444', display: 'inline-block' }} />
-            {connected ? 'STREAMING' : 'OFFLINE'}
-          </div>
-        </div>
-        <div style={{ padding: '8px 20px', maxHeight: 340, overflow: 'auto', minHeight: 120 }}>
-          {messages.length === 0 ? (
-            <div style={{ padding: '40px 0', textAlign: 'center', fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: 'rgba(255,255,255,0.15)' }}>
-              Waiting for agent messages...<br />
-              <span style={{ fontSize: 10 }}>Deploy a quest from the Quests page to start.</span>
-            </div>
-          ) : (
-            messages.map((m, i) => (
-              <div key={i} style={{
-                display: 'flex', gap: 8, padding: '6px 0',
-                borderBottom: i < messages.length - 1 ? '1px solid rgba(255,255,255,0.03)' : 'none',
-                fontFamily: "'JetBrains Mono', monospace", fontSize: 11, lineHeight: 1.5,
-              }}>
-                <span style={{ color: 'rgba(255,255,255,0.15)', minWidth: 55, fontSize: 10 }}>{m.time}</span>
-                <span style={{ color: phaseColor(m.phase), fontWeight: 600, minWidth: 90, fontSize: 10 }}>{m.from}</span>
-                <svg width="14" height="12" viewBox="0 0 24 12" fill="none" style={{ minWidth: 14 }}>
-                  <path d="M2 6h18M14 2l6 4-6 4" stroke="rgba(255,111,0,0.3)" strokeWidth="1.5"/>
-                </svg>
-                <span style={{ color: '#22c55e', minWidth: 90, fontSize: 10 }}>{m.to}</span>
-                <span style={{ color: m.phase === 'error' ? '#ef4444' : 'rgba(255,255,255,0.45)', flex: 1 }}>{m.message}</span>
-              </div>
-            ))
-          )}
-          <div ref={bottomRef} />
-        </div>
       </div>
 
-      {/* Answer input (visible when in puzzle phase) */}
-      {questState?.phase === 'puzzle' && (
-        <form onSubmit={handleSubmit} style={{ marginTop: 16, display: 'flex', gap: 8 }}>
-          <input
-            type="text"
-            value={answer}
-            onChange={(e) => setAnswer(e.target.value)}
-            placeholder={`Submit answer for ${activeQuestId}...`}
-            style={{
-              flex: 1, padding: '10px 14px', borderRadius: 8,
-              background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
-              color: D, fontSize: 13, fontFamily: "'JetBrains Mono', monospace",
-              outline: 'none',
-            }}
-          />
-          <button type="submit" style={{
-            ...btnGrad, height: 40, padding: '0 20px', fontSize: 13, borderRadius: 8,
-          }}>
-            Submit
-          </button>
-        </form>
-      )}
+      {!isQuestActive ? (
+        <>
+          <p style={{ color: E, fontSize: 14, marginBottom: 28, fontFamily: "'Mona Sans', sans-serif" }}>
+            Your agents are ready. Pick a mission and deploy.
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {quests.map((q, i) => (
+              <div key={i} style={{ ...glassCard, padding: '20px', opacity: q.status === 'locked' ? 0.5 : 1 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+                      <span style={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace", color: 'rgba(255,255,255,0.2)' }}>{q.id}</span>
+                      <span style={{ fontSize: 9, fontFamily: "'JetBrains Mono', monospace", fontWeight: 600, color: q.status === 'available' ? A : 'rgba(255,255,255,0.2)', background: q.status === 'available' ? H : 'transparent', padding: '2px 8px', borderRadius: 4 }}>{q.status.toUpperCase()}</span>
+                    </div>
+                    <h3 style={{ fontFamily: "'Hubot Sans', sans-serif", fontSize: 16, fontWeight: 600, margin: 0 }}>{q.title}</h3>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace", color: A }}>{q.reward}</div>
+                    <div style={{ fontSize: 9, fontFamily: "'JetBrains Mono', monospace", color: E, marginTop: 2 }}>{q.difficulty}</div>
+                  </div>
+                </div>
+                <p style={{ color: E, fontSize: 13, lineHeight: 1.5, margin: '0 0 12px', fontFamily: "'Mona Sans', sans-serif" }}>{q.desc}</p>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace", color: 'rgba(255,255,255,0.25)' }}>Agent: {q.agent}</div>
+                  {q.status === 'available' && (
+                    <button onClick={() => handleDeploy(q.id)} style={{ ...btnGrad, height: 32, padding: '0 16px', fontSize: 12, borderRadius: 8 }}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontFamily: "'Mona Sans', sans-serif" }}>
+                        Deploy Agent
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                      </span>
+                    </button>
+                  )}
+                  {q.status === 'locked' && (
+                    <span style={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace", color: 'rgba(255,255,255,0.15)' }}>Complete previous quest →</span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      ) : (
+        /* ── LIVE CONSOLE: Agent conversation + answer input ── */
+        <div>
+          {/* Quest status header */}
+          <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
+            <span style={{ fontSize: 11, fontFamily: "'JetBrains Mono', monospace", color: A, fontWeight: 600 }}>
+              {activeQuest}
+            </span>
+            {questState?.phase && (
+              <span style={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace", color: phaseColor(questState.phase), display: 'flex', alignItems: 'center', gap: 4 }}>
+                <span style={{ width: 5, height: 5, borderRadius: '50%', background: phaseColor(questState.phase), display: 'inline-block' }} />
+                {phaseLabel(questState.phase)}
+              </span>
+            )}
+            <span style={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace", color: connected ? '#22c55e' : '#ef4444', display: 'flex', alignItems: 'center', gap: 4 }}>
+              {connected ? '● LIVE' : '○ OFFLINE'}
+            </span>
+            <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
+              <button onClick={() => {
+                const text = messages.map(m => `${m.from} → ${m.to}: ${m.message}`).join('\n');
+                navigator.clipboard?.writeText(text);
+              }} style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.08)', color: E, borderRadius: 6, padding: '5px 10px', fontSize: 10, fontFamily: "'JetBrains Mono', monospace", cursor: 'pointer' }}>
+                📋 Copy Log
+              </button>
+            </div>
+          </div>
 
-      {/* Quest complete state */}
-      {questState?.phase === 'completed' && (
-        <div style={{ marginTop: 16, padding: 16, ...glassCard, textAlign: 'center' }}>
-          <span style={{ fontSize: 24, marginBottom: 8, display: 'block' }}>🏆</span>
-          <div style={{ fontFamily: "'Hubot Sans', sans-serif", fontSize: 16, fontWeight: 600, color: '#22c55e' }}>
-            Quest Complete!
+          {/* Console feed */}
+          <div style={{ ...glassCard, padding: 0, overflow: 'hidden' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px', borderBottom: '1px solid rgba(255,255,255,0.04)', background: 'rgba(255,111,0,0.03)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontFamily: "'JetBrains Mono', monospace", fontSize: 10 }}>
+                <span style={{ color: A }}>$</span>
+                <span style={{ color: 'rgba(255,255,255,0.4)' }}>agent-relay comms --tail</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 8, fontFamily: "'JetBrains Mono', monospace", color: connected ? '#22c55e' : '#ef4444' }}>
+                <span style={{ width: 3, height: 3, borderRadius: '50%', background: connected ? '#22c55e' : '#ef4444', display: 'inline-block' }} />
+                {connected ? 'STREAMING' : 'OFFLINE'}
+              </div>
+            </div>
+            <div style={{ padding: '6px 16px', maxHeight: 340, overflow: 'auto', minHeight: 100 }}>
+              {messages.length === 0 ? (
+                <div style={{ padding: '30px 0', textAlign: 'center', fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: 'rgba(255,255,255,0.15)' }}>
+                  Initializing agent handshake...
+                </div>
+              ) : (
+                messages.map((m, i) => (
+                  <div key={i} style={{ display: 'flex', gap: 6, padding: '5px 0', borderBottom: i < messages.length - 1 ? '1px solid rgba(255,255,255,0.03)' : 'none', fontFamily: "'JetBrains Mono', monospace", fontSize: 10, lineHeight: 1.5 }}>
+                    <span style={{ color: 'rgba(255,255,255,0.12)', minWidth: 50, fontSize: 9 }}>{m.time}</span>
+                    <span style={{ color: m.from === 'SYSTEM' ? '#22c55e' : phaseColor(m.phase), fontWeight: 600, minWidth: 85, fontSize: 10 }}>{m.from}</span>
+                    <svg width="12" height="10" viewBox="0 0 24 12" fill="none" style={{ minWidth: 12 }}>
+                      <path d="M2 6h18M14 2l6 4-6 4" stroke="rgba(255,111,0,0.3)" strokeWidth="1.5"/>
+                    </svg>
+                    <span style={{ color: '#22c55e', minWidth: 85, fontSize: 10 }}>{m.to}</span>
+                    <span style={{ color: m.phase === 'error' ? '#ef4444' : 'rgba(255,255,255,0.45)', flex: 1 }}>{m.message}</span>
+                  </div>
+                ))
+              )}
+              <div ref={bottomRef} />
+            </div>
           </div>
-          <div style={{ fontSize: 12, color: E, fontFamily: "'Mona Sans', sans-serif", marginTop: 4 }}>
-            Signal Hunt finished. All fragments collected.
-          </div>
+
+          {/* Answer input — always visible during active quest */}
+          <form onSubmit={handleSubmit} style={{ marginTop: 12, display: 'flex', gap: 8 }}>
+            <input
+              type="text"
+              value={answer}
+              onChange={(e) => setAnswer(e.target.value)}
+              placeholder={questState?.phase === 'puzzle' ? `Type answer for ${activeQuest}...` : 'Waiting for system...'}
+              disabled={questState?.phase !== 'puzzle'}
+              style={{
+                flex: 1, padding: '10px 14px', borderRadius: 8,
+                background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
+                color: D, fontSize: 13, fontFamily: "'JetBrains Mono', monospace",
+                outline: 'none', opacity: questState?.phase !== 'puzzle' ? 0.4 : 1,
+              }}
+            />
+            <button type="submit" disabled={questState?.phase !== 'puzzle'} style={{
+              ...btnGrad, height: 40, padding: '0 20px', fontSize: 13, borderRadius: 8,
+              opacity: questState?.phase !== 'puzzle' ? 0.4 : 1,
+            }}>
+              Send
+            </button>
+          </form>
+
+          {/* Quest complete banner */}
+          {questState?.phase === 'completed' && (
+            <div style={{ marginTop: 16, padding: 16, ...glassCard, textAlign: 'center' }}>
+              <span style={{ fontSize: 24, marginBottom: 8, display: 'block' }}>🏆</span>
+              <div style={{ fontFamily: "'Hubot Sans', sans-serif", fontSize: 16, fontWeight: 600, color: '#22c55e' }}>
+                Quest Complete!
+              </div>
+              <div style={{ fontSize: 12, color: E, fontFamily: "'Mona Sans', sans-serif", marginTop: 4 }}>
+                Signal Hunt finished. All fragments collected.
+              </div>
+              <button onClick={() => { onBackToQuests(); setActiveQuest(null); }} style={{ ...btnGrad, height: 34, padding: '0 20px', fontSize: 12, borderRadius: 8, marginTop: 14 }}>
+                Back to Quests
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>
