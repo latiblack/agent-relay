@@ -1,9 +1,8 @@
 // Agent Relay - Premium Landing Page
-// Full flow: Landing → Wallet Connect → XP Gate → Guild → Passport → Dashboard
+// Full flow: Landing → Wallet → Guild → Passport → Dashboard → Agent Console
 
 import React, { useState, useEffect } from 'react';
 import { useWallet } from './hooks/useWallet';
-import { useSphereQuestsGate } from './hooks/useSphereQuestsGate';
 
 const A = '#FF6F00';
 const B = '#E05A00';
@@ -19,7 +18,6 @@ const RELAY_SERVER = import.meta.env.VITE_RELAY_SERVER || 'http://localhost:3104
 
 function App() {
   const wallet = useWallet();
-  const xpGate = useSphereQuestsGate();
   const [passport, setPassport] = useState(null);
   const [view, setView] = useState('landing');
   const [selectedGuild, setSelectedGuild] = useState(null);
@@ -34,13 +32,7 @@ function App() {
   const handleWalletConnect = async () => {
     setView('connect');
     await wallet.connect();
-    if (wallet.status === 'connected') setView('xp-gate');
-  };
-
-  const handleXpCheck = async () => {
-    if (!wallet.identity?.directAddress) return;
-    const passed = await xpGate.checkXp(wallet.identity.directAddress);
-    if (passed) setView('guild-select');
+    if (wallet.status === 'connected') setView('guild-select');
   };
 
   const handleGuildSelect = async (guild) => {
@@ -61,7 +53,6 @@ function App() {
       <div style={{ maxWidth: 640, margin: '0 auto', padding: '40px 20px 80px', fontFamily: "'Mona Sans', sans-serif", backgroundColor: C, color: D, minHeight: '100vh' }}>
         <HeaderSmall onBack={() => setView('landing')} />
         {view === 'connect' && <ConnectView wallet={wallet} onConnect={handleWalletConnect} />}
-        {view === 'xp-gate' && <XpGateView xpGate={xpGate} onCheck={handleXpCheck} />}
         {view === 'guild-select' && <GuildSelectView onSelect={handleGuildSelect} selected={selectedGuild} />}
         {view === 'passport' && <PassportView passport={passport} onEnter={() => setView('dashboard')} />}
         {view === 'dashboard' && <DashboardView />}
@@ -92,7 +83,8 @@ function LandingPage({ onStart, scrolled }) {
         padding: scrolled ? '12px 24px' : '20px 24px',
         background: scrolled ? 'rgba(10,10,10,0.9)' : 'transparent',
         backdropFilter: scrolled ? 'blur(16px)' : 'none',
-        borderBottom: scrolled ? '1px solid rgba(255,255,255,0.04)' : '1px solid transparent',
+        borderBottom: scrolled ? '1px solid rgba(255,111,0,0.2)' : '1px solid transparent',
+        boxShadow: scrolled ? '0 0 20px rgba(255,111,0,0.1), 0 0 40px rgba(255,111,0,0.04)' : 'none',
         transition: 'all 0.3s ease', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -162,7 +154,10 @@ function LandingPage({ onStart, scrolled }) {
         </p>
 
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', justifyContent: 'center' }}>
-          <button onClick={onStart} style={btnGrad}>
+          <button onClick={onStart} style={{
+            ...btnGrad,
+            animation: 'glowPulse 4s ease-in-out infinite',
+          }}>
             <span style={{ display: 'flex', alignItems: 'center', gap: 8, fontFamily: "'Mona Sans', sans-serif" }}>
               Enter the Relay
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
@@ -577,7 +572,10 @@ function LandingPage({ onStart, scrolled }) {
             and activates your passport — all without a single LLM API call.
           </p>
           <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
-            <button onClick={onStart} style={btnGrad}>
+            <button onClick={onStart} style={{
+              ...btnGrad,
+              animation: 'glowPulse 4s ease-in-out infinite',
+            }}>
               <span style={{ display: 'flex', alignItems: 'center', gap: 8, fontFamily: "'Mona Sans', sans-serif" }}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
                 Initialize Agent Relay
@@ -667,35 +665,6 @@ function ConnectView({ wallet, onConnect }) {
   );
 }
 
-function XpGateView({ xpGate, onCheck }) {
-  return (
-    <div style={glassCard}>
-      <StepNum n={2} />
-      <SectionLabel>REQUIREMENT</SectionLabel>
-      <h2 style={{ fontFamily: "'Hubot Sans', sans-serif", fontSize: 18, fontWeight: 600, marginBottom: 16 }}>SphereQuests Gate</h2>
-      <p style={{ color: E, fontSize: 14, lineHeight: 1.7, marginBottom: 20, fontFamily: "'Mona Sans', sans-serif" }}>
-        You need at least <strong style={{ color: A }}>100 XP</strong> on SphereQuests to enter the relay.
-      </p>
-      {xpGate.status === 'rejected' && (
-        <div style={{ background: H, border: `1px solid ${I}`, borderRadius: 10, padding: 14, marginBottom: 16 }}>
-          <p style={{ color: D, fontSize: 13, margin: 0, fontFamily: "'Mona Sans', sans-serif" }}>You only have {xpGate.xp || 0} XP. Complete more quests and try again.</p>
-        </div>
-      )}
-      {xpGate.status === 'error' && <p style={{ color: '#ff6b6b', fontSize: 13, marginBottom: 12, fontFamily: "'Mona Sans', sans-serif" }}>{xpGate.error}</p>}
-      {xpGate.status === 'verified' && (
-        <div style={{ background: H, border: `1px solid ${I}`, borderRadius: 10, padding: 14, marginBottom: 16 }}>
-          <p style={{ color: A, fontSize: 13, fontWeight: 600, margin: 0, fontFamily: "'Mona Sans', sans-serif" }}>✓ Verified! You have {xpGate.xp} XP.</p>
-        </div>
-      )}
-      {xpGate.status !== 'verified' && (
-        <button onClick={onCheck} disabled={xpGate.status === 'checking'} style={{ ...btnGrad, opacity: xpGate.status === 'checking' ? 0.5 : 1 }}>
-          {xpGate.status === 'checking' ? 'Checking...' : 'Verify My XP'}
-        </button>
-      )}
-    </div>
-  );
-}
-
 function GuildSelectView({ onSelect, selected }) {
   const guilds = [
     { id: 'explorer', name: 'Explorer Guild', desc: 'Discovery missions', icon: '🔭' },
@@ -705,7 +674,7 @@ function GuildSelectView({ onSelect, selected }) {
   ];
   return (
     <div style={glassCard}>
-      <StepNum n={3} />
+      <StepNum n={2} />
       <SectionLabel>AFFILIATION</SectionLabel>
       <h2 style={{ fontFamily: "'Hubot Sans', sans-serif", fontSize: 18, fontWeight: 600, marginBottom: 16 }}>Choose Your Guild</h2>
       <p style={{ color: E, fontSize: 14, marginBottom: 20, fontFamily: "'Mona Sans', sans-serif" }}>Each guild has its own missions and Master Agent.</p>
@@ -728,7 +697,7 @@ function GuildSelectView({ onSelect, selected }) {
 function PassportView({ passport, onEnter }) {
   return (
     <div style={glassCard}>
-      <StepNum n={4} />
+      <StepNum n={3} />
       <SectionLabel>IDENTITY</SectionLabel>
       <h2 style={{ fontFamily: "'Hubot Sans', sans-serif", fontSize: 18, fontWeight: 600, marginBottom: 20 }}>Your Agent Passport</h2>
       <div style={{
@@ -817,6 +786,21 @@ function RelayNetworkBg() {
             @keyframes float {
               0%, 100% { transform: translateY(0px); }
               50% { transform: translateY(-6px); }
+            }
+            @keyframes glowPulse {
+              0%, 100% { box-shadow: 0 0 12px rgba(255,111,0,0.06), 0 0 25px rgba(255,111,0,0.03); }
+              50% { box-shadow: 0 0 20px rgba(255,111,0,0.15), 0 0 40px rgba(255,111,0,0.06); }
+            }
+            @keyframes glowPulseNav {
+              0%, 100% { box-shadow: 0 0 15px rgba(255,111,0,0.06); }
+              50% { box-shadow: 0 0 30px rgba(255,111,0,0.12); }
+            }
+            .glow-card {
+              box-shadow: 0 0 12px rgba(255,111,0,0.06), 0 0 25px rgba(255,111,0,0.03) !important;
+              animation: glowPulse 4s ease-in-out infinite !important;
+            }
+            .glow-border {
+              border: 1px solid rgba(255,111,0,0.2) !important;
             }
             .relay-line { stroke: #FF6F00; stroke-opacity: 0.08; stroke-width: 1; fill: none; }
             .relay-line-active { stroke: #FF6F00; stroke-opacity: 0.2; stroke-width: 1.5; stroke-dasharray: 6 8; fill: none; animation: dashMove 3s linear infinite; }
@@ -971,9 +955,10 @@ function StatusDot({ color, label }) {
 
 const glassCard = {
   background: F,
-  border: `1px solid ${G}`,
+  border: `1px solid rgba(255,111,0,0.2)`,
   borderRadius: 16,
   padding: 28,
+  boxShadow: '0 0 12px rgba(255,111,0,0.06), 0 0 25px rgba(255,111,0,0.03)',
 };
 
 const btnGrad = {
