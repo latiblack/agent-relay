@@ -114,6 +114,7 @@ function LandingPage({ onStart, scrolled }) {
         minHeight: '100vh', display: 'flex', flexDirection: 'column', justifyContent: 'center',
         alignItems: 'center', padding: '120px 20px 80px', position: 'relative', textAlign: 'center',
       }}>
+        <RelayNetworkBg />
         <div style={{
           position: 'absolute', top: '20%', left: '50%', transform: 'translateX(-50%)',
           width: 600, height: 600, borderRadius: '50%',
@@ -516,6 +517,158 @@ function DashboardView() {
         <div style={{ fontSize: 32, opacity: 0.3, marginBottom: 12 }}>⊞</div>
         <p style={{ color: E, fontSize: 13, fontFamily: "'Mona Sans', sans-serif" }}>Real-time agent messages will appear here</p>
       </div>
+    </div>
+  );
+}
+
+// ───────────────────────────────────────────────────
+// RELAY NETWORK BACKGROUND
+// ───────────────────────────────────────────────────
+
+function RelayNetworkBg() {
+  // Nodes array: { x, y, r, pulse?, label? }
+  // ViewBox maps to 1000x800 coordinate space
+  // Connecting lines form a relay/mesh network
+  return (
+    <div style={{
+      position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none',
+      zIndex: 0, opacity: 0.5,
+    }}>
+      <svg
+        viewBox="0 0 1000 800"
+        preserveAspectRatio="xMidYMid slice"
+        style={{ width: '100%', height: '100%', position: 'absolute', top: 0, left: 0 }}
+      >
+        <defs>
+          {/* Glow filter for nodes */}
+          <filter id="glow">
+            <feGaussianBlur stdDeviation="4" result="blur"/>
+            <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+          <filter id="glowSmall">
+            <feGaussianBlur stdDeviation="2" result="blur"/>
+            <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+          {/* Pulse animation - growing ring */}
+          <style>{`
+            @keyframes pulseRing {
+              0% { opacity: 0.6; r: var(--r); }
+              100% { opacity: 0; r: calc(var(--r) + 20); }
+            }
+            @keyframes pulseNode {
+              0%, 100% { opacity: 0.3; }
+              50% { opacity: 0.8; }
+            }
+            @keyframes dashMove {
+              0% { stroke-dashoffset: 0; }
+              100% { stroke-dashoffset: -200; }
+            }
+            @keyframes float {
+              0%, 100% { transform: translateY(0px); }
+              50% { transform: translateY(-6px); }
+            }
+            .relay-line { stroke: #FF6F00; stroke-opacity: 0.08; stroke-width: 1; fill: none; }
+            .relay-line-active { stroke: #FF6F00; stroke-opacity: 0.2; stroke-width: 1.5; stroke-dasharray: 6 8; fill: none; animation: dashMove 3s linear infinite; }
+            .relay-node-main { fill: #FF6F00; filter: url(#glow); }
+            .relay-node-sm { fill: #FF6F00; opacity: 0.3; filter: url(#glowSmall); }
+            .relay-pulse { fill: none; stroke: #FF6F00; stroke-width: 1.5; opacity: 0; animation: pulseRing 3s ease-out infinite; }
+            .relay-pulse-2 { fill: none; stroke: #FF6F00; stroke-width: 1; opacity: 0; animation: pulseRing 4s ease-out infinite; }
+            .relay-node-float { animation: float 4s ease-in-out infinite; }
+            .relay-node-float-2 { animation: float 5s ease-in-out infinite 1s; }
+            .relay-node-float-3 { animation: float 6s ease-in-out infinite 0.5s; }
+          `}</style>
+        </defs>
+
+        {/* Background mesh grid lines */}
+        <g opacity="0.03">
+          {[0, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000].map(x => (
+            <line key={`v${x}`} x1={x} y1={0} x2={x} y2={800} stroke="#FF6F00" strokeWidth="0.5"/>
+          ))}
+          {[0, 100, 200, 300, 400, 500, 600, 700, 800].map(y => (
+            <line key={`h${y}`} x1={0} y1={y} x2={1000} y2={y} stroke="#FF6F00" strokeWidth="0.5"/>
+          ))}
+        </g>
+
+        {/* Relay lines - static network connections */}
+        <g>
+          <line x1="200" y1="250" x2="350" y2="180" className="relay-line"/>
+          <line x1="200" y1="250" x2="300" y2="400" className="relay-line"/>
+          <line x1="200" y1="250" x2="150" y2="500" className="relay-line"/>
+          <line x1="350" y1="180" x2="500" y2="120" className="relay-line"/>
+          <line x1="350" y1="180" x2="480" y2="350" className="relay-line"/>
+          <line x1="300" y1="400" x2="480" y2="350" className="relay-line"/>
+          <line x1="300" y1="400" x2="250" y2="550" className="relay-line"/>
+          <line x1="150" y1="500" x2="250" y2="550" className="relay-line"/>
+          <line x1="480" y1="350" x2="650" y2="280" className="relay-line"/>
+          <line x1="500" y1="120" x2="700" y2="180" className="relay-line"/>
+          <line x1="650" y1="280" x2="700" y2="180" className="relay-line"/>
+          <line x1="650" y1="280" x2="800" y2="350" className="relay-line"/>
+          <line x1="250" y1="550" x2="400" y2="600" className="relay-line"/>
+          <line x1="400" y1="600" x2="550" y2="520" className="relay-line"/>
+          <line x1="550" y1="520" x2="650" y2="280" className="relay-line"/>
+          <line x1="550" y1="520" x2="800" y2="350" className="relay-line"/>
+          <line x1="700" y1="180" x2="880" y2="220" className="relay-line"/>
+          <line x1="800" y1="350" x2="880" y2="220" className="relay-line"/>
+          <line x1="800" y1="350" x2="920" y2="500" className="relay-line"/>
+          <line x1="550" y1="520" x2="750" y2="600" className="relay-line"/>
+          <line x1="750" y1="600" x2="920" y2="500" className="relay-line"/>
+          <line x1="100" y1="150" x2="200" y2="250" className="relay-line"/>
+          <line x1="100" y1="150" x2="500" y2="120" className="relay-line"/>
+          <line x1="100" y1="150" x2="150" y2="500" className="relay-line"/>
+        </g>
+
+        {/* Animated relay lines (dashed moving) */}
+        <g>
+          <line x1="200" y1="250" x2="350" y2="180" className="relay-line-active"/>
+          <line x1="480" y1="350" x2="650" y2="280" className="relay-line-active"/>
+          <line x1="550" y1="520" x2="800" y2="350" className="relay-line-active"/>
+          <line x1="100" y1="150" x2="350" y2="180" className="relay-line-active"/>
+        </g>
+
+        {/* Pulse rings on main nodes */}
+        <circle cx="200" cy="250" r="10" className="relay-pulse" style={{'--r': 10}}/>
+        <circle cx="500" cy="120" r="8" className="relay-pulse-2" style={{'--r': 8}}/>
+        <circle cx="650" cy="280" r="9" className="relay-pulse" style={{'--r': 9, animationDelay: '1s'}}/>
+        <circle cx="250" cy="550" r="7" className="relay-pulse-2" style={{'--r': 7, animationDelay: '2s'}}/>
+
+        {/* Main agent nodes (larger, glowing) */}
+        <g className="relay-node-float">
+          <circle cx="200" cy="250" r="12" className="relay-node-main" style={{animationDelay: '0s'}}/>
+        </g>
+        <g className="relay-node-float-2">
+          <circle cx="500" cy="120" r="10" className="relay-node-main" style={{animationDelay: '0.5s'}}/>
+        </g>
+        <g className="relay-node-float-3">
+          <circle cx="650" cy="280" r="11" className="relay-node-main" style={{animationDelay: '1s'}}/>
+        </g>
+        <g className="relay-node-float">
+          <circle cx="250" cy="550" r="9" className="relay-node-main" style={{animationDelay: '1.5s'}}/>
+        </g>
+        <g className="relay-node-float-2">
+          <circle cx="800" cy="350" r="8" className="relay-node-main" style={{animationDelay: '2s'}}/>
+        </g>
+        <g className="relay-node-float-3">
+          <circle cx="100" cy="150" r="7" className="relay-node-main" style={{animationDelay: '0.8s'}}/>
+        </g>
+
+        {/* Secondary relay nodes (smaller) */}
+        <circle cx="350" cy="180" r="4" className="relay-node-sm"/>
+        <circle cx="300" cy="400" r="3.5" className="relay-node-sm"/>
+        <circle cx="150" cy="500" r="3" className="relay-node-sm"/>
+        <circle cx="480" cy="350" r="5" className="relay-node-sm"/>
+        <circle cx="700" cy="180" r="4" className="relay-node-sm"/>
+        <circle cx="550" cy="520" r="4.5" className="relay-node-sm"/>
+        <circle cx="400" cy="600" r="3.5" className="relay-node-sm"/>
+        <circle cx="880" cy="220" r="3" className="relay-node-sm"/>
+        <circle cx="920" cy="500" r="4" className="relay-node-sm"/>
+        <circle cx="750" cy="600" r="3" className="relay-node-sm"/>
+
+        {/* Agent labels (SVG text - very subtle) */}
+        <text x="172" y="278" fill="#FF6F00" opacity="0.15" fontSize="6" fontFamily="'JetBrains Mono', monospace" letterSpacing="2">VERIFICATION</text>
+        <text x="472" y="148" fill="#FF6F00" opacity="0.15" fontSize="6" fontFamily="'JetBrains Mono', monospace" letterSpacing="2">PUZZLE</text>
+        <text x="622" y="306" fill="#FF6F00" opacity="0.15" fontSize="6" fontFamily="'JetBrains Mono', monospace" letterSpacing="2">LORE</text>
+        <text x="230" y="574" fill="#FF6F00" opacity="0.15" fontSize="6" fontFamily="'JetBrains Mono', monospace" letterSpacing="2">TREASURY</text>
+      </svg>
     </div>
   );
 }
