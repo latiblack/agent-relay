@@ -1,36 +1,40 @@
-// Agent Relay - Main App Component
-// Handles the full user flow: Wallet Connect -> XP Gate -> Passport -> Dashboard
-// Styled with Unicity SphereQuests design language
+// Agent Relay - Premium Landing Page
+// Full flow: Landing → Wallet Connect → XP Gate → Guild → Passport → Dashboard
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useWallet } from './hooks/useWallet';
 import { useSphereQuestsGate } from './hooks/useSphereQuestsGate';
 
-const THEME = {
-  bg: '#0a0a0a',
-  cardBg: 'rgba(255, 255, 255, 0.03)',
-  cardBorder: 'rgba(255, 255, 255, 0.06)',
-  text: '#f1f5f9',
-  textMuted: 'rgba(241, 245, 249, 0.45)',
-  accent: '#FF6F00',
-  accentBg: 'rgba(255, 111, 0, 0.08)',
-  accentBorder: 'rgba(255, 111, 0, 0.12)',
-  radius: '16px',
-  radiusPill: '9999px',
-};
+const A = '#FF6F00';
+const B = '#E05A00';
+const C = '#0a0a0a';
+const D = '#f1f5f9';
+const E = 'rgba(255, 255, 255, 0.45)';
+const F = 'rgba(255, 255, 255, 0.03)';
+const G = 'rgba(255, 255, 255, 0.06)';
+const H = 'rgba(255, 111, 0, 0.08)';
+const I = 'rgba(255, 111, 0, 0.12)';
+
+const RELAY_SERVER = import.meta.env.VITE_RELAY_SERVER || 'http://localhost:3104';
 
 function App() {
   const wallet = useWallet();
   const xpGate = useSphereQuestsGate();
   const [passport, setPassport] = useState(null);
-  const [view, setView] = useState('connect');
+  const [view, setView] = useState('landing');
   const [selectedGuild, setSelectedGuild] = useState(null);
+  const [scrolled, setScrolled] = useState(false);
 
-  const RELAY_SERVER = import.meta.env.VITE_RELAY_SERVER || 'http://localhost:3104';
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 60);
+    window.addEventListener('scroll', onScroll);
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
 
   const handleWalletConnect = async () => {
+    setView('connect');
     await wallet.connect();
-    setView('xp-gate');
+    if (wallet.status === 'connected') setView('xp-gate');
   };
 
   const handleXpCheck = async () => {
@@ -45,462 +49,543 @@ function App() {
       const res = await fetch(`${RELAY_SERVER}/passport`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          walletAddress: wallet.identity.directAddress,
-          guild,
-        }),
+        body: JSON.stringify({ walletAddress: wallet.identity.directAddress, guild }),
       });
       const data = await res.json();
-      if (data.success) {
-        setPassport(data.passport);
-        setView('passport');
-      }
-    } catch (err) {
-      console.error('Failed to create passport:', err);
-    }
+      if (data.success) { setPassport(data.passport); setView('passport'); }
+    } catch (err) { console.error('Failed to create passport:', err); }
   };
 
-  const sectionLabel = (text) => (
-    <div style={{
-      fontSize: '10px',
-      fontWeight: 700,
-      letterSpacing: '0.28em',
-      textTransform: 'uppercase',
-      color: `${THEME.accent}`,
-      opacity: 0.7,
-      marginBottom: '12px',
-    }}>
-      {text}
-    </div>
-  );
+  if (view !== 'landing') {
+    return (
+      <div style={{ maxWidth: 640, margin: '0 auto', padding: '40px 20px 80px', fontFamily: "'Inter', sans-serif", backgroundColor: C, color: D, minHeight: '100vh' }}>
+        <HeaderSmall onBack={() => setView('landing')} />
 
-  const stepNumber = (n) => (
-    <div style={{
-      fontSize: '11px',
-      fontFamily: "'JetBrains Mono', monospace",
-      letterSpacing: '0.18em',
-      color: THEME.textMuted,
-      marginBottom: '6px',
-    }}>
-      {String(n).padStart(2, '0')}
-    </div>
-  );
+        {view === 'connect' && <ConnectView wallet={wallet} onConnect={handleWalletConnect} />}
+        {view === 'xp-gate' && <XpGateView xpGate={xpGate} onCheck={handleXpCheck} />}
+        {view === 'guild-select' && <GuildSelectView onSelect={handleGuildSelect} selected={selectedGuild} />}
+        {view === 'passport' && <PassportView passport={passport} onEnter={() => setView('dashboard')} />}
+        {view === 'dashboard' && <DashboardView />}
+      </div>
+    );
+  }
+
+  return <LandingPage onStart={handleWalletConnect} scrolled={scrolled} />;
+}
+
+// ───────────────────────────────────────────────────
+// LANDING PAGE
+// ───────────────────────────────────────────────────
+
+function LandingPage({ onStart, scrolled }) {
+  const guilds = [
+    { id: 'explorer', name: 'Explorer Guild', desc: 'Discovery & recon missions', icon: '🔭', color: '#60a5fa' },
+    { id: 'builder', name: 'Builder Guild', desc: 'Development & infrastructure', icon: '⚒️', color: '#f59e0b' },
+    { id: 'creator', name: 'Creator Guild', desc: 'Design & content creation', icon: '🎨', color: '#a78bfa' },
+    { id: 'research', name: 'Research Guild', desc: 'Investigation & analysis', icon: '🔬', color: '#34d399' },
+  ];
+
+  const agents = [
+    { name: 'Verification', desc: 'Validates passports & relay keys', icon: '🛡️', protocol: 'Key exchange' },
+    { name: 'Puzzle', desc: 'Presents challenges, validates answers', icon: '🧩', protocol: 'Challenge/response' },
+    { name: 'Lore', desc: 'Advances narrative, reveals context', icon: '📜', protocol: 'Story progression' },
+    { name: 'Treasury', desc: 'Awards badges & on-chain rewards', icon: '🏆', protocol: 'Reward distribution' },
+  ];
 
   return (
-    <div style={styles.container}>
-      <header style={styles.header}>
-        <div style={styles.logo}>
-          <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
-            <circle cx="16" cy="16" r="15" stroke={THEME.accent} strokeWidth="1.5" opacity="0.3"/>
-            <circle cx="16" cy="16" r="8" fill={THEME.accent} opacity="0.15"/>
-            <circle cx="16" cy="16" r="4" fill={THEME.accent}/>
-          </svg>
+    <div style={{ fontFamily: "'Inter', sans-serif", backgroundColor: C, color: D, minHeight: '100vh', overflow: 'hidden' }}>
+      {/* Fixed Nav */}
+      <nav style={{
+        position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100,
+        padding: scrolled ? '12px 24px' : '20px 24px',
+        background: scrolled ? 'rgba(10,10,10,0.9)' : 'transparent',
+        backdropFilter: scrolled ? 'blur(16px)' : 'none',
+        borderBottom: scrolled ? '1px solid rgba(255,255,255,0.04)' : '1px solid transparent',
+        transition: 'all 0.3s ease', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <LogoMark size={28} />
+          <span style={{ fontWeight: 700, fontSize: 15, letterSpacing: '0.12em' }}>AGENT RELAY</span>
         </div>
-        <h1 style={styles.title}>AGENT RELAY</h1>
-        <p style={styles.subtitle}>Multi-agent quest platform on Unicity</p>
-      </header>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          {['Features', 'Agents', 'Roadmap'].map(item => (
+            <a key={item} href={`#${item.toLowerCase()}`} style={{
+              color: E, fontSize: 13, fontWeight: 500, textDecoration: 'none', padding: '6px 14px',
+              borderRadius: 8, transition: 'all 0.2s',
+            }}>{item}</a>
+          ))}
+        </div>
+      </nav>
 
-      {view === 'connect' && (
-        <div style={styles.card}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
-            <div style={styles.iconCircle}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={THEME.accent} strokeWidth="1.5">
-                <path d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"/>
-                <path d="M9 12l2 2 4-4"/>
-              </svg>
-            </div>
-            <div>
-              {stepNumber(1)}
-              <h2 style={styles.cardTitle}>Connect Your Wallet</h2>
-            </div>
-          </div>
-          <p style={styles.text}>
-            Your Sphere wallet is your identity across the Unicity ecosystem.
-            No account needed — just connect and you're in.
-          </p>
-          {wallet.status === 'error' && (
-            <p style={styles.error}>{wallet.error}</p>
-          )}
-          <button
-            onClick={handleWalletConnect}
-            disabled={wallet.status === 'connecting'}
-            style={{
-              ...styles.buttonGradient,
-              opacity: wallet.status === 'connecting' ? 0.5 : 1,
-            }}
-          >
-            {wallet.status === 'connecting' ? 'Connecting...' : 'Connect Wallet'}
+      {/* Hero */}
+      <section style={{
+        minHeight: '100vh', display: 'flex', flexDirection: 'column', justifyContent: 'center',
+        alignItems: 'center', padding: '120px 20px 80px', position: 'relative', textAlign: 'center',
+      }}>
+        {/* Background glow */}
+        <div style={{
+          position: 'absolute', top: '20%', left: '50%', transform: 'translateX(-50%)',
+          width: 600, height: 600, borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(255,111,0,0.08) 0%, transparent 70%)',
+          pointerEvents: 'none',
+        }} />
+        <div style={{
+          position: 'absolute', top: '10%', right: '10%',
+          width: 300, height: 300, borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(255,111,0,0.04) 0%, transparent 70%)',
+          pointerEvents: 'none',
+        }} />
+
+        <div style={{
+          display: 'inline-flex', alignItems: 'center', gap: 8,
+          background: H, border: `1px solid ${I}`, borderRadius: 9999,
+          padding: '6px 16px 6px 6px', marginBottom: 32, fontSize: 12,
+          fontWeight: 500, color: D, letterSpacing: '0.03em',
+        }}>
+          <span style={{
+            background: `linear-gradient(135deg, ${A}, ${B})`, borderRadius: 9999,
+            padding: '2px 10px', color: '#fff', fontSize: 10, fontWeight: 700, letterSpacing: '0.08em',
+          }}>BETA</span>
+          Multi-agent quest platform on Unicity
+        </div>
+
+        <h1 style={{
+          fontSize: 'clamp(42px, 8vw, 80px)', fontWeight: 800, lineHeight: 1.05,
+          letterSpacing: '-0.03em', margin: '0 0 24px', maxWidth: 800,
+        }}>
+          Your agents,{' '}
+          <span style={{ background: `linear-gradient(135deg, ${A}, #FF9E40)`, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+            on a mission
+          </span>
+          <br />for the Unicity network.
+        </h1>
+
+        <p style={{
+          color: E, fontSize: 18, lineHeight: 1.6, maxWidth: 540, marginBottom: 48, fontWeight: 400,
+        }}>
+          Connect your Sphere wallet, join a guild, and watch four AI agents negotiate,
+          puzzle, and compete to complete quests — all over Sphere SDK peer-to-peer DMs.
+        </p>
+
+        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', justifyContent: 'center' }}>
+          <button onClick={onStart} style={btnGrad}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              Enter the Relay
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+            </span>
           </button>
-          {wallet.identity && (
-            <p style={styles.success}>
-              Connected: {wallet.identity.directAddress?.slice(0, 16)}...
-            </p>
-          )}
+          <a href="#features" style={{
+            ...btnOutline,
+            textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 8,
+          }}>
+            Learn more
+          </a>
         </div>
-      )}
+      </section>
 
-      {view === 'xp-gate' && (
-        <div style={styles.card}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
-            <div style={styles.iconCircle}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={THEME.accent} strokeWidth="1.5">
-                <rect x="3" y="11" width="18" height="11" rx="2"/>
-                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-              </svg>
-            </div>
-            <div>
-              {stepNumber(2)}
-              <h2 style={styles.cardTitle}>SphereQuests Gate</h2>
-            </div>
-          </div>
-          {sectionLabel('REQUIREMENT')}
-          <p style={styles.text}>
-            You need at least <strong style={{ color: THEME.accent }}>100 XP</strong> on SphereQuests to enter the relay.
+      {/* Features */}
+      <section id="features" style={{ padding: '100px 20px' }}>
+        <div style={{ maxWidth: 1100, margin: '0 auto' }}>
+          <SectionLabel>FEATURES</SectionLabel>
+          <h2 style={{ fontSize: 'clamp(28px, 4vw, 42px)', fontWeight: 700, marginBottom: 16, letterSpacing: '-0.02em' }}>
+            From wallet to quest,<br />in four steps.
+          </h2>
+          <p style={{ color: E, fontSize: 16, maxWidth: 480, marginBottom: 60, lineHeight: 1.6 }}>
+            No accounts, no emails. Your Sphere wallet is all you need.
           </p>
-          {xpGate.status === 'rejected' && (
-            <div style={styles.warningBox}>
-              <p style={styles.warning}>
-                You only have {xpGate.xp || 0} XP. Complete more quests on{' '}
-                <a href="https://quest.unicity.network" target="_blank" rel="noreferrer" style={styles.link}>
-                  SphereQuests
-                </a>{' '} and try again.
-              </p>
-            </div>
-          )}
-          {xpGate.status === 'error' && (
-            <p style={styles.error}>{xpGate.error}</p>
-          )}
-          {xpGate.status === 'verified' && (
-            <div style={styles.successBox}>
-              <p style={styles.success}>✓ Verified! You have {xpGate.xp} XP.</p>
-            </div>
-          )}
-          {xpGate.status !== 'verified' && (
-            <button
-              onClick={handleXpCheck}
-              disabled={xpGate.status === 'checking'}
-              style={{
-                ...styles.button,
-                opacity: xpGate.status === 'checking' ? 0.5 : 1,
-              }}
-            >
-              {xpGate.status === 'checking' ? 'Checking...' : 'Verify My XP'}
-            </button>
-          )}
-        </div>
-      )}
 
-      {view === 'guild-select' && (
-        <div style={styles.card}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
-            <div style={styles.iconCircle}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={THEME.accent} strokeWidth="1.5">
-                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-                <circle cx="9" cy="7" r="4"/>
-                <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
-                <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-              </svg>
-            </div>
-            <div>
-              {stepNumber(3)}
-              <h2 style={styles.cardTitle}>Choose Your Guild</h2>
-            </div>
-          </div>
-          {sectionLabel('AFFILIATION')}
-          <p style={styles.text}>Each guild has its own missions and Master Agent.</p>
-          <div style={styles.guildGrid}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16 }}>
             {[
-              { id: 'explorer', name: 'Explorer Guild', desc: 'Discovery missions', icon: '🔭' },
-              { id: 'builder', name: 'Builder Guild', desc: 'Development missions', icon: '⚒️' },
-              { id: 'creator', name: 'Creator Guild', desc: 'Design & content', icon: '🎨' },
-              { id: 'research', name: 'Research Guild', desc: 'Investigation', icon: '🔬' },
-            ].map((g) => (
-              <button
-                key={g.id}
-                onClick={() => handleGuildSelect(g.id)}
-                style={{
-                  ...styles.guildCard,
-                  borderColor: selectedGuild === g.id ? THEME.accent : THEME.cardBorder,
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.borderColor = THEME.accent; e.currentTarget.style.borderOpacity = '0.5'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.borderColor = selectedGuild === g.id ? THEME.accent : THEME.cardBorder; }}
-              >
-                <div style={{ fontSize: '24px', marginBottom: '10px' }}>{g.icon}</div>
-                <h3 style={styles.guildName}>{g.name}</h3>
-                <p style={styles.guildDesc}>{g.desc}</p>
-              </button>
+              { num: '01', title: 'Connect Wallet', desc: 'Your Sphere wallet is your identity. One click, no accounts.', icon: '🔌' },
+              { num: '02', title: 'XP Gate', desc: '100 XP on SphereQuests unlocks the relay. Verified via popup bridge.', icon: '⚡' },
+              { num: '03', title: 'Join Guild', desc: 'Pick your guild — Explorer, Builder, Creator, or Research.', icon: '🏰' },
+              { num: '04', title: 'Get Passport', desc: 'Receive your passport ID and relay key. Your agents await.', icon: '🪪' },
+            ].map((f, i) => (
+              <div key={i} style={glassCard}>
+                <div style={{ fontSize: 11, fontFamily: "'JetBrains Mono', monospace", color: E, letterSpacing: '0.15em', marginBottom: 8 }}>{f.num}</div>
+                <div style={{ fontSize: 28, marginBottom: 16 }}>{f.icon}</div>
+                <h3 style={{ fontSize: 17, fontWeight: 600, marginBottom: 8 }}>{f.title}</h3>
+                <p style={{ color: E, fontSize: 13.5, lineHeight: 1.6, margin: 0 }}>{f.desc}</p>
+              </div>
             ))}
           </div>
         </div>
-      )}
+      </section>
 
-      {view === 'passport' && passport && (
-        <div style={styles.card}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
-            <div style={styles.iconCircle}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={THEME.accent} strokeWidth="1.5">
-                <rect x="3" y="3" width="18" height="18" rx="2"/>
-                <path d="M3 9h18"/>
-                <path d="M9 21V9"/>
-              </svg>
-            </div>
-            <div>
-              {stepNumber(4)}
-              <h2 style={styles.cardTitle}>Your Agent Passport</h2>
-            </div>
-          </div>
-          {sectionLabel('IDENTITY')}
-          <div style={styles.passportBox}>
-            <div style={styles.passportField}>
-              <span style={styles.passportLabel}>PASSPORT ID</span>
-              <span style={styles.passportValue}>{passport.passportId}</span>
-            </div>
-            <div style={styles.passportField}>
-              <span style={styles.passportLabel}>RELAY KEY</span>
-              <span style={{ ...styles.passportValue, color: THEME.accent }}>{passport.relayKey}</span>
-            </div>
-            <div style={styles.passportField}>
-              <span style={styles.passportLabel}>GUILD</span>
-              <span style={styles.passportValue}>{passport.guild}</span>
-            </div>
-            <div style={styles.passportField}>
-              <span style={styles.passportLabel}>WALLET</span>
-              <span style={styles.passportValue}>{passport.walletAddress?.slice(0, 20)}...</span>
-            </div>
-          </div>
-          <p style={{ ...styles.text, fontSize: '12px', color: THEME.textMuted }}>
-            Save your relay key — you'll need it to connect your AI agents.
+      {/* Quest Agents */}
+      <section id="agents" style={{ padding: '100px 20px', background: 'rgba(255,255,255,0.01)' }}>
+        <div style={{ maxWidth: 1100, margin: '0 auto' }}>
+          <SectionLabel>AGENTS</SectionLabel>
+          <h2 style={{ fontSize: 'clamp(28px, 4vw, 42px)', fontWeight: 700, marginBottom: 16, letterSpacing: '-0.02em' }}>
+            Four agents, zero LLM cost.
+          </h2>
+          <p style={{ color: E, fontSize: 16, maxWidth: 520, marginBottom: 60, lineHeight: 1.6 }}>
+            Every quest agent is a pure state machine — no API calls, no token spend,
+            just Sphere SDK P2P DMs doing the work.
           </p>
-          <button
-            onClick={() => setView('dashboard')}
-            style={styles.buttonGradient}
-          >
-            Enter Agent Relay →
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16 }}>
+            {agents.map((a, i) => (
+              <div key={i} style={{
+                ...glassCard,
+                borderTop: `2px solid ${i === 0 ? '#60a5fa' : i === 1 ? '#f59e0b' : i === 2 ? '#a78bfa' : '#34d399'}`,
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+                  <div style={{
+                    width: 40, height: 40, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    background: `${i === 0 ? H : i === 1 ? 'rgba(245,158,11,0.08)' : i === 2 ? 'rgba(167,139,250,0.08)' : 'rgba(52,211,153,0.08)'}`,
+                    fontSize: 20,
+                  }}>{a.icon}</div>
+                  <div>
+                    <div style={{ fontSize: 15, fontWeight: 600 }}>{a.name}</div>
+                    <div style={{ fontSize: 11, color: E, fontFamily: "'JetBrains Mono', monospace", marginTop: 2 }}>{a.protocol}</div>
+                  </div>
+                </div>
+                <p style={{ color: E, fontSize: 13.5, lineHeight: 1.6, margin: 0 }}>{a.desc}</p>
+              </div>
+            ))}
+          </div>
+
+          <div style={{
+            ...glassCard, marginTop: 24, padding: '24px 28px',
+            display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 16,
+          }}>
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 4 }}>Sphere SDK P2P DM Transport</div>
+              <div style={{ color: E, fontSize: 13, lineHeight: 1.5 }}>
+                All agent communication happens over Sphere SDK peer-to-peer direct messages over Nostr.
+                No relays, no intermediaries, no gas costs.
+              </div>
+            </div>
+            <div style={{
+              background: 'rgba(255,255,255,0.03)', borderRadius: 12, padding: '12px 20px',
+              fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: E, whiteSpace: 'nowrap',
+              border: '1px solid rgba(255,255,255,0.06)',
+            }}>
+              agent → agent → agent
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Guilds */}
+      <section style={{ padding: '100px 20px' }}>
+        <div style={{ maxWidth: 1100, margin: '0 auto' }}>
+          <SectionLabel>GUILDS</SectionLabel>
+          <h2 style={{ fontSize: 'clamp(28px, 4vw, 42px)', fontWeight: 700, marginBottom: 16, letterSpacing: '-0.02em' }}>
+            Choose your allegiance.
+          </h2>
+          <p style={{ color: E, fontSize: 16, maxWidth: 400, marginBottom: 60, lineHeight: 1.6 }}>
+            Each guild has unique quests, a dedicated Master Agent, and its own leaderboard.
+          </p>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16 }}>
+            {guilds.map((g, i) => (
+              <div key={i} style={{
+                ...glassCard, textAlign: 'center', padding: '36px 24px',
+                borderTop: `2px solid ${g.color}40`,
+              }}>
+                <div style={{
+                  width: 56, height: 56, borderRadius: 16, display: 'flex', alignItems: 'center',
+                  justifyContent: 'center', fontSize: 28, margin: '0 auto 16px',
+                  background: `${g.color}12`,
+                }}>{g.icon}</div>
+                <h3 style={{ fontSize: 17, fontWeight: 600, marginBottom: 6 }}>{g.name}</h3>
+                <p style={{ color: E, fontSize: 13.5, margin: 0 }}>{g.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Roadmap */}
+      <section id="roadmap" style={{ padding: '100px 20px', background: 'rgba(255,255,255,0.01)' }}>
+        <div style={{ maxWidth: 700, margin: '0 auto' }}>
+          <SectionLabel>ROADMAP</SectionLabel>
+          <h2 style={{ fontSize: 'clamp(28px, 4vw, 42px)', fontWeight: 700, marginBottom: 40, letterSpacing: '-0.02em' }}>
+            What's next.
+          </h2>
+
+          {[
+            { phase: 'Q1', title: 'Agent Console', desc: 'Real-time agent message viewer with WebSocket streaming', done: true },
+            { phase: 'Q2', title: 'Guide Agent', desc: 'Cheap pooled LLM (Haiku/4o-mini) for player onboarding', done: false },
+            { phase: 'Q3', title: 'Quest State Machine', desc: 'Multi-agent orchestration with branching quest paths', done: false },
+            { phase: 'Q4', title: 'Astrid WASM Capsules', desc: 'Sandboxed agent execution for trustless operation', done: false },
+          ].map((r, i) => (
+            <div key={i} style={{
+              display: 'flex', gap: 20, padding: '20px 0',
+              borderBottom: i < 4 ? '1px solid rgba(255,255,255,0.04)' : 'none',
+              opacity: r.done ? 0.5 : 1,
+            }}>
+              <div style={{
+                minWidth: 48, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: r.done ? 'rgba(255,255,255,0.06)' : H,
+                borderRadius: 6, fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', color: r.done ? E : A,
+              }}>{r.done ? 'DONE' : r.phase}</div>
+              <div>
+                <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>{r.title}</div>
+                <div style={{ color: E, fontSize: 13.5, lineHeight: 1.5 }}>{r.desc}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* CTA */}
+      <section style={{ padding: '100px 20px', textAlign: 'center' }}>
+        <div style={{ maxWidth: 500, margin: '0 auto' }}>
+          <h2 style={{ fontSize: 'clamp(24px, 3vw, 34px)', fontWeight: 700, marginBottom: 16, lineHeight: 1.2 }}>
+            Ready to deploy your first agent squad?
+          </h2>
+          <p style={{ color: E, fontSize: 15, marginBottom: 36, lineHeight: 1.6 }}>
+            Connect your Sphere wallet and get your passport in under a minute.
+          </p>
+          <button onClick={onStart} style={btnGrad}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              Connect Wallet
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+            </span>
           </button>
         </div>
-      )}
+      </section>
 
-      {view === 'dashboard' && (
-        <div style={styles.card}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
-            <div style={styles.iconCircle}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={THEME.accent} strokeWidth="1.5">
-                <path d="M12 2L2 7l10 5 10-5-10-5z"/>
-                <path d="M2 17l10 5 10-5"/>
-                <path d="M2 12l10 5 10-5"/>
-              </svg>
-            </div>
-            <div>
-              <h2 style={styles.cardTitle}>Agent Console</h2>
-            </div>
-          </div>
-          {sectionLabel('ACTIVE')}
-          <p style={styles.text}>
-            Your passport is active. Quest agents are standing by.
-          </p>
-          <div style={styles.placeholderBox}>
-            <div style={{ fontSize: '32px', marginBottom: '12px', opacity: 0.3 }}>⊞</div>
-            <p style={{ color: THEME.textMuted, fontSize: '13px' }}>
-              Real-time agent messages will appear here
-            </p>
-          </div>
+      {/* Footer */}
+      <footer style={{
+        padding: '40px 20px', borderTop: '1px solid rgba(255,255,255,0.04)',
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16,
+        maxWidth: 1100, margin: '0 auto',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <LogoMark size={20} />
+          <span style={{ fontSize: 12, color: E }}>Agent Relay &mdash; Built on Unicity</span>
         </div>
+        <div style={{ display: 'flex', gap: 20, fontSize: 13 }}>
+          {['X', 'Discord', 'GitHub', 'LinkedIn'].map(s => (
+            <a key={s} href="#" style={{ color: E, textDecoration: 'none', transition: 'color 0.2s' }}>{s}</a>
+          ))}
+        </div>
+      </footer>
+    </div>
+  );
+}
+
+// ───────────────────────────────────────────────────
+// INNER VIEWS
+// ───────────────────────────────────────────────────
+
+function HeaderSmall({ onBack }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 32 }}>
+      <button onClick={onBack} style={{
+        background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)',
+        borderRadius: 10, color: D, padding: '8px 12px', cursor: 'pointer', fontSize: 14,
+        fontFamily: "'Inter', sans-serif",
+      }}>← Back</button>
+      <LogoMark size={22} />
+      <span style={{ fontWeight: 700, fontSize: 14, letterSpacing: '0.1em' }}>AGENT RELAY</span>
+    </div>
+  );
+}
+
+function ConnectView({ wallet, onConnect }) {
+  return (
+    <div style={glassCard}>
+      <StepNum n={1} />
+      <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 16 }}>Connect Your Wallet</h2>
+      <p style={{ color: E, fontSize: 14, lineHeight: 1.7, marginBottom: 24 }}>
+        Your Sphere wallet is your identity across the Unicity ecosystem.
+        No account needed — just connect and you're in.
+      </p>
+      {wallet.status === 'error' && <p style={{ color: '#ff6b6b', fontSize: 13, marginBottom: 12 }}>{wallet.error}</p>}
+      <button onClick={onConnect} disabled={wallet.status === 'connecting'} style={{ ...btnGrad, opacity: wallet.status === 'connecting' ? 0.5 : 1 }}>
+        {wallet.status === 'connecting' ? 'Connecting...' : 'Connect Wallet'}
+      </button>
+      {wallet.identity && <p style={{ color: A, fontSize: 13, fontWeight: 600, marginTop: 12 }}>Connected: {wallet.identity.directAddress?.slice(0, 16)}...</p>}
+    </div>
+  );
+}
+
+function XpGateView({ xpGate, onCheck }) {
+  return (
+    <div style={glassCard}>
+      <StepNum n={2} />
+      <SectionLabel>REQUIREMENT</SectionLabel>
+      <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 16 }}>SphereQuests Gate</h2>
+      <p style={{ color: E, fontSize: 14, lineHeight: 1.7, marginBottom: 20 }}>
+        You need at least <strong style={{ color: A }}>100 XP</strong> on SphereQuests to enter the relay.
+      </p>
+      {xpGate.status === 'rejected' && (
+        <div style={{ background: H, border: `1px solid ${I}`, borderRadius: 10, padding: 14, marginBottom: 16 }}>
+          <p style={{ color: D, fontSize: 13, margin: 0 }}>You only have {xpGate.xp || 0} XP. Complete more quests and try again.</p>
+        </div>
+      )}
+      {xpGate.status === 'error' && <p style={{ color: '#ff6b6b', fontSize: 13, marginBottom: 12 }}>{xpGate.error}</p>}
+      {xpGate.status === 'verified' && (
+        <div style={{ background: H, border: `1px solid ${I}`, borderRadius: 10, padding: 14, marginBottom: 16 }}>
+          <p style={{ color: A, fontSize: 13, fontWeight: 600, margin: 0 }}>✓ Verified! You have {xpGate.xp} XP.</p>
+        </div>
+      )}
+      {xpGate.status !== 'verified' && (
+        <button onClick={onCheck} disabled={xpGate.status === 'checking'} style={{ ...btnGrad, opacity: xpGate.status === 'checking' ? 0.5 : 1 }}>
+          {xpGate.status === 'checking' ? 'Checking...' : 'Verify My XP'}
+        </button>
       )}
     </div>
   );
 }
 
-const styles = {
-  container: {
-    maxWidth: '640px',
-    margin: '0 auto',
-    padding: '40px 20px 80px',
-    fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
-    backgroundColor: THEME.bg,
-    color: THEME.text,
-    minHeight: '100vh',
-  },
-  header: {
-    textAlign: 'center',
-    marginBottom: '48px',
-  },
-  logo: {
-    marginBottom: '16px',
-    display: 'flex',
-    justifyContent: 'center',
-  },
-  title: {
-    fontSize: '28px',
-    fontWeight: 800,
-    letterSpacing: '0.15em',
-    color: THEME.text,
-    margin: '0 0 8px',
-  },
-  subtitle: {
-    color: THEME.textMuted,
-    fontSize: '13px',
-    letterSpacing: '0.05em',
-    fontFamily: "'JetBrains Mono', monospace",
-  },
-  card: {
-    backgroundColor: THEME.cardBg,
-    border: `1px solid ${THEME.cardBorder}`,
-    borderRadius: THEME.radius,
-    padding: '28px',
-    marginBottom: '16px',
-    backdropFilter: 'blur(8px)',
-  },
-  cardTitle: {
-    fontSize: '18px',
-    fontWeight: 700,
-    margin: 0,
-    lineHeight: 1.3,
-  },
-  text: {
-    color: THEME.textMuted,
-    lineHeight: 1.7,
-    fontSize: '14px',
-    fontWeight: 400,
-    fontFamily: "'Inter', sans-serif",
-    letterSpacing: '0.01em',
-    marginBottom: '20px',
-  },
-  iconCircle: {
-    width: '40px',
-    height: '40px',
-    borderRadius: THEME.radiusPill,
-    backgroundColor: THEME.accentBg,
-    border: `1px solid ${THEME.accentBorder}`,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-  },
-  buttonGradient: {
-    background: 'linear-gradient(135deg, #FF6F00, #E05A00)',
-    color: '#fff',
-    border: 'none',
-    padding: '0 24px',
-    height: '44px',
-    borderRadius: THEME.radiusPill,
-    fontSize: '14px',
-    fontWeight: 600,
-    letterSpacing: '0.025em',
-    cursor: 'pointer',
-    transition: 'all 0.2s ease',
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontFamily: "'Inter', sans-serif",
-  },
-  button: {
-    backgroundColor: THEME.accent,
-    color: '#fff',
-    border: 'none',
-    padding: '14px 32px',
-    borderRadius: THEME.radiusPill,
-    fontSize: '14px',
-    fontWeight: 600,
-    letterSpacing: '0.03em',
-    cursor: 'pointer',
-    transition: 'all 0.2s ease',
-    display: 'inline-block',
-  },
-  guildGrid: {
-    display: 'grid',
-    gridTemplateColumns: '1fr 1fr',
-    gap: '10px',
-    marginTop: '8px',
-  },
-  guildCard: {
-    backgroundColor: THEME.cardBg,
-    border: `1px solid ${THEME.cardBorder}`,
-    borderRadius: THEME.radius,
-    padding: '20px 16px',
-    cursor: 'pointer',
-    color: THEME.text,
-    textAlign: 'left',
-    transition: 'border-color 0.2s ease',
-    fontFamily: "'Inter', sans-serif",
-  },
-  guildName: {
-    fontSize: '14px',
-    fontWeight: 600,
-    margin: '0 0 4px',
-  },
-  guildDesc: {
-    fontSize: '12px',
-    color: THEME.textMuted,
-    margin: 0,
-  },
-  passportBox: {
-    backgroundColor: THEME.accentBg,
-    border: `1px solid ${THEME.accentBorder}`,
-    borderRadius: '12px',
-    padding: '20px',
-    marginBottom: '16px',
-  },
-  passportField: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: '8px 0',
-    borderBottom: `1px solid ${THEME.cardBorder}`,
-  },
-  passportLabel: {
-    fontSize: '10px',
-    fontWeight: 700,
-    letterSpacing: '0.12em',
-    color: THEME.textMuted,
-    fontFamily: "'JetBrains Mono', monospace",
-  },
-  passportValue: {
-    fontSize: '13px',
-    fontWeight: 600,
-    fontFamily: "'JetBrains Mono', monospace",
-    color: THEME.text,
-  },
-  placeholderBox: {
-    backgroundColor: THEME.cardBg,
-    border: `1px dashed ${THEME.cardBorder}`,
-    borderRadius: THEME.radius,
-    padding: '40px',
-    textAlign: 'center',
-  },
-  error: {
-    color: '#ff6b6b',
-    fontSize: '13px',
-    marginBottom: '12px',
-  },
-  warning: {
-    color: THEME.text,
-    fontSize: '13px',
-    margin: 0,
-  },
-  warningBox: {
-    backgroundColor: THEME.accentBg,
-    border: `1px solid ${THEME.accentBorder}`,
-    borderRadius: '10px',
-    padding: '14px',
-    marginBottom: '16px',
-  },
-  success: {
-    color: THEME.accent,
-    fontSize: '13px',
-    fontWeight: 600,
-    marginBottom: '12px',
-  },
-  successBox: {
-    backgroundColor: THEME.accentBg,
-    border: `1px solid ${THEME.accentBorder}`,
-    borderRadius: '10px',
-    padding: '14px',
-    marginBottom: '16px',
-  },
-  link: {
-    color: THEME.accent,
-    textDecoration: 'underline',
-  },
+function GuildSelectView({ onSelect, selected }) {
+  const guilds = [
+    { id: 'explorer', name: 'Explorer Guild', desc: 'Discovery missions', icon: '🔭' },
+    { id: 'builder', name: 'Builder Guild', desc: 'Development missions', icon: '⚒️' },
+    { id: 'creator', name: 'Creator Guild', desc: 'Design & content', icon: '🎨' },
+    { id: 'research', name: 'Research Guild', desc: 'Investigation', icon: '🔬' },
+  ];
+  return (
+    <div style={glassCard}>
+      <StepNum n={3} />
+      <SectionLabel>AFFILIATION</SectionLabel>
+      <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 16 }}>Choose Your Guild</h2>
+      <p style={{ color: E, fontSize: 14, marginBottom: 20 }}>Each guild has its own missions and Master Agent.</p>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+        {guilds.map((g) => (
+          <button key={g.id} onClick={() => onSelect(g.id)} style={{
+            background: F, border: `1px solid ${selected === g.id ? A : G}`, borderRadius: 16, padding: '20px 16px',
+            cursor: 'pointer', color: D, textAlign: 'left', transition: 'border-color 0.2s', fontFamily: "'Inter', sans-serif",
+          }}>
+            <div style={{ fontSize: 24, marginBottom: 10 }}>{g.icon}</div>
+            <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>{g.name}</div>
+            <div style={{ fontSize: 12, color: E }}>{g.desc}</div>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function PassportView({ passport, onEnter }) {
+  return (
+    <div style={glassCard}>
+      <StepNum n={4} />
+      <SectionLabel>IDENTITY</SectionLabel>
+      <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 20 }}>Your Agent Passport</h2>
+      <div style={{
+        background: H, border: `1px solid ${I}`, borderRadius: 12, padding: 20, marginBottom: 16,
+        fontFamily: "'JetBrains Mono', monospace",
+      }}>
+        {[
+          ['PASSPORT ID', passport.passportId, D],
+          ['RELAY KEY', passport.relayKey, A],
+          ['GUILD', passport.guild, D],
+          ['WALLET', `${passport.walletAddress?.slice(0, 20)}...`, D],
+        ].map(([label, value, color]) => (
+          <div key={label} style={{
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.06)',
+          }}>
+            <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', color: E }}>{label}</span>
+            <span style={{ fontSize: 13, fontWeight: 600, color }}>{value}</span>
+          </div>
+        ))}
+      </div>
+      <p style={{ color: E, fontSize: 12, marginBottom: 16 }}>Save your relay key — you'll need it to connect your AI agents.</p>
+      <button onClick={onEnter} style={btnGrad}>Enter Agent Relay →</button>
+    </div>
+  );
+}
+
+function DashboardView() {
+  return (
+    <div style={glassCard}>
+      <SectionLabel>ACTIVE</SectionLabel>
+      <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 16 }}>Agent Console</h2>
+      <p style={{ color: E, fontSize: 14, marginBottom: 20 }}>Your passport is active. Quest agents are standing by.</p>
+      <div style={{
+        background: F, border: `1px dashed ${G}`, borderRadius: 16, padding: 40, textAlign: 'center',
+      }}>
+        <div style={{ fontSize: 32, opacity: 0.3, marginBottom: 12 }}>⊞</div>
+        <p style={{ color: E, fontSize: 13 }}>Real-time agent messages will appear here</p>
+      </div>
+    </div>
+  );
+}
+
+// ───────────────────────────────────────────────────
+// SHARED COMPONENTS
+// ───────────────────────────────────────────────────
+
+function LogoMark({ size }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 32 32" fill="none">
+      <circle cx="16" cy="16" r="15" stroke={A} strokeWidth="1.5" opacity="0.3"/>
+      <circle cx="16" cy="16" r="8" fill={A} opacity="0.15"/>
+      <circle cx="16" cy="16" r="4" fill={A}/>
+    </svg>
+  );
+}
+
+function SectionLabel({ children }) {
+  return (
+    <div style={{
+      fontSize: 10, fontWeight: 700, letterSpacing: '0.28em', textTransform: 'uppercase',
+      color: A, opacity: 0.7, marginBottom: 12,
+    }}>{children}</div>
+  );
+}
+
+function StepNum({ n }) {
+  return (
+    <div style={{
+      fontSize: 11, fontFamily: "'JetBrains Mono', monospace", letterSpacing: '0.18em',
+      color: E, marginBottom: 8,
+    }}>{String(n).padStart(2, '0')}</div>
+  );
+}
+
+// ───────────────────────────────────────────────────
+// STYLES
+// ───────────────────────────────────────────────────
+
+const glassCard = {
+  background: F,
+  border: `1px solid ${G}`,
+  borderRadius: 16,
+  padding: 28,
+};
+
+const btnGrad = {
+  background: `linear-gradient(135deg, ${A}, ${B})`,
+  color: '#fff',
+  border: 'none',
+  padding: '0 28px',
+  height: 48,
+  borderRadius: 9999,
+  fontSize: 15,
+  fontWeight: 600,
+  letterSpacing: '0.02em',
+  cursor: 'pointer',
+  transition: 'all 0.2s ease',
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  fontFamily: "'Inter', sans-serif",
+};
+
+const btnOutline = {
+  color: D,
+  border: '1px solid rgba(255,255,255,0.12)',
+  padding: '0 28px',
+  height: 48,
+  borderRadius: 9999,
+  fontSize: 15,
+  fontWeight: 500,
+  cursor: 'pointer',
+  transition: 'all 0.2s ease',
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  fontFamily: "'Inter', sans-serif",
+  background: 'transparent',
 };
 
 export default App;
