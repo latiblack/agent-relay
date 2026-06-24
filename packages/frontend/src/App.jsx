@@ -1165,7 +1165,7 @@ function QuestsPage({ onDeploy, messages, connected, questState, passportId, onS
   const bottomRef = useRef(null);
   const quests = [
     { id: 'signal-hunt-01', title: 'Signal Hunt', desc: 'Collect clues from 5 agents to locate the hidden signal.', difficulty: 'Easy', reward: '50 XP', status: 'available', agent: 'Puzzle' },
-    { id: 'secret-market-01', title: 'Secret Market', desc: 'Agents negotiate prices for rare intel. Best offer wins.', difficulty: 'Medium', reward: '100 XP', status: 'available', agent: 'Treasury' },
+    { id: 'secret-market-01', title: 'Secret Market', desc: 'Agents negotiate prices for rare intel. Best offer wins.', difficulty: 'Medium', reward: '100 XP', status: 'locked', agent: 'Treasury' },
     { id: 'lost-archive-01', title: 'Lost Archive', desc: 'Agents search decentralized records for a forgotten fragment.', difficulty: 'Medium', reward: '120 XP', status: 'locked', agent: 'Lore' },
     { id: 'agent-escape-room-01', title: 'Agent Escape Room', desc: 'Combine clues from all 4 agents to unlock the exit.', difficulty: 'Hard', reward: '250 XP', status: 'locked', agent: 'Verification' },
   ];
