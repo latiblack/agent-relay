@@ -812,6 +812,7 @@ function PassportView({ passport, onEnter }) {
 
 function DashboardView({ passport, wallet, identity }) {
   const [page, setPage] = useState('overview');
+  const [menuOpen, setMenuOpen] = useState(false);
   const tag = identity ? formatUserTag(identity) : null;
 
   const navItems = [
@@ -821,54 +822,108 @@ function DashboardView({ passport, wallet, identity }) {
     { id: 'profile', label: 'Profile', icon: '◎' },
   ];
 
+  const pageTitle = navItems.find(n => n.id === page)?.label || 'Dashboard';
+
   return (
     <div style={{
-      display: 'flex', minHeight: 'calc(100vh - 80px)', gap: 0,
+      minHeight: 'calc(100vh - 80px)',
       fontFamily: "'Mona Sans', sans-serif",
+      position: 'relative',
     }}>
-      {/* Sidebar */}
+      {/* Hamburger button */}
       <div style={{
-        width: 180, minWidth: 180, padding: '24px 0',
-        borderRight: '1px solid rgba(255,255,255,0.04)',
-        display: 'flex', flexDirection: 'column',
+        position: 'fixed', top: 12, left: 12, zIndex: 200,
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '0 16px 20px', borderBottom: '1px solid rgba(255,255,255,0.04)', marginBottom: 12 }}>
-          <LogoMark size={18} />
-          <span style={{ fontFamily: "'Hubot Sans', sans-serif", fontWeight: 600, fontSize: 12, letterSpacing: '0.08em' }}>AGENT RELAY</span>
+        <button onClick={() => setMenuOpen(true)} style={{
+          background: H, border: `1px solid ${I}`, borderRadius: 10,
+          color: D, width: 36, height: 36, cursor: 'pointer',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: 16,
+        }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <path d="M3 6h18"/><path d="M3 12h18"/><path d="M3 18h18"/>
+          </svg>
+        </button>
+      </div>
+
+      {/* Page title in top bar */}
+      <div style={{
+        textAlign: 'center', padding: '16px 0 0',
+        fontFamily: "'Hubot Sans', sans-serif", fontSize: 13,
+        fontWeight: 600, letterSpacing: '0.08em', color: 'rgba(255,255,255,0.3)',
+      }}>
+        {pageTitle.toUpperCase()}
+      </div>
+
+      {/* Overlay backdrop */}
+      {menuOpen && (
+        <div onClick={() => setMenuOpen(false)} style={{
+          position: 'fixed', inset: 0, zIndex: 150,
+          background: 'rgba(0,0,0,0.5)',
+        }} />
+      )}
+
+      {/* Sidebar drawer */}
+      <div style={{
+        position: 'fixed', top: 0, left: 0, bottom: 0, zIndex: 160,
+        width: 220, background: '#0a0a0a',
+        borderRight: '1px solid rgba(255,255,255,0.06)',
+        display: 'flex', flexDirection: 'column',
+        transform: menuOpen ? 'translateX(0)' : 'translateX(-100%)',
+        transition: 'transform 0.25s ease',
+      }}>
+        {/* Sidebar header */}
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '16px 16px 20px', borderBottom: '1px solid rgba(255,255,255,0.04)',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <LogoMark size={18} />
+            <span style={{ fontFamily: "'Hubot Sans', sans-serif", fontWeight: 600, fontSize: 12, letterSpacing: '0.08em' }}>AGENT RELAY</span>
+          </div>
+          <button onClick={() => setMenuOpen(false)} style={{
+            background: 'none', border: 'none', color: 'rgba(255,255,255,0.3)', cursor: 'pointer', fontSize: 18, padding: 0,
+          }}>✕</button>
         </div>
-        {navItems.map(n => (
-          <button key={n.id} onClick={() => setPage(n.id)} style={{
-            display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px',
-            background: page === n.id ? H : 'transparent',
-            border: 'none', borderRight: page === n.id ? `2px solid ${A}` : '2px solid transparent',
-            color: page === n.id ? A : E, cursor: 'pointer', fontSize: 13, fontWeight: page === n.id ? 600 : 400,
-            textAlign: 'left', fontFamily: "'Mona Sans', sans-serif", transition: 'all 0.15s',
-          }}>
-            <span style={{ fontSize: 10, opacity: 0.6 }}>{n.icon}</span>
-            {n.label}
-          </button>
-        ))}
-        <div style={{ marginTop: 'auto', padding: '16px', borderTop: '1px solid rgba(255,255,255,0.04)' }}>
-          {tag && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+
+        {/* Nav items */}
+        <div style={{ flex: 1, padding: '8px 0' }}>
+          {navItems.map(n => (
+            <button key={n.id} onClick={() => { setPage(n.id); setMenuOpen(false); }} style={{
+              display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', width: '100%',
+              background: page === n.id ? H : 'transparent',
+              border: 'none', borderLeft: page === n.id ? `3px solid ${A}` : '3px solid transparent',
+              color: page === n.id ? A : E, cursor: 'pointer', fontSize: 14, fontWeight: page === n.id ? 600 : 400,
+              textAlign: 'left', fontFamily: "'Mona Sans', sans-serif", transition: 'all 0.15s',
+            }}>
+              <span style={{ fontSize: 14, opacity: page === n.id ? 1 : 0.4 }}>{n.icon}</span>
+              {n.label}
+            </button>
+          ))}
+        </div>
+
+        {/* User tag footer */}
+        {tag && (
+          <div style={{ padding: '14px 16px', borderTop: '1px solid rgba(255,255,255,0.04)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <div style={{
-                width: 22, height: 22, borderRadius: '50%',
+                width: 26, height: 26, borderRadius: '50%',
                 background: `linear-gradient(135deg, ${A}, ${B})`,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 7, fontWeight: 700, color: '#fff',
+                fontSize: 8, fontWeight: 700, color: '#fff',
                 fontFamily: "'JetBrains Mono', monospace",
               }}>{tag.replace(/^@/, '').slice(0, 4).toUpperCase()}</div>
               <div>
-                <div style={{ fontSize: 11, fontWeight: 600, color: D, fontFamily: "'JetBrains Mono', monospace" }}>{tag}</div>
-                <div style={{ fontSize: 9, color: E }}>{passport?.guild || 'no guild'}</div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: D, fontFamily: "'JetBrains Mono', monospace" }}>{tag}</div>
+                <div style={{ fontSize: 10, color: E }}>{passport?.guild ? `${passport.guild.charAt(0).toUpperCase() + passport.guild.slice(1)} Guild` : 'no guild'}</div>
               </div>
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
       {/* Main content */}
-      <div style={{ flex: 1, padding: '28px 32px', overflow: 'auto' }}>
+      <div style={{ padding: '48px 20px 40px', maxWidth: 800, margin: '0 auto' }}>
         {page === 'overview' && <OverviewPage passport={passport} tag={tag} />}
         {page === 'quests' && <QuestsPage />}
         {page === 'console' && <AgentConsolePage />}
