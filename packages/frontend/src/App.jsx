@@ -58,7 +58,7 @@ function App() {
 
   if (view !== 'landing') {
     return (
-      <div style={{ maxWidth: 640, margin: '0 auto', padding: '40px 20px 80px', fontFamily: "'Inter', sans-serif", backgroundColor: C, color: D, minHeight: '100vh' }}>
+      <div style={{ maxWidth: 640, margin: '0 auto', padding: '40px 20px 80px', fontFamily: "'Mona Sans', sans-serif", backgroundColor: C, color: D, minHeight: '100vh' }}>
         <HeaderSmall onBack={() => setView('landing')} />
         {view === 'connect' && <ConnectView wallet={wallet} onConnect={handleWalletConnect} />}
         {view === 'xp-gate' && <XpGateView xpGate={xpGate} onCheck={handleXpCheck} />}
@@ -85,7 +85,7 @@ function LandingPage({ onStart, scrolled }) {
   ];
 
   return (
-    <div style={{ fontFamily: "'Inter', sans-serif", backgroundColor: C, color: D, minHeight: '100vh', overflow: 'hidden' }}>
+    <div style={{ fontFamily: "'Mona Sans', sans-serif", backgroundColor: C, color: D, minHeight: '100vh', overflow: 'hidden' }}>
       {/* Fixed Nav */}
       <nav style={{
         position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100,
@@ -97,13 +97,13 @@ function LandingPage({ onStart, scrolled }) {
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <LogoMark size={28} />
-          <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 600, fontSize: 15, letterSpacing: '0.12em' }}>AGENT RELAY</span>
+          <span style={{ fontFamily: "'Hubot Sans', sans-serif", fontWeight: 600, fontSize: 15, letterSpacing: '0.12em' }}>AGENT RELAY</span>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           {['Features', 'Agents', 'Roadmap'].map(item => (
             <a key={item} href={`#${item.toLowerCase()}`} style={{
               color: E, fontSize: 13, fontWeight: 500, textDecoration: 'none', padding: '6px 14px',
-              borderRadius: 8, fontFamily: "'Inter', sans-serif", transition: 'all 0.2s',
+              borderRadius: 8, fontFamily: "'Mona Sans', sans-serif", transition: 'all 0.2s',
             }}>{item}</a>
           ))}
         </div>
@@ -131,7 +131,7 @@ function LandingPage({ onStart, scrolled }) {
           display: 'inline-flex', alignItems: 'center', gap: 8,
           background: H, border: `1px solid ${I}`, borderRadius: 9999,
           padding: '6px 16px 6px 6px', marginBottom: 32, fontSize: 12,
-          fontWeight: 500, color: D, letterSpacing: '0.03em', fontFamily: "'Inter', sans-serif",
+          fontWeight: 500, color: D, letterSpacing: '0.03em', fontFamily: "'Mona Sans', sans-serif",
         }}>
           <span style={{
             background: `linear-gradient(135deg, ${A}, ${B})`, borderRadius: 9999,
@@ -141,7 +141,7 @@ function LandingPage({ onStart, scrolled }) {
         </div>
 
         <h1 style={{
-          fontFamily: "'Space Grotesk', sans-serif",
+          fontFamily: "'Hubot Sans', sans-serif",
           fontSize: 'clamp(42px, 8vw, 80px)', fontWeight: 600, lineHeight: 1.05,
           letterSpacing: '-0.03em', margin: '0 0 24px', maxWidth: 800,
         }}>
@@ -154,7 +154,7 @@ function LandingPage({ onStart, scrolled }) {
 
         <p style={{
           color: E, fontSize: 18, lineHeight: 1.6, maxWidth: 540, marginBottom: 48,
-          fontFamily: "'Inter', sans-serif", fontWeight: 400,
+          fontFamily: "'Mona Sans', sans-serif", fontWeight: 400,
         }}>
           Connect your Sphere wallet, join a guild, and watch four AI agents negotiate,
           puzzle, and compete to complete quests — all over Sphere SDK peer-to-peer DMs.
@@ -162,7 +162,7 @@ function LandingPage({ onStart, scrolled }) {
 
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', justifyContent: 'center' }}>
           <button onClick={onStart} style={btnGrad}>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 8, fontFamily: "'Inter', sans-serif" }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 8, fontFamily: "'Mona Sans', sans-serif" }}>
               Enter the Relay
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
             </span>
@@ -170,7 +170,7 @@ function LandingPage({ onStart, scrolled }) {
           <a href="#features" style={{
             ...btnOutline,
             textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 8,
-            fontFamily: "'Inter', sans-serif",
+            fontFamily: "'Mona Sans', sans-serif",
           }}>
             Learn more
           </a>
@@ -182,12 +182,12 @@ function LandingPage({ onStart, scrolled }) {
         <div style={{ maxWidth: 1100, margin: '0 auto' }}>
           <SectionLabel>FEATURES</SectionLabel>
           <h2 style={{
-            fontFamily: "'Space Grotesk', sans-serif",
+            fontFamily: "'Hubot Sans', sans-serif",
             fontSize: 'clamp(28px, 4vw, 42px)', fontWeight: 600, margin: '0 0 12px', letterSpacing: '-0.02em',
           }}>
             From wallet to quest, in four steps.
           </h2>
-          <p style={{ color: E, fontSize: 16, fontFamily: "'Inter', sans-serif", maxWidth: 480, marginBottom: 60, lineHeight: 1.6 }}>
+          <p style={{ color: E, fontSize: 16, fontFamily: "'Mona Sans', sans-serif", maxWidth: 480, marginBottom: 60, lineHeight: 1.6 }}>
             No accounts, no emails. Your Sphere wallet is all you need.
           </p>
 
@@ -201,8 +201,8 @@ function LandingPage({ onStart, scrolled }) {
               <div key={i} style={glassCard}>
                 <div style={{ fontSize: 11, fontFamily: "'JetBrains Mono', monospace", color: E, letterSpacing: '0.15em', marginBottom: 8 }}>{f.num}</div>
                 <div style={{ fontSize: 28, marginBottom: 16 }}>{f.icon}</div>
-                <h3 style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 17, fontWeight: 600, marginBottom: 8 }}>{f.title}</h3>
-                <p style={{ color: E, fontSize: 13.5, lineHeight: 1.6, margin: 0, fontFamily: "'Inter', sans-serif" }}>{f.desc}</p>
+                <h3 style={{ fontFamily: "'Hubot Sans', sans-serif", fontSize: 17, fontWeight: 600, marginBottom: 8 }}>{f.title}</h3>
+                <p style={{ color: E, fontSize: 13.5, lineHeight: 1.6, margin: 0, fontFamily: "'Mona Sans', sans-serif" }}>{f.desc}</p>
               </div>
             ))}
           </div>
@@ -214,12 +214,12 @@ function LandingPage({ onStart, scrolled }) {
         <div style={{ maxWidth: 1100, margin: '0 auto' }}>
           <SectionLabel>AGENTS</SectionLabel>
           <h2 style={{
-            fontFamily: "'Space Grotesk', sans-serif",
+            fontFamily: "'Hubot Sans', sans-serif",
             fontSize: 'clamp(28px, 4vw, 42px)', fontWeight: 600, margin: '0 0 12px', letterSpacing: '-0.02em',
           }}>
             Four agents, zero LLM cost.
           </h2>
-          <p style={{ color: E, fontSize: 16, fontFamily: "'Inter', sans-serif", maxWidth: 520, marginBottom: 60, lineHeight: 1.6 }}>
+          <p style={{ color: E, fontSize: 16, fontFamily: "'Mona Sans', sans-serif", maxWidth: 520, marginBottom: 60, lineHeight: 1.6 }}>
             Every quest agent is a pure state machine — no API calls, no token spend,
             just Sphere SDK P2P DMs doing the work.
           </p>
@@ -233,11 +233,11 @@ function LandingPage({ onStart, scrolled }) {
                     background: H, fontSize: 20,
                   }}>{a.icon}</div>
                   <div>
-                    <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 15, fontWeight: 600 }}>{a.name}</div>
+                    <div style={{ fontFamily: "'Hubot Sans', sans-serif", fontSize: 15, fontWeight: 600 }}>{a.name}</div>
                     <div style={{ fontSize: 11, color: A, fontFamily: "'JetBrains Mono', monospace", marginTop: 2 }}>{a.protocol}</div>
                   </div>
                 </div>
-                <p style={{ color: E, fontSize: 13.5, lineHeight: 1.6, margin: 0, fontFamily: "'Inter', sans-serif" }}>{a.desc}</p>
+                <p style={{ color: E, fontSize: 13.5, lineHeight: 1.6, margin: 0, fontFamily: "'Mona Sans', sans-serif" }}>{a.desc}</p>
               </div>
             ))}
           </div>
@@ -247,8 +247,8 @@ function LandingPage({ onStart, scrolled }) {
             display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 16,
           }}>
             <div>
-              <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 12, fontWeight: 600, marginBottom: 4 }}>Sphere SDK P2P DM Transport</div>
-              <div style={{ color: E, fontSize: 13, lineHeight: 1.5, fontFamily: "'Inter', sans-serif" }}>
+              <div style={{ fontFamily: "'Hubot Sans', sans-serif", fontSize: 12, fontWeight: 600, marginBottom: 4 }}>Sphere SDK P2P DM Transport</div>
+              <div style={{ color: E, fontSize: 13, lineHeight: 1.5, fontFamily: "'Mona Sans', sans-serif" }}>
                 All agent communication happens over Sphere SDK peer-to-peer direct messages over Nostr.
                 No relays, no intermediaries, no gas costs.
               </div>
@@ -269,12 +269,12 @@ function LandingPage({ onStart, scrolled }) {
         <div style={{ maxWidth: 1100, margin: '0 auto' }}>
           <SectionLabel>GUILDS</SectionLabel>
           <h2 style={{
-            fontFamily: "'Space Grotesk', sans-serif",
+            fontFamily: "'Hubot Sans', sans-serif",
             fontSize: 'clamp(28px, 4vw, 42px)', fontWeight: 600, margin: '0 0 12px', letterSpacing: '-0.02em',
           }}>
             Choose your allegiance.
           </h2>
-          <p style={{ color: E, fontSize: 16, fontFamily: "'Inter', sans-serif", maxWidth: 400, marginBottom: 60, lineHeight: 1.6 }}>
+          <p style={{ color: E, fontSize: 16, fontFamily: "'Mona Sans', sans-serif", maxWidth: 400, marginBottom: 60, lineHeight: 1.6 }}>
             Each guild has unique quests, a dedicated Master Agent, and its own leaderboard.
           </p>
 
@@ -290,8 +290,8 @@ function LandingPage({ onStart, scrolled }) {
                   width: 56, height: 56, borderRadius: 16, display: 'flex', alignItems: 'center',
                   justifyContent: 'center', fontSize: 28, margin: '0 auto 16px', background: H,
                 }}>{g.icon}</div>
-                <h3 style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 17, fontWeight: 600, marginBottom: 6 }}>{g.name}</h3>
-                <p style={{ color: E, fontSize: 13.5, margin: 0, fontFamily: "'Inter', sans-serif" }}>{g.desc}</p>
+                <h3 style={{ fontFamily: "'Hubot Sans', sans-serif", fontSize: 17, fontWeight: 600, marginBottom: 6 }}>{g.name}</h3>
+                <p style={{ color: E, fontSize: 13.5, margin: 0, fontFamily: "'Mona Sans', sans-serif" }}>{g.desc}</p>
               </div>
             ))}
           </div>
@@ -303,12 +303,12 @@ function LandingPage({ onStart, scrolled }) {
         <div style={{ maxWidth: 700, margin: '0 auto' }}>
           <SectionLabel>ROADMAP</SectionLabel>
           <h2 style={{
-            fontFamily: "'Space Grotesk', sans-serif",
+            fontFamily: "'Hubot Sans', sans-serif",
             fontSize: 'clamp(28px, 4vw, 42px)', fontWeight: 600, margin: '0 0 10px', letterSpacing: '-0.02em',
           }}>
             What's next.
           </h2>
-          <p style={{ color: E, fontSize: 14, fontFamily: "'Inter', sans-serif", marginBottom: 40, lineHeight: 1.6 }}>
+          <p style={{ color: E, fontSize: 14, fontFamily: "'Mona Sans', sans-serif", marginBottom: 40, lineHeight: 1.6 }}>
             The path from MVP to full agent orchestration.
           </p>
 
@@ -330,8 +330,8 @@ function LandingPage({ onStart, scrolled }) {
                 fontFamily: "'JetBrains Mono', monospace",
               }}>{r.phase}</div>
               <div>
-                <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 15, fontWeight: 600, marginBottom: 4 }}>{r.title}</div>
-                <div style={{ color: E, fontSize: 13.5, lineHeight: 1.5, fontFamily: "'Inter', sans-serif" }}>{r.desc}</div>
+                <div style={{ fontFamily: "'Hubot Sans', sans-serif", fontSize: 15, fontWeight: 600, marginBottom: 4 }}>{r.title}</div>
+                <div style={{ color: E, fontSize: 13.5, lineHeight: 1.5, fontFamily: "'Mona Sans', sans-serif" }}>{r.desc}</div>
               </div>
             </div>
           ))}
@@ -342,16 +342,16 @@ function LandingPage({ onStart, scrolled }) {
       <section style={{ padding: '100px 20px', textAlign: 'center' }}>
         <div style={{ maxWidth: 500, margin: '0 auto' }}>
           <h2 style={{
-            fontFamily: "'Space Grotesk', sans-serif",
+            fontFamily: "'Hubot Sans', sans-serif",
             fontSize: 'clamp(24px, 3vw, 34px)', fontWeight: 600, marginBottom: 16, lineHeight: 1.2,
           }}>
             Ready to deploy your first agent squad?
           </h2>
-          <p style={{ color: E, fontSize: 15, marginBottom: 36, lineHeight: 1.6, fontFamily: "'Inter', sans-serif" }}>
+          <p style={{ color: E, fontSize: 15, marginBottom: 36, lineHeight: 1.6, fontFamily: "'Mona Sans', sans-serif" }}>
             Connect your Sphere wallet and get your passport in under a minute.
           </p>
           <button onClick={onStart} style={btnGrad}>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 8, fontFamily: "'Inter', sans-serif" }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 8, fontFamily: "'Mona Sans', sans-serif" }}>
               Connect Wallet
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
             </span>
@@ -367,9 +367,9 @@ function LandingPage({ onStart, scrolled }) {
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <LogoMark size={20} />
-          <span style={{ fontSize: 12, color: E, fontFamily: "'Inter', sans-serif" }}>Agent Relay &mdash; Built on Unicity</span>
+          <span style={{ fontSize: 12, color: E, fontFamily: "'Mona Sans', sans-serif" }}>Agent Relay &mdash; Built on Unicity</span>
         </div>
-        <div style={{ display: 'flex', gap: 20, fontSize: 13, fontFamily: "'Inter', sans-serif" }}>
+        <div style={{ display: 'flex', gap: 20, fontSize: 13, fontFamily: "'Mona Sans', sans-serif" }}>
           {['X', 'Discord', 'GitHub', 'LinkedIn'].map(s => (
             <a key={s} href="#" style={{ color: E, textDecoration: 'none', transition: 'color 0.2s' }}>{s}</a>
           ))}
@@ -389,10 +389,10 @@ function HeaderSmall({ onBack }) {
       <button onClick={onBack} style={{
         background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)',
         borderRadius: 10, color: D, padding: '8px 12px', cursor: 'pointer', fontSize: 14,
-        fontFamily: "'Inter', sans-serif",
+        fontFamily: "'Mona Sans', sans-serif",
       }}>← Back</button>
       <LogoMark size={22} />
-      <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 600, fontSize: 14, letterSpacing: '0.1em' }}>AGENT RELAY</span>
+      <span style={{ fontFamily: "'Hubot Sans', sans-serif", fontWeight: 600, fontSize: 14, letterSpacing: '0.1em' }}>AGENT RELAY</span>
     </div>
   );
 }
@@ -401,16 +401,16 @@ function ConnectView({ wallet, onConnect }) {
   return (
     <div style={glassCard}>
       <StepNum n={1} />
-      <h2 style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 18, fontWeight: 600, marginBottom: 16 }}>Connect Your Wallet</h2>
-      <p style={{ color: E, fontSize: 14, lineHeight: 1.7, marginBottom: 24, fontFamily: "'Inter', sans-serif" }}>
+      <h2 style={{ fontFamily: "'Hubot Sans', sans-serif", fontSize: 18, fontWeight: 600, marginBottom: 16 }}>Connect Your Wallet</h2>
+      <p style={{ color: E, fontSize: 14, lineHeight: 1.7, marginBottom: 24, fontFamily: "'Mona Sans', sans-serif" }}>
         Your Sphere wallet is your identity across the Unicity ecosystem.
         No account needed — just connect and you're in.
       </p>
-      {wallet.status === 'error' && <p style={{ color: '#ff6b6b', fontSize: 13, marginBottom: 12, fontFamily: "'Inter', sans-serif" }}>{wallet.error}</p>}
+      {wallet.status === 'error' && <p style={{ color: '#ff6b6b', fontSize: 13, marginBottom: 12, fontFamily: "'Mona Sans', sans-serif" }}>{wallet.error}</p>}
       <button onClick={onConnect} disabled={wallet.status === 'connecting'} style={{ ...btnGrad, opacity: wallet.status === 'connecting' ? 0.5 : 1 }}>
         {wallet.status === 'connecting' ? 'Connecting...' : 'Connect Wallet'}
       </button>
-      {wallet.identity && <p style={{ color: A, fontSize: 13, fontWeight: 600, marginTop: 12, fontFamily: "'Inter', sans-serif" }}>Connected: {wallet.identity.directAddress?.slice(0, 16)}...</p>}
+      {wallet.identity && <p style={{ color: A, fontSize: 13, fontWeight: 600, marginTop: 12, fontFamily: "'Mona Sans', sans-serif" }}>Connected: {wallet.identity.directAddress?.slice(0, 16)}...</p>}
     </div>
   );
 }
@@ -420,19 +420,19 @@ function XpGateView({ xpGate, onCheck }) {
     <div style={glassCard}>
       <StepNum n={2} />
       <SectionLabel>REQUIREMENT</SectionLabel>
-      <h2 style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 18, fontWeight: 600, marginBottom: 16 }}>SphereQuests Gate</h2>
-      <p style={{ color: E, fontSize: 14, lineHeight: 1.7, marginBottom: 20, fontFamily: "'Inter', sans-serif" }}>
+      <h2 style={{ fontFamily: "'Hubot Sans', sans-serif", fontSize: 18, fontWeight: 600, marginBottom: 16 }}>SphereQuests Gate</h2>
+      <p style={{ color: E, fontSize: 14, lineHeight: 1.7, marginBottom: 20, fontFamily: "'Mona Sans', sans-serif" }}>
         You need at least <strong style={{ color: A }}>100 XP</strong> on SphereQuests to enter the relay.
       </p>
       {xpGate.status === 'rejected' && (
         <div style={{ background: H, border: `1px solid ${I}`, borderRadius: 10, padding: 14, marginBottom: 16 }}>
-          <p style={{ color: D, fontSize: 13, margin: 0, fontFamily: "'Inter', sans-serif" }}>You only have {xpGate.xp || 0} XP. Complete more quests and try again.</p>
+          <p style={{ color: D, fontSize: 13, margin: 0, fontFamily: "'Mona Sans', sans-serif" }}>You only have {xpGate.xp || 0} XP. Complete more quests and try again.</p>
         </div>
       )}
-      {xpGate.status === 'error' && <p style={{ color: '#ff6b6b', fontSize: 13, marginBottom: 12, fontFamily: "'Inter', sans-serif" }}>{xpGate.error}</p>}
+      {xpGate.status === 'error' && <p style={{ color: '#ff6b6b', fontSize: 13, marginBottom: 12, fontFamily: "'Mona Sans', sans-serif" }}>{xpGate.error}</p>}
       {xpGate.status === 'verified' && (
         <div style={{ background: H, border: `1px solid ${I}`, borderRadius: 10, padding: 14, marginBottom: 16 }}>
-          <p style={{ color: A, fontSize: 13, fontWeight: 600, margin: 0, fontFamily: "'Inter', sans-serif" }}>✓ Verified! You have {xpGate.xp} XP.</p>
+          <p style={{ color: A, fontSize: 13, fontWeight: 600, margin: 0, fontFamily: "'Mona Sans', sans-serif" }}>✓ Verified! You have {xpGate.xp} XP.</p>
         </div>
       )}
       {xpGate.status !== 'verified' && (
@@ -455,17 +455,17 @@ function GuildSelectView({ onSelect, selected }) {
     <div style={glassCard}>
       <StepNum n={3} />
       <SectionLabel>AFFILIATION</SectionLabel>
-      <h2 style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 18, fontWeight: 600, marginBottom: 16 }}>Choose Your Guild</h2>
-      <p style={{ color: E, fontSize: 14, marginBottom: 20, fontFamily: "'Inter', sans-serif" }}>Each guild has its own missions and Master Agent.</p>
+      <h2 style={{ fontFamily: "'Hubot Sans', sans-serif", fontSize: 18, fontWeight: 600, marginBottom: 16 }}>Choose Your Guild</h2>
+      <p style={{ color: E, fontSize: 14, marginBottom: 20, fontFamily: "'Mona Sans', sans-serif" }}>Each guild has its own missions and Master Agent.</p>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
         {guilds.map((g) => (
           <button key={g.id} onClick={() => onSelect(g.id)} style={{
             background: F, border: `1px solid ${selected === g.id ? A : G}`, borderRadius: 16, padding: '20px 16px',
-            cursor: 'pointer', color: D, textAlign: 'left', transition: 'border-color 0.2s', fontFamily: "'Inter', sans-serif",
+            cursor: 'pointer', color: D, textAlign: 'left', transition: 'border-color 0.2s', fontFamily: "'Mona Sans', sans-serif",
           }}>
             <div style={{ fontSize: 24, marginBottom: 10 }}>{g.icon}</div>
-            <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 14, fontWeight: 600, marginBottom: 4 }}>{g.name}</div>
-            <div style={{ fontSize: 12, color: E, fontFamily: "'Inter', sans-serif" }}>{g.desc}</div>
+            <div style={{ fontFamily: "'Hubot Sans', sans-serif", fontSize: 14, fontWeight: 600, marginBottom: 4 }}>{g.name}</div>
+            <div style={{ fontSize: 12, color: E, fontFamily: "'Mona Sans', sans-serif" }}>{g.desc}</div>
           </button>
         ))}
       </div>
@@ -478,7 +478,7 @@ function PassportView({ passport, onEnter }) {
     <div style={glassCard}>
       <StepNum n={4} />
       <SectionLabel>IDENTITY</SectionLabel>
-      <h2 style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 18, fontWeight: 600, marginBottom: 20 }}>Your Agent Passport</h2>
+      <h2 style={{ fontFamily: "'Hubot Sans', sans-serif", fontSize: 18, fontWeight: 600, marginBottom: 20 }}>Your Agent Passport</h2>
       <div style={{
         background: H, border: `1px solid ${I}`, borderRadius: 12, padding: 20, marginBottom: 16,
         fontFamily: "'JetBrains Mono', monospace",
@@ -498,7 +498,7 @@ function PassportView({ passport, onEnter }) {
           </div>
         ))}
       </div>
-      <p style={{ color: E, fontSize: 12, marginBottom: 16, fontFamily: "'Inter', sans-serif" }}>Save your relay key — you'll need it to connect your AI agents.</p>
+      <p style={{ color: E, fontSize: 12, marginBottom: 16, fontFamily: "'Mona Sans', sans-serif" }}>Save your relay key — you'll need it to connect your AI agents.</p>
       <button onClick={onEnter} style={btnGrad}>Enter Agent Relay →</button>
     </div>
   );
@@ -508,13 +508,13 @@ function DashboardView() {
   return (
     <div style={glassCard}>
       <SectionLabel>ACTIVE</SectionLabel>
-      <h2 style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 18, fontWeight: 600, marginBottom: 16 }}>Agent Console</h2>
-      <p style={{ color: E, fontSize: 14, marginBottom: 20, fontFamily: "'Inter', sans-serif" }}>Your passport is active. Quest agents are standing by.</p>
+      <h2 style={{ fontFamily: "'Hubot Sans', sans-serif", fontSize: 18, fontWeight: 600, marginBottom: 16 }}>Agent Console</h2>
+      <p style={{ color: E, fontSize: 14, marginBottom: 20, fontFamily: "'Mona Sans', sans-serif" }}>Your passport is active. Quest agents are standing by.</p>
       <div style={{
         background: F, border: `1px dashed ${G}`, borderRadius: 16, padding: 40, textAlign: 'center',
       }}>
         <div style={{ fontSize: 32, opacity: 0.3, marginBottom: 12 }}>⊞</div>
-        <p style={{ color: E, fontSize: 13, fontFamily: "'Inter', sans-serif" }}>Real-time agent messages will appear here</p>
+        <p style={{ color: E, fontSize: 13, fontFamily: "'Mona Sans', sans-serif" }}>Real-time agent messages will appear here</p>
       </div>
     </div>
   );
@@ -578,7 +578,7 @@ const btnGrad = {
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
-  fontFamily: "'Inter', sans-serif",
+  fontFamily: "'Mona Sans', sans-serif",
 };
 
 const btnOutline = {
@@ -594,7 +594,7 @@ const btnOutline = {
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
-  fontFamily: "'Inter', sans-serif",
+  fontFamily: "'Mona Sans', sans-serif",
   background: 'transparent',
 };
 
