@@ -129,7 +129,7 @@ function App() {
           flexDirection: 'column',
           justifyContent: 'center',
         }}>
-          {view === 'connect' && <ConnectView wallet={wallet} onConnect={handleWalletConnect} />}
+          {view === 'connect' && <ConnectView wallet={wallet} onConnect={handleWalletConnect} onPassportFound={(p) => { setPassport(p); }} />}
           {view === 'guild-select' && <GuildSelectView onSelect={handleGuildSelect} onCreate={handleCreatePassport} selected={selectedGuild} />}
           {view === 'passport' && <PassportView passport={passport} onEnter={() => setView('dashboard')} />}
           {view === 'dashboard' && <DashboardView passport={passport} wallet={wallet} identity={wallet.identity} pendingDeepLink={pendingDeepLink} setPendingDeepLink={setPendingDeepLink} onPassportUpdate={(updates) => setPassport(prev => prev ? { ...prev, ...updates } : null)} />}
@@ -760,7 +760,7 @@ function HeaderSmall({ onBack, identity, passport }) {
   );
 }
 
-function ConnectView({ wallet, onConnect }) {
+function ConnectView({ wallet, onConnect, onPassportFound }) {
   const tag = wallet.identity ? formatUserTag(wallet.identity) : null;
   const [connectPassport, setConnectPassport] = useState(null);
 
@@ -769,7 +769,7 @@ function ConnectView({ wallet, onConnect }) {
     if (wallet.identity?.directAddress) {
       fetch(`${RELAY_SERVER}/passport/wallet/${encodeURIComponent(wallet.identity.directAddress)}`)
         .then(r => r.json())
-        .then(d => { if (d.success && d.passport) setConnectPassport(d.passport); })
+        .then(d => { if (d.success && d.passport) { setConnectPassport(d.passport); onPassportFound?.(d.passport); } })
         .catch(() => {});
     }
   }, [wallet.identity?.directAddress]);
