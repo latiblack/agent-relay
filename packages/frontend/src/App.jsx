@@ -755,6 +755,20 @@ function HeaderSmall({ onBack, identity }) {
 
 function ConnectView({ wallet, onConnect }) {
   const tag = wallet.identity ? formatUserTag(wallet.identity) : null;
+  const [connectPassport, setConnectPassport] = useState(null);
+
+  // Fetch passport data when wallet connects, so we can show existing PFP
+  useEffect(() => {
+    if (wallet.identity?.directAddress) {
+      fetch(`${RELAY_SERVER}/passport/wallet/${encodeURIComponent(wallet.identity.directAddress)}`)
+        .then(r => r.json())
+        .then(d => { if (d.success && d.passport) setConnectPassport(d.passport); })
+        .catch(() => {});
+    }
+  }, [wallet.identity?.directAddress]);
+
+  const pfpUrl = connectPassport?.avatarUrl;
+
   return (
     <div style={glassCard}>
       <StepNum n={1} />
@@ -773,16 +787,36 @@ function ConnectView({ wallet, onConnect }) {
           border: `1px solid ${I}`, borderRadius: 10,
           display: 'flex', alignItems: 'center', gap: 10,
         }}>
-          <div style={{
-            width: 32, height: 32, borderRadius: '50%',
-            background: `linear-gradient(135deg, ${A}, ${B})`,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 12, fontWeight: 700, color: '#fff',
-            fontFamily: "'JetBrains Mono', monospace",
-          }}>{tag?.replace(/^@/, '').slice(0, 4).toUpperCase()}</div>
+          <div style={{ position: 'relative', width: 40, height: 40, flexShrink: 0 }}>
+            <svg width="48" height="48" style={{ position: 'absolute', top: -4, left: -4, pointerEvents: 'none' }}>
+              <defs>
+                <linearGradient id="connect-pfp-stroke" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor={A} />
+                  <stop offset="100%" stopColor={B} />
+                </linearGradient>
+              </defs>
+              <rect x="1" y="1" width="46" height="46" rx="23" ry="23"
+                fill="none" stroke="url(#connect-pfp-stroke)" strokeWidth="2.5" />
+            </svg>
+            <div style={{
+              width: 40, height: 40, borderRadius: '50%', overflow: 'hidden',
+              background: pfpUrl ? 'transparent' : `linear-gradient(135deg, ${A}, ${B})`,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 12, fontWeight: 700, color: '#fff',
+              fontFamily: "'JetBrains Mono', monospace",
+            }}>
+              {pfpUrl ? (
+                <img src={pfpUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              ) : (
+                tag?.replace(/^@/, '').slice(0, 4).toUpperCase()
+              )}
+            </div>
+          </div>
           <div>
             <div style={{ fontSize: 11, fontFamily: "'JetBrains Mono', monospace", color: A, fontWeight: 600 }}>{tag}</div>
-            <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)', fontFamily: "'Mona Sans', sans-serif" }}>Sphere identity verified</div>
+            <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)', fontFamily: "'Mona Sans', sans-serif" }}>
+              {pfpUrl ? 'Passport active' : 'Sphere identity verified'}
+            </div>
           </div>
         </div>
       )}
@@ -1057,18 +1091,30 @@ function OverviewPage({ passport, tag }) {
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 4 }}>
-        <div style={{
-          width: 40, height: 40, borderRadius: '50%', overflow: 'hidden', flexShrink: 0,
-          background: passport?.avatarUrl ? 'transparent' : `linear-gradient(135deg, ${A}, ${B})`,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 12, fontWeight: 700, color: '#fff',
-          fontFamily: "'JetBrains Mono', monospace",
-        }}>
-          {passport?.avatarUrl ? (
-            <img src={passport.avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-          ) : (
-            tag?.replace(/^@/, '').slice(0, 4).toUpperCase() || '?'
-          )}
+        <div style={{ position: 'relative', width: 40, height: 40, flexShrink: 0 }}>
+          <svg width="48" height="48" style={{ position: 'absolute', top: -4, left: -4, pointerEvents: 'none' }}>
+            <defs>
+              <linearGradient id="overview-pfp-stroke" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor={A} />
+                <stop offset="100%" stopColor={B} />
+              </linearGradient>
+            </defs>
+            <rect x="1" y="1" width="46" height="46" rx="23" ry="23"
+              fill="none" stroke="url(#overview-pfp-stroke)" strokeWidth="2.5" />
+          </svg>
+          <div style={{
+            width: 40, height: 40, borderRadius: '50%', overflow: 'hidden',
+            background: passport?.avatarUrl ? 'transparent' : `linear-gradient(135deg, ${A}, ${B})`,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 12, fontWeight: 700, color: '#fff',
+            fontFamily: "'JetBrains Mono', monospace",
+          }}>
+            {passport?.avatarUrl ? (
+              <img src={passport.avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            ) : (
+              tag?.replace(/^@/, '').slice(0, 4).toUpperCase() || '?'
+            )}
+          </div>
         </div>
         <h2 style={{ fontFamily: "'Hubot Sans', sans-serif", fontSize: 24, fontWeight: 600 }}>Overview</h2>
       </div>
