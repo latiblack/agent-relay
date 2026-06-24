@@ -117,17 +117,23 @@ function App() {
         maxWidth: isDashboard ? '100%' : 640,
         margin: '0 auto',
         padding: isDashboard ? '0' : '40px 20px',
-        display: isDashboard ? 'block' : 'flex',
-        flexDirection: 'column',
-        justifyContent: 'center',
         fontFamily: "'Mona Sans', sans-serif",
         backgroundColor: C, color: D, minHeight: '100vh',
+        display: 'flex',
+        flexDirection: 'column',
       }}>
         {!isDashboard && <HeaderSmall onBack={() => setView('landing')} identity={wallet.identity} />}
-        {view === 'connect' && <ConnectView wallet={wallet} onConnect={handleWalletConnect} />}
-        {view === 'guild-select' && <GuildSelectView onSelect={handleGuildSelect} onCreate={handleCreatePassport} selected={selectedGuild} />}
-        {view === 'passport' && <PassportView passport={passport} onEnter={() => setView('dashboard')} />}
-        {view === 'dashboard' && <DashboardView passport={passport} wallet={wallet} identity={wallet.identity} pendingDeepLink={pendingDeepLink} setPendingDeepLink={setPendingDeepLink} onPassportUpdate={(updates) => setPassport(prev => prev ? { ...prev, ...updates } : null)} />}
+        <div style={{
+          flex: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+        }}>
+          {view === 'connect' && <ConnectView wallet={wallet} onConnect={handleWalletConnect} />}
+          {view === 'guild-select' && <GuildSelectView onSelect={handleGuildSelect} onCreate={handleCreatePassport} selected={selectedGuild} />}
+          {view === 'passport' && <PassportView passport={passport} onEnter={() => setView('dashboard')} />}
+          {view === 'dashboard' && <DashboardView passport={passport} wallet={wallet} identity={wallet.identity} pendingDeepLink={pendingDeepLink} setPendingDeepLink={setPendingDeepLink} onPassportUpdate={(updates) => setPassport(prev => prev ? { ...prev, ...updates } : null)} />}
+        </div>
       </div>
     );
   }
