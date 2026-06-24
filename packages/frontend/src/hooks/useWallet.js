@@ -4,7 +4,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 
 const SPHERE_WALLET_URL = 'https://sphere.unicity.network';
-const NETWORK = 'mainnet';
+
 const REQUIRED_PERMISSIONS = [
   'identity:read',
   'sign:request',
@@ -45,7 +45,6 @@ export function useWallet() {
           icon: `${window.location.origin}/icon.svg`,
         },
         walletUrl: SPHERE_WALLET_URL,
-        network: NETWORK,
         permissions: [...REQUIRED_PERMISSIONS],
       });
 
