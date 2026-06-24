@@ -878,20 +878,30 @@ function DashboardView({ passport, wallet, identity, pendingDeepLink, setPending
       fontFamily: "'Mona Sans', sans-serif",
       position: 'relative',
     }}>
-      {/* Hamburger button */}
+      {/* Hamburger button / Logo toggle */}
       <div style={{
         position: 'fixed', top: 12, left: 12, zIndex: 200,
       }}>
-        <button onClick={() => setMenuOpen(true)} style={{
-          background: H, border: `1px solid ${I}`, borderRadius: 10,
-          color: D, width: 36, height: 36, cursor: 'pointer',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 16,
-        }}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-            <path d="M3 6h18"/><path d="M3 12h18"/><path d="M3 18h18"/>
-          </svg>
-        </button>
+        {menuOpen ? (
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 8, height: 36,
+            padding: '0 8px', cursor: 'pointer',
+          }} onClick={() => setMenuOpen(false)}>
+            <LogoMark size={18} />
+            <span style={{ fontFamily: "'Hubot Sans', sans-serif", fontWeight: 600, fontSize: 12, letterSpacing: '0.08em', color: D }}>AGENT RELAY</span>
+          </div>
+        ) : (
+          <button onClick={() => setMenuOpen(true)} style={{
+            background: H, border: `1px solid ${I}`, borderRadius: 10,
+            color: D, width: 36, height: 36, cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 16,
+          }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <path d="M3 6h18"/><path d="M3 12h18"/><path d="M3 18h18"/>
+            </svg>
+          </button>
+        )}
       </div>
 
       {/* Page title in top bar */}
