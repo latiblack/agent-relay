@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Screen 5 - Agent Console</title>
+<link href="https://fonts.googleapis.com/css2?family=Mona+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://fonts.cdnfonts.com/css/hubot-sans">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #0a0a0a; color: #f1f5f9; font-family: 'Mona Sans', sans-serif; width: 390px; height: 844px; overflow: hidden; display: flex; flex-direction: column; }
+.top-bar { position: relative; padding: 12px 16px 0; display: flex; justify-content: center; align-items: center; }
+.hamburger { position: absolute; left: 12px; top: 12px; width: 36px; height: 36px; border-radius: 10px; background: rgba(255,111,0,0.08); border: 1px solid rgba(255,111,0,0.12); color: #f1f5f9; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.page-title { font-family: 'Hubot Sans', sans-serif; font-size: 13px; font-weight: 600; letter-spacing: 0.08em; color: rgba(255,255,255,0.3); padding-top: 8px; }
+.content { flex: 1; padding: 24px 16px 12px; overflow-y: auto; display: flex; flex-direction: column; }
+.quest-header { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+.quest-id { font-size: 11px; font-family: 'JetBrains Mono', monospace; color: #FF6F00; font-weight: 600; }
+.phase-badge { font-size: 10px; font-family: 'JetBrains Mono', monospace; color: #FF6F00; display: flex; align-items: center; gap: 4px; }
+.phase-dot { width: 5px; height: 5px; border-radius: 50%; background: #FF6F00; display: inline-block; }
+.live-badge { font-size: 10px; font-family: 'JetBrains Mono', monospace; color: #22c55e; display: flex; align-items: center; gap: 4px; margin-left: auto; }
+.live-dot { width: 4px; height: 4px; border-radius: 50%; background: #22c55e; display: inline-block; }
+.copy-btn { background: transparent; border: 1px solid rgba(255,255,255,0.08); color: rgba(241,245,249,0.45); border-radius: 6px; padding: 5px 10px; font-size: 10px; font-family: 'JetBrains Mono', monospace; cursor: pointer; }
+.console { flex: 1; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; }
+.console-bar { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-bottom: 1px solid rgba(255,255,255,0.04); background: rgba(255,111,0,0.03); }
+.console-bar .prompt { display: flex; align-items: center; gap: 6px; font-family: 'JetBrains Mono', monospace; font-size: 10px; }
+.console-bar .prompt .dollar { color: #FF6F00; }
+.console-bar .prompt .cmd { color: rgba(255,255,255,0.4); }
+.console-bar .stream-status { display: flex; align-items: center; gap: 4px; font-size: 8px; font-family: 'JetBrains Mono', monospace; color: #22c55e; }
+.console-feed { flex: 1; padding: 8px 14px; overflow-y: auto; }
+.msg-row { display: flex; gap: 6px; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.03); font-family: 'JetBrains Mono', monospace; font-size: 10px; line-height: 1.5; }
+.msg-row .time { color: rgba(255,255,255,0.12); min-width: 42px; font-size: 9px; }
+.msg-row .from { font-weight: 600; min-width: 90px; font-size: 10px; }
+.msg-row .from.system { color: #22c55e; }
+.msg-row .from.agent { color: #FF6F00; }
+.msg-row .from.user { color: #3b82f6; }
+.msg-row .arrow { color: rgba(255,111,0,0.3); min-width: 12px; }
+.msg-row .to { color: #22c55e; min-width: 85px; font-size: 10px; }
+.msg-row .message { color: rgba(255,255,255,0.45); flex: 1; }
+.msg-row .message.highlight { color: #FF6F00; }
+.input-area { display: flex; gap: 8px; margin-top: 10px; }
+.input-area input { flex: 1; padding: 10px 14px; border-radius: 8px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); color: #f1f5f9; font-size: 13px; font-family: 'JetBrains Mono', monospace; outline: none; }
+.input-area input::placeholder { color: rgba(241,245,249,0.2); }
+.input-area button { background: linear-gradient(135deg, #FF6F00, #E05A00); border: none; border-radius: 8px; height: 40px; padding: 0 20px; font-size: 13px; color: #fff; font-weight: 600; cursor: pointer; font-family: 'Mona Sans', sans-serif; }
+</style>
+</head>
+<body>
+<div class="top-bar">
+  <div class="hamburger">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18"/><path d="M3 12h18"/><path d="M3 18h18"/></svg>
+  </div>
+  <div class="page-title">QUESTS</div>
+</div>
+<div class="content">
+  <div class="quest-header">
+    <span class="quest-id">signal-hunt-01</span>
+    <span class="phase-badge"><span class="phase-dot"></span>Puzzle Active</span>
+    <span class="live-badge"><span class="live-dot"></span>LIVE</span>
+    <button class="copy-btn">📋 Copy Log</button>
+  </div>
+  <div class="console">
+    <div class="console-bar">
+      <div class="prompt">
+        <span class="dollar">$</span>
+        <span class="cmd">agent-relay comms --tail</span>
+      </div>
+      <div class="stream-status"><span class="live-dot"></span>STREAMING</div>
+    </div>
+    <div class="console-feed">
+      <div class="msg-row">
+        <span class="time">10:23</span>
+        <span class="from system">SYSTEM</span>
+        <span class="arrow">→</span>
+        <span class="to">@lati</span>
+        <span class="message">Quest deployed: Signal Hunt</span>
+      </div>
+      <div class="msg-row">
+        <span class="time">10:23</span>
+        <span class="from agent">@agentrelay-verification</span>
+        <span class="arrow">→</span>
+        <span class="to">@lati</span>
+        <span class="message">Passport validated. Relaying to Puzzle...</span>
+      </div>
+      <div class="msg-row">
+        <span class="time">10:23</span>
+        <span class="from agent">@agentrelay-puzzle</span>
+        <span class="arrow">→</span>
+        <span class="to">@lati</span>
+        <span class="message">Clue 1: "The light that pulses at 7 Hz — name its source."</span>
+      </div>
+      <div class="msg-row">
+        <span class="time">10:24</span>
+        <span class="from user">@lati</span>
+        <span class="arrow">→</span>
+        <span class="to">@agentrelay-puzzle</span>
+        <span class="message highlight">light</span>
+      </div>
+      <div class="msg-row">
+        <span class="time">10:24</span>
+        <span class="from agent">@agentrelay-puzzle</span>
+        <span class="arrow">→</span>
+        <span class="to">@lati</span>
+        <span class="message">✓ Correct. Clue 2: "The frequency only the worthy can hear..."</span>
+      </div>
+      <div class="msg-row">
+        <span class="time">10:25</span>
+        <span class="from user">@lati</span>
+        <span class="arrow">→</span>
+        <span class="to">@agentrelay-puzzle</span>
+        <span class="message highlight">frequency</span>
+      </div>
+      <div class="msg-row">
+        <span class="time">10:25</span>
+        <span class="from agent">@agentrelay-puzzle</span>
+        <span class="arrow">→</span>
+        <span class="to">@lati</span>
+        <span class="message">✓ Correct. Clue 3: "A carrier of meaning through the static..."</span>
+      </div>
+      <div class="msg-row">
+        <span class="time">10:26</span>
+        <span class="from agent">@agentrelay-lore</span>
+        <span class="arrow">→</span>
+        <span class="to">@lati</span>
+        <span class="message">"The ancient relays speak of a convergence..."</span>
+      </div>
+    </div>
+  </div>
+  <div class="input-area">
+    <input type="text" placeholder="Type answer for signal-hunt-01..." value="signal">
+    <button>Send</button>
+  </div>
+</div>
+</body>
+</html>
