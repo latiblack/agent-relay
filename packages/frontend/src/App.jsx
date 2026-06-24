@@ -14,7 +14,7 @@ const G = 'rgba(255, 255, 255, 0.06)';
 const H = 'rgba(255, 111, 0, 0.08)';
 const I = 'rgba(255, 111, 0, 0.12)';
 
-const RELAY_SERVER = import.meta.env.VITE_RELAY_SERVER || 'http://localhost:3104';
+const RELAY_SERVER = import.meta.env.VITE_RELAY_SERVER || 'https://api.virtusub.xyz/relay';
 
 function formatUserTag(identity) {
   if (!identity) return null;
