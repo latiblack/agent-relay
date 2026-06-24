@@ -178,202 +178,453 @@ function LandingPage({ onStart, scrolled }) {
         </div>
       </section>
 
-      {/* Features */}
+      {/* Features — Agent Handoff Protocol */}
       <section id="features" style={{ padding: '100px 20px' }}>
         <div style={{ maxWidth: 1100, margin: '0 auto' }}>
-          <SectionLabel>FEATURES</SectionLabel>
+          <SectionLabel>HANDOFF PROTOCOL</SectionLabel>
           <h2 style={{
             fontFamily: "'Hubot Sans', sans-serif",
             fontSize: 'clamp(28px, 4vw, 42px)', fontWeight: 600, margin: '0 0 12px', letterSpacing: '-0.02em',
           }}>
-            From wallet to quest, in four steps.
+            Identity flows through a relay chain.
           </h2>
-          <p style={{ color: E, fontSize: 16, fontFamily: "'Mona Sans', sans-serif", maxWidth: 480, marginBottom: 60, lineHeight: 1.6 }}>
-            No accounts, no emails. Your Sphere wallet is all you need.
+          <p style={{ color: E, fontSize: 16, fontFamily: "'Mona Sans', sans-serif", maxWidth: 520, marginBottom: 60, lineHeight: 1.6 }}>
+            Your wallet initiates the handshake. Each node passes your state to the next
+            — no database, no backend, just peer-to-peer agent relays.
           </p>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16 }}>
-            {[
-              { num: '01', title: 'Connect Wallet', desc: 'Your Sphere wallet is your identity. One click, no accounts.', icon: '🔌' },
-              { num: '02', title: 'XP Gate', desc: '100 XP on SphereQuests unlocks the relay. Verified via popup bridge.', icon: '⚡' },
-              { num: '03', title: 'Join Guild', desc: 'Pick your guild — Explorer, Builder, Creator, or Research.', icon: '🏰' },
-              { num: '04', title: 'Get Passport', desc: 'Receive your passport ID and relay key. Your agents await.', icon: '🪪' },
-            ].map((f, i) => (
-              <div key={i} style={glassCard}>
-                <div style={{ fontSize: 11, fontFamily: "'JetBrains Mono', monospace", color: E, letterSpacing: '0.15em', marginBottom: 8 }}>{f.num}</div>
-                <div style={{ fontSize: 28, marginBottom: 16 }}>{f.icon}</div>
-                <h3 style={{ fontFamily: "'Hubot Sans', sans-serif", fontSize: 17, fontWeight: 600, marginBottom: 8 }}>{f.title}</h3>
-                <p style={{ color: E, fontSize: 13.5, lineHeight: 1.6, margin: 0, fontFamily: "'Mona Sans', sans-serif" }}>{f.desc}</p>
-              </div>
-            ))}
+          <div style={{ position: 'relative' }}>
+            {/* Connecting relay line between cards */}
+            <div style={{
+              position: 'absolute', top: 60, left: '10%', right: '10%', height: 2,
+              background: `linear-gradient(90deg, ${A}00 0%, ${A}30 15%, ${A}30 85%, ${A}00 100%)`,
+              zIndex: 0,
+            }} />
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 20, position: 'relative', zIndex: 1 }}>
+              {[
+                { num: '01', title: 'Identity Handshake', desc: 'Sphere wallet authenticates. No email, no password — your keys prove who you are.', icon: '🔑', status: 'handshake', metric: 'ED25519' },
+                { num: '02', title: 'Gate Verification', desc: 'Agent queries SphereQuests via popup bridge. 100 XP threshold enforced autonomously.', icon: '⚡', status: 'verify', metric: '~1.2s' },
+                { num: '03', title: 'Guild Assignment', desc: 'Master Agent registers you to a guild, assigns relay key, broadcasts your arrival on the DM network.', icon: '🏰', status: 'assign', metric: 'Nostr DM' },
+                { num: '04', title: 'Passport Issued', desc: 'Relay gateway confirms. Your agents discover your passport and begin queuing quests.', icon: '🪪', status: 'ready', metric: 'active' },
+              ].map((f, i) => (
+                <div key={i} style={{
+                  ...glassCard, padding: '28px 24px',
+                  borderColor: i < 3 ? G : A,
+                  position: 'relative', overflow: 'hidden',
+                }}>
+                  {/* Status bar at top */}
+                  <div style={{
+                    display: 'flex', alignItems: 'center', gap: 6, marginBottom: 16,
+                    fontSize: 10, fontFamily: "'JetBrains Mono', monospace", color: f.status === 'ready' ? A : E,
+                  }}>
+                    <span style={{
+                      width: 5, height: 5, borderRadius: '50%',
+                      background: f.status === 'ready' ? A : f.status === 'assign' ? A : '#aaa',
+                      opacity: f.status === 'ready' ? 1 : 0.4,
+                      animation: f.status === 'ready' ? 'pulseNode 2s infinite' : 'none',
+                    }} />
+                    {f.status === 'handshake' && 'IDENTIFYING'}
+                    {f.status === 'verify' && 'VERIFYING'}
+                    {f.status === 'assign' && 'ASSIGNING'}
+                    {f.status === 'ready' && '● ACTIVE'}
+                  </div>
+
+                  {/* Step counter + icon row */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+                    <div style={{
+                      fontSize: 22, fontFamily: "'JetBrains Mono', monospace", fontWeight: 600,
+                      color: f.status === 'ready' ? A : E, letterSpacing: '-0.04em',
+                    }}>{f.num}</div>
+                    <div style={{
+                      width: 36, height: 36, borderRadius: 12, display: 'flex', alignItems: 'center',
+                      justifyContent: 'center', background: H, fontSize: 18,
+                    }}>{f.icon}</div>
+                  </div>
+                  <h3 style={{ fontFamily: "'Hubot Sans', sans-serif", fontSize: 16, fontWeight: 600, marginBottom: 8 }}>{f.title}</h3>
+                  <p style={{ color: E, fontSize: 13, lineHeight: 1.6, margin: '0 0 14px', fontFamily: "'Mona Sans', sans-serif" }}>{f.desc}</p>
+                  {/* Protocol metric badge */}
+                  <div style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 4,
+                    background: 'rgba(255,255,255,0.03)', borderRadius: 6,
+                    padding: '4px 10px', fontSize: 10, fontFamily: "'JetBrains Mono', monospace",
+                    color: A, border: '1px solid rgba(255,111,0,0.12)',
+                  }}>
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+                    {f.metric}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Data flow status bar */}
+          <div style={{
+            ...glassCard, marginTop: 24, padding: '16px 24px',
+            display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 20,
+            fontFamily: "'JetBrains Mono', monospace", fontSize: 11,
+          }}>
+            <span style={{ color: A }}>$ relay handshake --status</span>
+            <span style={{ color: E }}>→</span>
+            <StatusDot color={A} label="wallet" />
+            <span style={{ color: 'rgba(255,255,255,0.15)' }}>|</span>
+            <StatusDot color={A} label="gate" />
+            <span style={{ color: 'rgba(255,255,255,0.15)' }}>|</span>
+            <StatusDot color={A} label="guild" />
+            <span style={{ color: 'rgba(255,255,255,0.15)' }}>|</span>
+            <StatusDot color="#22c55e" label="passport ✓" />
           </div>
         </div>
       </section>
 
-      {/* Quest Agents */}
+      {/* Quest Agents — Agent Status Console */}
       <section id="agents" style={{ padding: '100px 20px', background: 'rgba(255,255,255,0.01)' }}>
         <div style={{ maxWidth: 1100, margin: '0 auto' }}>
-          <SectionLabel>AGENTS</SectionLabel>
+          <SectionLabel>AGENT STATUS</SectionLabel>
           <h2 style={{
             fontFamily: "'Hubot Sans', sans-serif",
             fontSize: 'clamp(28px, 4vw, 42px)', fontWeight: 600, margin: '0 0 12px', letterSpacing: '-0.02em',
           }}>
-            Four agents, zero LLM cost.
+            Autonomous state machines, online.
           </h2>
           <p style={{ color: E, fontSize: 16, fontFamily: "'Mona Sans', sans-serif", maxWidth: 520, marginBottom: 60, lineHeight: 1.6 }}>
-            Every quest agent is a pure state machine — no API calls, no token spend,
-            just Sphere SDK P2P DMs doing the work.
+            Four independent agent processes — zero LLM calls, zero API spend.
+            Every quest is negotiated peer-to-peer over Sphere SDK Nostr DMs.
           </p>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16 }}>
             {agents.map((a, i) => (
-              <div key={i} style={{ ...glassCard, borderTop: `2px solid ${A}30` }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+              <div key={i} style={{
+                ...glassCard, borderTop: `2px solid ${A}40`,
+                position: 'relative', overflow: 'hidden',
+              }}>
+                {/* Live agent status indicator */}
+                <div style={{
+                  position: 'absolute', top: 16, right: 16,
+                  display: 'flex', alignItems: 'center', gap: 5,
+                  fontSize: 9, fontFamily: "'JetBrains Mono', monospace", color: '#22c55e',
+                }}>
+                  <span style={{
+                    width: 5, height: 5, borderRadius: '50%', background: '#22c55e',
+                    boxShadow: '0 0 6px rgba(34,197,94,0.6)',
+                    animation: 'pulseNode 2s infinite',
+                  }} />
+                  LIVE
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
                   <div style={{
-                    width: 40, height: 40, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    width: 42, height: 42, borderRadius: 14, display: 'flex', alignItems: 'center', justifyContent: 'center',
                     background: H, fontSize: 20,
                   }}>{a.icon}</div>
                   <div>
                     <div style={{ fontFamily: "'Hubot Sans', sans-serif", fontSize: 15, fontWeight: 600 }}>{a.name}</div>
-                    <div style={{ fontSize: 11, color: A, fontFamily: "'JetBrains Mono', monospace", marginTop: 2 }}>{a.protocol}</div>
+                    <div style={{ fontSize: 10, color: A, fontFamily: "'JetBrains Mono', monospace", marginTop: 3, display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+                      {a.protocol}
+                    </div>
                   </div>
                 </div>
-                <p style={{ color: E, fontSize: 13.5, lineHeight: 1.6, margin: 0, fontFamily: "'Mona Sans', sans-serif" }}>{a.desc}</p>
+                <p style={{ color: E, fontSize: 13, lineHeight: 1.6, margin: 0, fontFamily: "'Mona Sans', sans-serif" }}>{a.desc}</p>
+                {/* Agent metadata bar */}
+                <div style={{
+                  marginTop: 14, paddingTop: 12, borderTop: '1px solid rgba(255,255,255,0.04)',
+                  display: 'flex', gap: 12, fontSize: 10, fontFamily: "'JetBrains Mono', monospace",
+                }}>
+                  <span style={{ color: 'rgba(255,255,255,0.25)' }}>PID:{String(i+1).padStart(3,'0')}</span>
+                  <span style={{ color: '#22c55e' }}>uptime 99.8%</span>
+                  <span style={{ color: 'rgba(255,255,255,0.25)' }}>msgs 0</span>
+                </div>
               </div>
             ))}
           </div>
 
+          {/* Agent Message Feed — live comms simulation */}
           <div style={{
-            ...glassCard, marginTop: 24, padding: '24px 28px',
-            display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 16,
+            ...glassCard, marginTop: 24, overflow: 'hidden', padding: 0,
           }}>
-            <div>
-              <div style={{ fontFamily: "'Hubot Sans', sans-serif", fontSize: 12, fontWeight: 600, marginBottom: 4 }}>Sphere SDK P2P DM Transport</div>
-              <div style={{ color: E, fontSize: 13, lineHeight: 1.5, fontFamily: "'Mona Sans', sans-serif" }}>
-                All agent communication happens over Sphere SDK peer-to-peer direct messages over Nostr.
-                No relays, no intermediaries, no gas costs.
+            <div style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '14px 20px', borderBottom: '1px solid rgba(255,255,255,0.04)',
+              background: 'rgba(255,111,0,0.03)',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontFamily: "'JetBrains Mono', monospace", fontSize: 11 }}>
+                <span style={{ color: A }}>$</span>
+                <span style={{ color: D }}>agent-relay comms --tail -n 5</span>
+              </div>
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 6,
+                fontSize: 9, fontFamily: "'JetBrains Mono', monospace", color: 'rgba(255,255,255,0.3)',
+              }}>
+                <span style={{ width: 4, height: 4, borderRadius: '50%', background: '#22c55e', display: 'inline-block' }} />
+                P2P NOSTR
               </div>
             </div>
-            <div style={{
-              background: 'rgba(255,255,255,0.03)', borderRadius: 12, padding: '12px 20px',
-              fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: E, whiteSpace: 'nowrap',
-              border: '1px solid rgba(255,255,255,0.06)',
-            }}>
-              agent → agent → agent
+            <div style={{ padding: '16px 20px' }}>
+              {[
+                { from: 'VERIFICATION', to: 'PUZZLE', msg: 'Relay key verified. Passport: 0x7f3a... Relay handshake complete.' },
+                { from: 'PUZZLE', to: 'LORE', msg: 'New signal received. Scanning for quest triggers on channel 4.' },
+                { from: 'LORE', to: 'TREASURY', msg: 'Quest #12 narrative state: awaiting reward confirmation from master node.' },
+                { from: 'TREASURY', to: 'VERIFICATION', msg: 'Reward capsule sealed. Broadcast signed: 0xe9b2... Ready for delivery.' },
+              ].map((m, i) => (
+                <div key={i} style={{
+                  display: 'flex', gap: 10, padding: '8px 0',
+                  borderBottom: i < 3 ? '1px solid rgba(255,255,255,0.03)' : 'none',
+                  fontFamily: "'JetBrains Mono', monospace", fontSize: 10.5, lineHeight: 1.5,
+                }}>
+                  <span style={{ color: A, whiteSpace: 'nowrap', fontWeight: 600 }}>{m.from}</span>
+                  <span style={{ color: 'rgba(255,255,255,0.15)' }}>→</span>
+                  <span style={{ color: '#22c55e', whiteSpace: 'nowrap' }}>{m.to}</span>
+                  <span style={{ color: 'rgba(255,255,255,0.5)', whiteSpace: 'nowrap' }}>|</span>
+                  <span style={{ color: 'rgba(255,255,255,0.5)' }}>{m.msg}</span>
+                </div>
+              ))}
             </div>
           </div>
         </div>
       </section>
 
-      {/* Guilds */}
+      {/* Guilds — Agent Deployment Nodes */}
       <section style={{ padding: '100px 20px' }}>
         <div style={{ maxWidth: 1100, margin: '0 auto' }}>
-          <SectionLabel>GUILDS</SectionLabel>
+          <SectionLabel>DEPLOYMENT NODES</SectionLabel>
           <h2 style={{
             fontFamily: "'Hubot Sans', sans-serif",
             fontSize: 'clamp(28px, 4vw, 42px)', fontWeight: 600, margin: '0 0 12px', letterSpacing: '-0.02em',
           }}>
-            Choose your allegiance.
+            Each guild runs its own Master Agent.
           </h2>
-          <p style={{ color: E, fontSize: 16, fontFamily: "'Mona Sans', sans-serif", maxWidth: 400, marginBottom: 60, lineHeight: 1.6 }}>
-            Each guild has unique quests, a dedicated Master Agent, and its own leaderboard.
+          <p style={{ color: E, fontSize: 16, fontFamily: "'Mona Sans', sans-serif", maxWidth: 480, marginBottom: 60, lineHeight: 1.6 }}>
+            Your passport assigns you to a guild node. That node's Master Agent
+            orchestrates quests, relays messages, and maintains your agent state.
           </p>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16 }}>
             {[
-              { name: 'Explorer Guild', desc: 'Discovery & recon missions', icon: '🔭' },
-              { name: 'Builder Guild', desc: 'Development & infrastructure', icon: '⚒️' },
-              { name: 'Creator Guild', desc: 'Design & content creation', icon: '🎨' },
-              { name: 'Research Guild', desc: 'Investigation & analysis', icon: '🔬' },
+              { name: 'Explorer Guild', desc: 'Discovery & recon missions handled by Scout Agent', icon: '🔭', agents: 7, mode: 'active' },
+              { name: 'Builder Guild', desc: 'Development & infrastructure by Forge Agent', icon: '⚒️', agents: 12, mode: 'active' },
+              { name: 'Creator Guild', desc: 'Design & content by Muse Agent', icon: '🎨', agents: 5, mode: 'active' },
+              { name: 'Research Guild', desc: 'Investigation & analysis by Oracle Agent', icon: '🔬', agents: 9, mode: 'active' },
             ].map((g, i) => (
-              <div key={i} style={{ ...glassCard, textAlign: 'center', padding: '36px 24px' }}>
+              <div key={i} style={{
+                ...glassCard, textAlign: 'center', padding: '32px 24px',
+                position: 'relative', overflow: 'hidden',
+              }}>
+                {/* Guild header with agent count */}
+                <div style={{
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20,
+                }}>
+                  <div style={{
+                    fontSize: 10, fontFamily: "'JetBrains Mono', monospace", color: E,
+                    textAlign: 'left', lineHeight: 1.5,
+                  }}>
+                    <div style={{ color: 'rgba(255,255,255,0.2)', fontSize: 9 }}>NODE</div>
+                    <div style={{ color: A, fontWeight: 600 }}>G-{String(i+1).padStart(2,'0')}</div>
+                  </div>
+                  <div style={{
+                    display: 'flex', alignItems: 'center', gap: 5,
+                    background: 'rgba(34,197,94,0.08)', borderRadius: 8,
+                    padding: '4px 10px', fontSize: 11, fontFamily: "'JetBrains Mono', monospace", color: '#22c55e',
+                  }}>
+                    <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#22c55e', display: 'inline-block' }} />
+                    {g.agents} agents
+                  </div>
+                </div>
+
                 <div style={{
                   width: 56, height: 56, borderRadius: 16, display: 'flex', alignItems: 'center',
                   justifyContent: 'center', fontSize: 28, margin: '0 auto 16px', background: H,
                 }}>{g.icon}</div>
-                <h3 style={{ fontFamily: "'Hubot Sans', sans-serif", fontSize: 17, fontWeight: 600, marginBottom: 6 }}>{g.name}</h3>
-                <p style={{ color: E, fontSize: 13.5, margin: 0, fontFamily: "'Mona Sans', sans-serif" }}>{g.desc}</p>
+                <h3 style={{ fontFamily: "'Hubot Sans', sans-serif", fontSize: 17, fontWeight: 600, marginBottom: 8 }}>{g.name}</h3>
+                <p style={{ color: E, fontSize: 13, margin: '0 0 18px', fontFamily: "'Mona Sans', sans-serif" }}>{g.desc}</p>
+
+                {/* Guild mode badge */}
+                <div style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 5,
+                  background: 'rgba(255,255,255,0.03)', borderRadius: 9999,
+                  padding: '4px 14px', fontSize: 10, fontFamily: "'JetBrains Mono', monospace",
+                }}>
+                  <span style={{ width: 4, height: 4, borderRadius: '50%', background: A, display: 'inline-block', opacity: 0.7 }} />
+                  {g.mode === 'active' ? 'ACCEPTING MEMBERS' : 'FULL'}
+                </div>
               </div>
             ))}
+          </div>
+
+          {/* Network relay status — shows guild interconnect */}
+          <div style={{
+            ...glassCard, marginTop: 24, padding: '20px 24px',
+            display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 16,
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+              <div style={{
+                width: 36, height: 36, borderRadius: 12, display: 'flex', alignItems: 'center',
+                justifyContent: 'center', background: H, fontSize: 16,
+              }}>🔗</div>
+              <div>
+                <div style={{ fontFamily: "'Hubot Sans', sans-serif", fontSize: 12, fontWeight: 600, marginBottom: 2 }}>
+                  Cross-guild Master Agent Network
+                </div>
+                <div style={{ color: E, fontSize: 12, fontFamily: "'Mona Sans', sans-serif" }}>
+                  Guilds relay quest intel between each other via Sphere SDK Nostr DMs.
+                  Agents in different guilds can cooperate on shared objectives.
+                </div>
+              </div>
+            </div>
+            <div style={{
+              display: 'flex', gap: 6,
+              fontFamily: "'JetBrains Mono', monospace", fontSize: 10,
+            }}>
+              {['EX', 'BU', 'CR', 'RE'].map(code => (
+                <div key={code} style={{
+                  background: H, borderRadius: 6, padding: '4px 10px',
+                  color: A, fontWeight: 600,
+                }}>{code}</div>
+              ))}
+              <div style={{
+                background: 'rgba(255,255,255,0.03)', borderRadius: 6, padding: '4px 10px',
+                color: 'rgba(255,255,255,0.2)',
+              }}>↻</div>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* Roadmap */}
+      {/* Roadmap — Protocol Iterations */}
       <section id="roadmap" style={{ padding: '100px 20px', background: 'rgba(255,255,255,0.01)' }}>
         <div style={{ maxWidth: 700, margin: '0 auto' }}>
-          <SectionLabel>ROADMAP</SectionLabel>
+          <SectionLabel>PROTOCOL ITERATIONS</SectionLabel>
           <h2 style={{
             fontFamily: "'Hubot Sans', sans-serif",
             fontSize: 'clamp(28px, 4vw, 42px)', fontWeight: 600, margin: '0 0 10px', letterSpacing: '-0.02em',
           }}>
-            What's next.
+            Autonomous agent network evolution.
           </h2>
           <p style={{ color: E, fontSize: 14, fontFamily: "'Mona Sans', sans-serif", marginBottom: 40, lineHeight: 1.6 }}>
-            The path from MVP to full agent orchestration.
+            Each iteration adds agent capabilities, protocol upgrades, and new quest mechanics
+            to the relay network.
           </p>
 
           {[
-            { phase: 'DONE', title: 'Agent Console', desc: 'Real-time agent message viewer with WebSocket streaming', done: true },
-            { phase: 'Q2', title: 'Guide Agent', desc: 'Cheap pooled LLM (Haiku/4o-mini) for player onboarding', done: false },
-            { phase: 'Q3', title: 'Quest State Machine', desc: 'Multi-agent orchestration with branching quest paths', done: false },
-            { phase: 'Q4', title: 'Astrid WASM Capsules', desc: 'Sandboxed agent execution for trustless operation', done: false },
+            { version: 'v1.0', phase: 'LIVE', title: 'Agent Console', desc: 'Real-time agent message viewer with WebSocket streaming. Watch your quest agents negotiate live over Nostr DMs.', done: true },
+            { version: 'v2.0', phase: 'BETA', title: 'Guide Agent', desc: 'Cheap pooled LLM (Haiku/4o-mini) for onboarding. A narrated agent walks new players through the first quest flow.', done: false },
+            { version: 'v3.0', phase: 'Q3', title: 'Quest State Machine', desc: 'Multi-agent orchestration with branching quest paths. Agents negotiate dynamically based on player choices and past outcomes.', done: false },
+            { version: 'v4.0', phase: 'Q4', title: 'Astrid WASM Capsules', desc: 'Sandboxed agent execution for trustless operation. Agents run in WASM isolates with deterministic state transitions.', done: false },
           ].map((r, i) => (
             <div key={i} style={{
-              display: 'flex', gap: 20, padding: '20px 0',
-              borderBottom: i < 4 ? '1px solid rgba(255,255,255,0.04)' : 'none',
-              opacity: r.done ? 0.5 : 1,
+              display: 'flex', gap: 20, padding: '22px 0',
+              borderBottom: i < 3 ? '1px solid rgba(255,255,255,0.04)' : 'none',
             }}>
+              {/* Version badge */}
               <div style={{
-                minWidth: 48, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                background: r.done ? 'rgba(255,255,255,0.06)' : H,
-                borderRadius: 6, fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', color: r.done ? E : A,
-                fontFamily: "'JetBrains Mono', monospace",
-              }}>{r.phase}</div>
-              <div>
-                <div style={{ fontFamily: "'Hubot Sans', sans-serif", fontSize: 15, fontWeight: 600, marginBottom: 4 }}>{r.title}</div>
-                <div style={{ color: E, fontSize: 13.5, lineHeight: 1.5, fontFamily: "'Mona Sans', sans-serif" }}>{r.desc}</div>
+                minWidth: 60, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
+              }}>
+                <div style={{
+                  width: '100%', height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  background: r.done ? 'rgba(255,255,255,0.06)' : H,
+                  borderRadius: 6, fontSize: 10, fontWeight: 700, letterSpacing: '0.06em',
+                  color: r.done ? 'rgba(255,255,255,0.3)' : A,
+                  fontFamily: "'JetBrains Mono', monospace",
+                }}>{r.version}</div>
+                <div style={{
+                  fontSize: 8, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase',
+                  color: r.done ? '#22c55e' : E, opacity: r.done ? 1 : 0.5,
+                  fontFamily: "'JetBrains Mono', monospace",
+                }}>
+                  {r.done ? '✓ deployed' : r.phase}
+                </div>
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+                  <span style={{ fontFamily: "'Hubot Sans', sans-serif", fontSize: 15, fontWeight: 600 }}>{r.title}</span>
+                  {r.done && (
+                    <span style={{
+                      fontSize: 8, background: 'rgba(34,197,94,0.1)', color: '#22c55e',
+                      padding: '2px 8px', borderRadius: 4, fontWeight: 700, letterSpacing: '0.08em',
+                      fontFamily: "'JetBrains Mono', monospace",
+                    }}>ACTIVE</span>
+                  )}
+                </div>
+                <div style={{ color: E, fontSize: 13, lineHeight: 1.5, fontFamily: "'Mona Sans', sans-serif" }}>{r.desc}</div>
               </div>
             </div>
           ))}
         </div>
       </section>
 
-      {/* CTA */}
+      {/* CTA — Agent Launch Sequence */}
       <section style={{ padding: '100px 20px', textAlign: 'center' }}>
-        <div style={{ maxWidth: 500, margin: '0 auto' }}>
+        <div style={{ maxWidth: 540, margin: '0 auto' }}>
+          <div style={{
+            display: 'inline-flex', alignItems: 'center', gap: 8,
+            background: H, border: `1px solid ${I}`, borderRadius: 9999,
+            padding: '5px 16px 5px 5px', marginBottom: 28, fontSize: 10,
+            fontFamily: "'JetBrains Mono', monospace", color: A, letterSpacing: '0.06em',
+          }}>
+            <span style={{
+              background: `linear-gradient(135deg, ${A}, ${B})`, borderRadius: 9999,
+              padding: '2px 10px', color: '#fff', fontSize: 9, fontWeight: 700,
+            }}>INIT</span>
+            Ready for agent deployment
+          </div>
           <h2 style={{
             fontFamily: "'Hubot Sans', sans-serif",
             fontSize: 'clamp(24px, 3vw, 34px)', fontWeight: 600, marginBottom: 16, lineHeight: 1.2,
           }}>
-            Ready to deploy your first agent squad?
+            Deploy your agent squad to <br/>the Unicity network.
           </h2>
           <p style={{ color: E, fontSize: 15, marginBottom: 36, lineHeight: 1.6, fontFamily: "'Mona Sans', sans-serif" }}>
-            Connect your Sphere wallet and get your passport in under a minute.
+            One wallet connection deploys four autonomous agents, assigns them to a guild,
+            and activates your passport — all without a single LLM API call.
           </p>
-          <button onClick={onStart} style={btnGrad}>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 8, fontFamily: "'Mona Sans', sans-serif" }}>
-              Connect Wallet
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
-            </span>
-          </button>
+          <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
+            <button onClick={onStart} style={btnGrad}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 8, fontFamily: "'Mona Sans', sans-serif" }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                Initialize Agent Relay
+              </span>
+            </button>
+            <a href="#features" style={{
+              ...btnOutline,
+              textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 8,
+              fontFamily: "'Mona Sans', sans-serif",
+            }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/></svg>
+              Protocol Spec
+            </a>
+          </div>
         </div>
       </section>
 
-      {/* Footer */}
+      {/* Footer — Network Status Console */}
       <footer style={{
-        padding: '40px 20px', borderTop: '1px solid rgba(255,255,255,0.04)',
-        display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16,
-        maxWidth: 1100, margin: '0 auto',
+        borderTop: '1px solid rgba(255,255,255,0.04)',
+        background: 'rgba(10,10,10,0.6)',
+        backdropFilter: 'blur(12px)',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <LogoMark size={20} />
-          <span style={{ fontSize: 12, color: E, fontFamily: "'Mona Sans', sans-serif" }}>Agent Relay &mdash; Built on Unicity</span>
-        </div>
-        <div style={{ display: 'flex', gap: 20, fontSize: 13, fontFamily: "'Mona Sans', sans-serif" }}>
-          {['X', 'Discord', 'GitHub', 'LinkedIn'].map(s => (
-            <a key={s} href="#" style={{ color: E, textDecoration: 'none', transition: 'color 0.2s' }}>{s}</a>
-          ))}
+        <div style={{
+          padding: '32px 20px',
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16,
+          maxWidth: 1100, margin: '0 auto',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <LogoMark size={20} />
+            <span style={{ fontSize: 12, color: E, fontFamily: "'Mona Sans', sans-serif" }}>Agent Relay &mdash; Built on Unicity</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16, fontFamily: "'JetBrains Mono', monospace", fontSize: 10 }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+              <span style={{ width: 4, height: 4, borderRadius: '50%', background: '#22c55e', display: 'inline-block' }} />
+              <span style={{ color: 'rgba(255,255,255,0.3)' }}>agents 4/4</span>
+            </span>
+            <span style={{ color: 'rgba(255,255,255,0.1)' }}>|</span>
+            <span style={{ color: 'rgba(255,255,255,0.3)' }}>network relay</span>
+            <span style={{ color: 'rgba(255,255,255,0.1)' }}>|</span>
+            <span style={{ color: E }}>© 2026</span>
+          </div>
+          <div style={{ display: 'flex', gap: 16, fontSize: 12, fontFamily: "'Mona Sans', sans-serif" }}>
+            {['X', 'Discord', 'GitHub', 'LinkedIn'].map(s => (
+              <a key={s} href="#" style={{ color: 'rgba(255,255,255,0.3)', textDecoration: 'none', transition: 'color 0.2s', fontSize: 11 }}>{s}</a>
+            ))}
+          </div>
         </div>
       </footer>
     </div>
@@ -702,6 +953,15 @@ function StepNum({ n }) {
       fontSize: 11, fontFamily: "'JetBrains Mono', monospace", letterSpacing: '0.18em',
       color: E, marginBottom: 8,
     }}>{String(n).padStart(2, '0')}</div>
+  );
+}
+
+function StatusDot({ color, label }) {
+  return (
+    <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+      <span style={{ width: 5, height: 5, borderRadius: '50%', background: color, display: 'inline-block' }} />
+      <span style={{ color: 'rgba(255,255,255,0.4)' }}>{label}</span>
+    </span>
   );
 }
 
