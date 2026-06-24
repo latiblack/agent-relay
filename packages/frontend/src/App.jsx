@@ -125,7 +125,7 @@ function App() {
             onClick={handleWalletConnect}
             disabled={wallet.status === 'connecting'}
             style={{
-              ...styles.button,
+              ...styles.buttonGradient,
               opacity: wallet.status === 'connecting' ? 0.5 : 1,
             }}
           >
@@ -273,7 +273,7 @@ function App() {
           </p>
           <button
             onClick={() => setView('dashboard')}
-            style={styles.button}
+            style={styles.buttonGradient}
           >
             Enter Agent Relay →
           </button>
@@ -360,6 +360,9 @@ const styles = {
     color: THEME.textMuted,
     lineHeight: 1.7,
     fontSize: '14px',
+    fontWeight: 400,
+    fontFamily: "'Inter', sans-serif",
+    letterSpacing: '0.01em',
     marginBottom: '20px',
   },
   iconCircle: {
@@ -372,6 +375,23 @@ const styles = {
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
+  },
+  buttonGradient: {
+    background: 'linear-gradient(135deg, #FF6F00, #E05A00)',
+    color: '#fff',
+    border: 'none',
+    padding: '0 32px',
+    height: '56px',
+    borderRadius: THEME.radiusPill,
+    fontSize: '16px',
+    fontWeight: 600,
+    letterSpacing: '0.025em',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontFamily: "'Inter', sans-serif",
   },
   button: {
     backgroundColor: THEME.accent,

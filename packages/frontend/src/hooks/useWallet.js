@@ -4,7 +4,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 
 const SPHERE_WALLET_URL = 'https://sphere.unicity.network';
-const NETWORK = 'testnet';
+const NETWORK = 'mainnet';
 const REQUIRED_PERMISSIONS = [
   'identity:read',
   'sign:request',
