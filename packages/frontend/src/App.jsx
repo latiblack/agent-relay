@@ -333,44 +333,55 @@ function LandingPage({ onStart, scrolled }) {
             ))}
           </div>
 
-          {/* Agent Message Feed — live comms simulation */}
+          {/* Agent Message Feed — live agent-to-agent flow */}
           <div style={{
             ...glassCard, marginTop: 24, overflow: 'hidden', padding: 0,
           }}>
             <div style={{
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              padding: '14px 20px', borderBottom: '1px solid rgba(255,255,255,0.04)',
+              padding: '10px 16px', borderBottom: '1px solid rgba(255,255,255,0.04)',
               background: 'rgba(255,111,0,0.03)',
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontFamily: "'JetBrains Mono', monospace", fontSize: 11 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontFamily: "'JetBrains Mono', monospace", fontSize: 10 }}>
                 <span style={{ color: A }}>$</span>
-                <span style={{ color: D }}>agent-relay comms --tail -n 5</span>
+                <span style={{ color: 'rgba(255,255,255,0.4)' }}>comms --tail</span>
               </div>
               <div style={{
-                display: 'flex', alignItems: 'center', gap: 6,
-                fontSize: 9, fontFamily: "'JetBrains Mono', monospace", color: 'rgba(255,255,255,0.3)',
+                display: 'flex', alignItems: 'center', gap: 4,
+                fontSize: 8, fontFamily: "'JetBrains Mono', monospace", color: 'rgba(255,255,255,0.25)',
               }}>
-                <span style={{ width: 4, height: 4, borderRadius: '50%', background: '#22c55e', display: 'inline-block' }} />
-                P2P NOSTR
+                <span style={{ width: 3, height: 3, borderRadius: '50%', background: '#22c55e', display: 'inline-block' }} />
+                NOSTR
               </div>
             </div>
-            <div style={{ padding: '16px 20px' }}>
+            <div style={{ padding: '10px 16px' }}>
               {[
-                { from: 'VERIFICATION', to: 'PUZZLE', msg: 'Relay key verified. Passport: 0x7f3a... Relay handshake complete.' },
-                { from: 'PUZZLE', to: 'LORE', msg: 'New signal received. Scanning for quest triggers on channel 4.' },
-                { from: 'LORE', to: 'TREASURY', msg: 'Quest #12 narrative state: awaiting reward confirmation from master node.' },
-                { from: 'TREASURY', to: 'VERIFICATION', msg: 'Reward capsule sealed. Broadcast signed: 0xe9b2... Ready for delivery.' },
+                { from: 'VERIFICATION', to: 'PUZZLE' },
+                { from: 'PUZZLE', to: 'LORE' },
+                { from: 'LORE', to: 'TREASURY' },
+                { from: 'TREASURY', to: 'VERIFICATION' },
               ].map((m, i) => (
                 <div key={i} style={{
-                  display: 'flex', gap: 10, padding: '8px 0',
+                  display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0',
                   borderBottom: i < 3 ? '1px solid rgba(255,255,255,0.03)' : 'none',
-                  fontFamily: "'JetBrains Mono', monospace", fontSize: 10.5, lineHeight: 1.5,
+                  fontFamily: "'JetBrains Mono', monospace", fontSize: 10, lineHeight: 1.4,
                 }}>
-                  <span style={{ color: A, whiteSpace: 'nowrap', fontWeight: 600 }}>{m.from}</span>
-                  <span style={{ color: 'rgba(255,255,255,0.15)' }}>→</span>
-                  <span style={{ color: '#22c55e', whiteSpace: 'nowrap' }}>{m.to}</span>
-                  <span style={{ color: 'rgba(255,255,255,0.5)', whiteSpace: 'nowrap' }}>|</span>
-                  <span style={{ color: 'rgba(255,255,255,0.5)' }}>{m.msg}</span>
+                  <span style={{ color: A, fontWeight: 600, fontSize: 9 }}>{m.from}</span>
+                  <svg width="14" height="10" viewBox="0 0 24 12" fill="none">
+                    <path d="M2 6h18M14 2l6 4-6 4" stroke="rgba(255,111,0,0.3)" strokeWidth="1.5"/>
+                  </svg>
+                  <span style={{ color: '#22c55e', fontSize: 9 }}>{m.to}</span>
+                  <span style={{
+                    marginLeft: 'auto', display: 'flex', gap: 3,
+                  }}>
+                    {[0,1,2].map(d => (
+                      <span key={d} style={{
+                        width: 3, height: 3, borderRadius: '50%',
+                        background: `rgba(255,111,0,${0.2 + d * 0.2})`,
+                        animation: i === 0 ? `pulseNode ${1 + d * 0.3}s infinite ${d * 0.2}s` : 'none',
+                      }} />
+                    ))}
+                  </span>
                 </div>
               ))}
             </div>
@@ -501,7 +512,7 @@ function LandingPage({ onStart, scrolled }) {
 
           {[
             { version: 'v1.0', phase: 'LIVE', title: 'Agent Console', desc: 'Real-time agent message viewer with WebSocket streaming. Watch your quest agents negotiate live over Nostr DMs.', done: true },
-            { version: 'v2.0', phase: 'BETA', title: 'Guide Agent', desc: 'Cheap pooled LLM (Haiku/4o-mini) for onboarding. A narrated agent walks new players through the first quest flow.', done: false },
+            { version: 'v2.0', phase: 'BETA', title: 'Guide Agent', desc: 'A narrated agent walks new players through the first quest flow.', done: false },
             { version: 'v3.0', phase: 'Q3', title: 'Quest State Machine', desc: 'Multi-agent orchestration with branching quest paths. Agents negotiate dynamically based on player choices and past outcomes.', done: false },
             { version: 'v4.0', phase: 'Q4', title: 'Astrid WASM Capsules', desc: 'Sandboxed agent execution for trustless operation. Agents run in WASM isolates with deterministic state transitions.', done: false },
           ].map((r, i) => (
