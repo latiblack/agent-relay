@@ -122,7 +122,7 @@ function App() {
         display: 'flex',
         flexDirection: 'column',
       }}>
-        {!isDashboard && <HeaderSmall onBack={() => setView('landing')} identity={wallet.identity} />}
+        {!isDashboard && <HeaderSmall onBack={() => setView('landing')} identity={wallet.identity} passport={passport} />}
         <div style={{
           flex: 1,
           display: 'flex',
@@ -722,8 +722,9 @@ function LandingPage({ onStart, scrolled }) {
 // INNER VIEWS
 // ───────────────────────────────────────────────────
 
-function HeaderSmall({ onBack, identity }) {
+function HeaderSmall({ onBack, identity, passport }) {
   const tag = identity ? formatUserTag(identity) : null;
+  const pfpUrl = passport?.avatarUrl;
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 32 }}>
       <button onClick={onBack} style={{
@@ -740,12 +741,18 @@ function HeaderSmall({ onBack, identity }) {
           padding: '4px 10px 4px 4px',
         }}>
           <div style={{
-            width: 20, height: 20, borderRadius: '50%',
-            background: `linear-gradient(135deg, ${A}, ${B})`,
+            width: 24, height: 24, borderRadius: '50%', overflow: 'hidden', flexShrink: 0,
+            background: pfpUrl ? 'transparent' : `linear-gradient(135deg, ${A}, ${B})`,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontSize: 7, fontWeight: 700, color: '#fff',
             fontFamily: "'JetBrains Mono', monospace",
-          }}>{tag.replace(/^@/, '').slice(0, 4).toUpperCase()}</div>
+          }}>
+            {pfpUrl ? (
+              <img src={pfpUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            ) : (
+              tag.replace(/^@/, '').slice(0, 4).toUpperCase()
+            )}
+          </div>
           <span style={{ fontSize: 11, fontFamily: "'JetBrains Mono', monospace", color: A, fontWeight: 600 }}>{tag}</span>
         </div>
       )}
