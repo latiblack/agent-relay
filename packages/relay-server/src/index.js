@@ -4,6 +4,7 @@
 import 'dotenv/config';
 import { WebSocketServer } from 'ws';
 import { createServer } from 'http';
+import crypto from 'crypto';
 import { GroupVisibility } from '@unicitylabs/sphere-sdk';
 import { PassportManager } from './passport.js';
 import { VerificationAgent } from './agents/verification-agent.js';
@@ -259,7 +260,7 @@ async function main() {
   const httpServer = createServer(async (req, res) => {
     res.setHeader('Content-Type', 'application/json');
     res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
     if (req.method === 'OPTIONS') {
@@ -304,6 +305,66 @@ async function main() {
         const result = passportManager.validatePassport(key);
         res.writeHead(result.valid ? 200 : 404);
         res.end(JSON.stringify(result));
+        return;
+      }
+
+      // POST /avatar/upload — Upload profile picture
+      if (url.pathname === '/avatar/upload' && req.method === 'POST') {
+        const body = await parseBody(req);
+        const { passportId, image } = body;
+        if (!passportId || !image) {
+          res.writeHead(400);
+          res.end(JSON.stringify({ success: false, error: 'Missing passportId or image' }));
+          return;
+        }
+        // Validate base64 image
+        const match = image.match(/^data:image\/(png|jpeg|webp|gif);base64,(.+)$/);
+        if (!match) {
+          res.writeHead(400);
+          res.end(JSON.stringify({ success: false, error: 'Invalid image format. Use data:image/*;base64,...' }));
+          return;
+        }
+        const ext = match[1] === 'jpeg' ? 'jpg' : match[1];
+        const base64Data = match[2];
+        const buffer = Buffer.from(base64Data, 'base64');
+        const filename = `avatars/${passportId}-${crypto.randomBytes(8).toString('hex')}.${ext}`;
+
+        try {
+          // Upload to Supabase Storage
+          const { data: uploadData, error: uploadError } = await passportManager.supabase
+            .storage
+            .from('avatars')
+            .upload(filename, buffer, {
+              contentType: `image/${ext === 'jpg' ? 'jpeg' : ext}`,
+              upsert: false,
+            });
+
+          if (uploadError) {
+            // If file exists, try overwrite
+            const { data: uploadData2, error: uploadError2 } = await passportManager.supabase
+              .storage
+              .from('avatars')
+              .upload(filename, buffer, {
+                contentType: `image/${ext === 'jpg' ? 'jpeg' : ext}`,
+                upsert: true,
+              });
+            if (uploadError2) throw uploadError2;
+          }
+
+          // Get public URL
+          const { data: { publicUrl } } = passportManager.supabase
+            .storage
+            .from('avatars')
+            .getPublicUrl(filename);
+
+          // Update passport record
+          await passportManager.updatePassport(passportId, { avatarUrl: publicUrl });
+
+          res.end(JSON.stringify({ success: true, avatarUrl: publicUrl }));
+        } catch (err) {
+          res.writeHead(500);
+          res.end(JSON.stringify({ success: false, error: err.message }));
+        }
         return;
       }
 

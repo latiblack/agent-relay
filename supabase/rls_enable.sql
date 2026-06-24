@@ -14,3 +14,6 @@ create policy "Users can read their own passport"
   on public.passports
   for select
   using (auth.uid()::text = wallet_address);
+
+-- Add avatar_url column if it doesn't exist
+alter table public.passports add column if not exists avatar_url text;

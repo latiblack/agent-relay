@@ -240,7 +240,33 @@ export class PassportManager {
       createdAt: new Date(row.created_at).getTime(),
       questsCompleted: row.quests_completed,
       totalXp: row.total_xp,
+      avatarUrl: row.avatar_url || null,
     };
+  }
+
+  async updatePassport(passportId, fields) {
+    // Update local cache
+    const passport = this.passports.get(passportId);
+    if (passport) {
+      Object.assign(passport, fields);
+      this.passports.set(passport.relayKey, passport);
+    }
+    // Update Supabase
+    if (this.supabase) {
+      const dbFields = {};
+      if (fields.avatarUrl !== undefined) dbFields.avatar_url = fields.avatarUrl;
+      if (fields.guild !== undefined) dbFields.guild = fields.guild;
+      if (fields.nametag !== undefined) dbFields.nametag = fields.nametag;
+      if (fields.questsCompleted !== undefined) dbFields.quests_completed = fields.questsCompleted;
+      if (fields.totalXp !== undefined) dbFields.total_xp = fields.totalXp;
+      if (Object.keys(dbFields).length > 0) {
+        await this.supabase
+          .from('passports')
+          .update(dbFields)
+          .eq('passport_id', passportId);
+      }
+    }
+    return passport || this.passports.get(passportId);
   }
 
   _generatePassportId() {

@@ -1297,7 +1297,8 @@ function QuestsPage({ onDeploy, messages, connected, questState, passportId, onS
 }
 
 function ProfilePage({ passport, tag, identity }) {
-  const [pfp, setPfp] = useState(null);
+  const [pfp, setPfp] = useState(passport?.avatarUrl || null);
+  const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef(null);
 
   const details = [
@@ -1311,12 +1312,31 @@ function ProfilePage({ passport, tag, identity }) {
 
   const handlePfpClick = () => fileInputRef.current?.click();
 
-  const handlePfpUpload = (e) => {
+  const handlePfpUpload = async (e) => {
     const file = e.target.files?.[0];
-    if (!file) return;
+    if (!file || !passport?.passportId) return;
+
+    // Show local preview immediately
     const reader = new FileReader();
     reader.onload = (ev) => setPfp(ev.target.result);
     reader.readAsDataURL(file);
+
+    setUploading(true);
+    try {
+      const res = await fetch(`${RELAY_SERVER}/avatar/upload`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ passportId: passport.passportId, image: reader.result }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setPfp(data.avatarUrl);
+      }
+    } catch (err) {
+      console.error('Upload failed:', err);
+    } finally {
+      setUploading(false);
+    }
   };
 
   return (
