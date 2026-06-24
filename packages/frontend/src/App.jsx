@@ -1001,12 +1001,18 @@ function DashboardView({ passport, wallet, identity, pendingDeepLink, setPending
           <div style={{ padding: '14px 16px', borderTop: '1px solid rgba(255,255,255,0.04)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <div style={{
-                width: 26, height: 26, borderRadius: '50%',
-                background: `linear-gradient(135deg, ${A}, ${B})`,
+                width: 26, height: 26, borderRadius: '50%', overflow: 'hidden', flexShrink: 0,
+                background: passport?.avatarUrl ? 'transparent' : `linear-gradient(135deg, ${A}, ${B})`,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 fontSize: 8, fontWeight: 700, color: '#fff',
                 fontFamily: "'JetBrains Mono', monospace",
-              }}>{tag.replace(/^@/, '').slice(0, 4).toUpperCase()}</div>
+              }}>
+                {passport?.avatarUrl ? (
+                  <img src={passport.avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                ) : (
+                  tag.replace(/^@/, '').slice(0, 4).toUpperCase()
+                )}
+              </div>
               <div>
                 <div style={{ fontSize: 12, fontWeight: 600, color: D, fontFamily: "'JetBrains Mono', monospace" }}>{tag}</div>
                 <div style={{ fontSize: 10, color: E }}>{passport?.guild ? `${passport.guild.charAt(0).toUpperCase() + passport.guild.slice(1)} Guild` : 'no guild'}</div>
