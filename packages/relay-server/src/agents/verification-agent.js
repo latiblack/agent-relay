@@ -13,7 +13,16 @@ export class VerificationAgent extends QuestAgent {
   async init() {
     this.on(ACTIONS.VERIFY_KEY, (data) => this._verifyKey(data));
     this.on(ACTIONS.VERIFY_PASSPORT, (data) => this._verifyPassport(data));
-    return super.init();
+    await super.init();
+
+    // Post market intent advertising verification service
+    await this.postMarketIntent(
+      `I verify passports and relay keys for quest access on Unicity. ` +
+      `Request verification via DM with action "verify_key" and your relay key.`,
+      { intentType: 'service', category: 'quest' }
+    );
+
+    return this;
   }
 
   registerPassport(passport) {

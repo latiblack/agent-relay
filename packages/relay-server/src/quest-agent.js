@@ -30,6 +30,8 @@ export class QuestAgent {
       ...providers,
       network: this.network,
       mnemonic: this.mnemonic,
+      market: true,
+      groupChat: true,
     });
 
     this.sphere = sphere;
@@ -102,7 +104,45 @@ export class QuestAgent {
     await this.sphere.communications.sendDM(recipient, content);
   }
 
+  // ── Market Intents ──────────────────────────────
+  // Post an intent to the Sphere Market bulletin board
+  async postMarketIntent(description, opts = {}) {
+    if (!this.sphere?.market) {
+      console.warn(`[${this.nametag}] Market module not available`);
+      return null;
+    }
+    try {
+      const result = await this.sphere.market.postIntent({
+        description,
+        intentType: opts.intentType || 'service',
+        category: opts.category || 'quest',
+        contactHandle: this.nametag,
+        expiresInDays: opts.expiresInDays || 30,
+        ...opts,
+      });
+      this._marketIntentId = result.intentId;
+      console.log(`[${this.nametag}] Market intent posted: ${result.intentId} — "${description.slice(0, 60)}..."`);
+      return result;
+    } catch (err) {
+      console.warn(`[${this.nametag}] Failed to post market intent: ${err.message}`);
+      return null;
+    }
+  }
+
+  // Close the posted market intent
+  async closeMarketIntent() {
+    if (!this._marketIntentId || !this.sphere?.market) return;
+    try {
+      await this.sphere.market.closeIntent(this._marketIntentId);
+      console.log(`[${this.nametag}] Market intent closed: ${this._marketIntentId}`);
+      this._marketIntentId = null;
+    } catch (err) {
+      console.warn(`[${this.nametag}] Failed to close market intent: ${err.message}`);
+    }
+  }
+
   async destroy() {
+    await this.closeMarketIntent().catch(() => {});
     if (this.sphere) {
       await this.sphere.destroy();
     }

@@ -13,7 +13,16 @@ export class TreasuryAgent extends QuestAgent {
   async init() {
     this.on(ACTIONS.CLAIM_REWARD, (data, msg) => this._claimReward(data, msg));
     this.on(ACTIONS.GET_BALANCE, (data, msg) => this._getBalance(data, msg));
-    return super.init();
+    await super.init();
+
+    // Post market intent advertising reward service
+    await this.postMarketIntent(
+      `I issue XP rewards on quest completion. Claim rewards via DM ` +
+      `with action "claim_reward" after finishing a quest.`,
+      { intentType: 'service', category: 'quest' }
+    );
+
+    return this;
   }
 
   _claimReward(data, msg) {

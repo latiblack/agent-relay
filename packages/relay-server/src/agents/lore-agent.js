@@ -12,7 +12,16 @@ export class LoreAgent extends QuestAgent {
   async init() {
     this.on(ACTIONS.GET_STORY, (data) => this._getStory(data));
     this.on(ACTIONS.ADVANCE_STORY, (data) => this._advanceStory(data));
-    return super.init();
+    await super.init();
+
+    // Post market intent advertising narrative service
+    await this.postMarketIntent(
+      `I provide narrative context and story progression for quests on Unicity. ` +
+      `Request story chapters via DM with action "get_story".`,
+      { intentType: 'service', category: 'quest' }
+    );
+
+    return this;
   }
 
   _getStory(data) {

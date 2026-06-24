@@ -4,6 +4,7 @@
 import 'dotenv/config';
 import { WebSocketServer } from 'ws';
 import { createServer } from 'http';
+import { GroupVisibility } from '@unicitylabs/sphere-sdk';
 import { PassportManager } from './passport.js';
 import { VerificationAgent } from './agents/verification-agent.js';
 import { PuzzleAgent } from './agents/puzzle-agent.js';
@@ -12,7 +13,7 @@ import { TreasuryAgent } from './agents/treasury-agent.js';
 import { QuestSessionManager, QUEST_PHASES } from './quest-session.js';
 import { loadAllQuests } from './quest-loader.js';
 import { InAppAgent } from './inapp-agent.js';
-import { ACTIONS, QUESTS } from './constants.js';
+import { ACTIONS, QUESTS, AGENT_REGISTRY, GUILDS } from './constants.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -24,6 +25,13 @@ const WSS_PORT = parseInt(process.env.WSS_PORT || '3105', 10);
 
 // ── WebSocket clients (Agent Console connections) ──
 const wsClients = new Map(); // { passportId -> [ws, ...] }
+
+// ── NIP-29 Group Chat Guild Rooms ─────────────────
+const guildGroupChats = new Map(); // guildName -> { groupId, relayUrl }
+
+function getGuildGroupChat(guildName) {
+  return guildGroupChats.get(guildName) || null;
+}
 
 function broadcastToConsole(passportId, message) {
   const clients = wsClients.get(passportId);
@@ -156,6 +164,16 @@ async function main() {
 
   const agents = { verificationAgent, puzzleAgent, loreAgent, treasuryAgent };
 
+  // Expose for market queries from HTTP handlers
+  let agentsOnline = false;
+  const getMarketModule = () => {
+    // Try each agent's sphere market module
+    for (const agent of Object.values(agents)) {
+      if (agent.sphere?.market) return agent.sphere.market;
+    }
+    return null;
+  };
+
   // 3. Quest Session Manager
   const sessionManager = new QuestSessionManager();
 
@@ -171,6 +189,64 @@ async function main() {
     treasuryAgent.init(),
   ]);
   console.log('All quest agents online');
+  agentsOnline = true;
+
+  // ── Create NIP-29 Group Chat Guild Rooms ──────────
+  async function createGuildGroupChats(agents) {
+    const { verificationAgent } = agents;
+    const gc = verificationAgent.sphere?.groupChat;
+    if (!gc) {
+      console.warn('[GroupChat] groupChat module not available — skipping guild room creation');
+      return;
+    }
+
+    try {
+      // Wait for groupchat:ready event before creating groups
+      if (!gc.getConnectionStatus()) {
+        await new Promise((resolve) => {
+          verificationAgent.sphere.on('groupchat:ready', () => {
+            console.log('[GroupChat] Module ready');
+            resolve();
+          });
+          // Timeout fallback after 15s
+          setTimeout(() => {
+            console.warn('[GroupChat] Timeout waiting for groupchat:ready — proceeding anyway');
+            resolve();
+          }, 15000);
+        });
+      }
+
+      console.log('[GroupChat] Creating guild chat rooms...');
+
+      const guildNames = Object.values(GUILDS); // ['explorer', 'builder', 'creator', 'research']
+
+      for (const guildName of guildNames) {
+        const groupName = `${guildName}-guild`;
+        const group = await gc.createGroup({
+          name: groupName,
+          description: `${guildName.charAt(0).toUpperCase() + guildName.slice(1)} guild — quest chat room`,
+          visibility: GroupVisibility.PUBLIC,
+        });
+
+        if (group) {
+          guildGroupChats.set(guildName, {
+            groupId: group.id,
+            relayUrl: group.relayUrl,
+          });
+          console.log(`[GroupChat] ✓ Guild room created: ${groupName} (id: ${group.id})`);
+        } else {
+          console.warn(`[GroupChat] ✗ Failed to create group: ${groupName}`);
+        }
+      }
+
+      console.log(`[GroupChat] All ${guildNames.length} guild rooms created`);
+    } catch (err) {
+      console.error('[GroupChat] Error creating guild rooms:', err.message);
+    }
+  }
+
+  // Fire and forget — guild rooms are created asynchronously
+  createGuildGroupChats(agents);
 
   // Link verification agent to passport manager
   verificationAgent.registerPassport = (passport) => {
@@ -277,6 +353,79 @@ async function main() {
         return;
       }
 
+      // POST /connect/launch — Launch quest via deep link (Connect wallet flow)
+      if (url.pathname === '/connect/launch' && req.method === 'POST') {
+        const body = await parseBody(req);
+        const { questId, passportId } = body;
+
+        if (!questId || !passportId) {
+          res.writeHead(400);
+          res.end(JSON.stringify({ error: 'questId and passportId are required' }));
+          return;
+        }
+
+        const passport = passportManager.validatePassport(passportId)?.passport;
+        if (!passport) {
+          res.writeHead(400);
+          res.end(JSON.stringify({ error: 'Invalid passport' }));
+          return;
+        }
+
+        const quest = QUESTS[questId];
+        if (!quest) {
+          res.writeHead(400);
+          res.end(JSON.stringify({ error: `Unknown quest: ${questId}` }));
+          return;
+        }
+
+        // Build deep link URL for the Connect wallet flow
+        const baseUrl = process.env.CONNECT_DEEP_LINK_BASE || 'unicity://connect';
+        const deepLinkUrl = `${baseUrl}/launch?questId=${encodeURIComponent(questId)}&passportId=${encodeURIComponent(passportId)}`;
+
+        // Spawn the in-app agent for this quest (same as /quest/deploy)
+        if (inAppAgents.has(passportId)) {
+          inAppAgents.get(passportId).stop();
+        }
+
+        const tag = passport.nametag || '@user';
+        const agent = new InAppAgent({
+          questId,
+          quest,
+          passport,
+          userTag: tag,
+          onMessage: (msg) => broadcastToConsole(passportId, msg),
+          mnemonic: process.env.IN_APP_MNEMONIC,
+          network: NETWORK,
+          dataDir: DATA_DIR,
+        });
+        inAppAgents.set(passportId, agent);
+
+        agent.init()
+          .then(() => agent.start())
+          .catch(err => {
+            console.error('[InAppAgent] Error:', err);
+            broadcastToConsole(passportId, {
+              from: 'SYSTEM', to: tag,
+              message: `[ERROR] ${err.message}`,
+              phase: 'error',
+            });
+          });
+
+        const questGroup = getGuildGroupChat(passport.guild);
+
+        res.end(JSON.stringify({
+          success: true,
+          deepLink: deepLinkUrl,
+          data: {
+            questId,
+            quest: quest.title,
+            guild: passport.guild,
+            guildGroupChat: questGroup || undefined,
+          },
+        }));
+        return;
+      }
+
       // POST /quest/submit-answer — User submits an answer. Routes through in-app agent.
       if (url.pathname === '/quest/submit-answer' && req.method === 'POST') {
         const body = await parseBody(req);
@@ -314,6 +463,55 @@ async function main() {
         return;
       }
 
+      // GET /quest/market/explore — Discover available quests from Market bulletin board
+      if (url.pathname === '/quest/market/explore' && req.method === 'GET') {
+        const searchQuery = url.searchParams.get('q') || 'quest';
+        const market = getMarketModule();
+        if (!market) {
+          // Fallback: return locally defined quests
+          res.end(JSON.stringify({
+            success: true,
+            source: 'local',
+            quests: Object.entries(QUESTS).map(([id, q]) => ({
+              id, title: q.title, guild: q.guild,
+              difficulty: q.difficulty, description: q.description,
+              fragments: q.fragments?.length || 0, reward: q.reward,
+            })),
+          }));
+          return;
+        }
+        try {
+          const result = await market.search(searchQuery, {
+            filters: { category: 'quest' },
+            limit: parseInt(url.searchParams.get('limit') || '20', 10),
+          });
+          res.end(JSON.stringify({
+            success: true,
+            source: 'market',
+            count: result.count,
+            intents: result.intents,
+            localQuests: Object.entries(QUESTS).map(([id, q]) => ({
+              id, title: q.title, guild: q.guild,
+              difficulty: q.difficulty, description: q.description,
+              fragments: q.fragments?.length || 0, reward: q.reward,
+            })),
+          }));
+        } catch (err) {
+          console.error('[Market] Search error:', err.message);
+          // Fallback to local
+          res.end(JSON.stringify({
+            success: true,
+            source: 'local',
+            quests: Object.entries(QUESTS).map(([id, q]) => ({
+              id, title: q.title, guild: q.guild,
+              difficulty: q.difficulty, description: q.description,
+              fragments: q.fragments?.length || 0, reward: q.reward,
+            })),
+          }));
+        }
+        return;
+      }
+
       // GET /health
       if (url.pathname === '/health') {
         res.end(JSON.stringify({
@@ -341,6 +539,8 @@ async function main() {
     console.log(`  GET  /passport/:key      - Validate passport`);
     console.log(`  POST /quest/deploy       - Deploy quest (start state machine)`);
     console.log(`  POST /quest/submit-answer - Submit puzzle answer`);
+    console.log(`  POST /connect/launch     - Launch quest via deep link`);
+    console.log(`  GET  /quest/market/explore - Discover quests via Market bulletin board`);
     console.log(`  GET  /quest/state/:id    - Get quest state`);
     console.log(`  GET  /health             - Health check`);
   });

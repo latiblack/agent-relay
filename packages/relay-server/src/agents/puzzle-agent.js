@@ -14,7 +14,20 @@ export class PuzzleAgent extends QuestAgent {
     this.on(ACTIONS.SUBMIT_ANSWER, (data, msg) => this._handleAnswer(data, msg));
     this.on(ACTIONS.REQUEST_HINT, (data, msg) => this._handleHint(data, msg));
     this.on(ACTIONS.GET_QUEST_INFO, (data) => this._handleQuestInfo(data));
-    return super.init();
+    await super.init();
+
+    // Post market intent advertising available puzzles
+    const quests = Object.values(QUESTS).filter(q => q.fragments?.length > 0);
+    if (quests.length > 0) {
+      const qNames = quests.map(q => q.title).join(', ');
+      await this.postMarketIntent(
+        `Puzzles available: ${qNames}. Decode fragments to uncover hidden signals. ` +
+        `Submit answers via DM with action "submit_answer".`,
+        { intentType: 'service', category: 'quest' }
+      );
+    }
+
+    return this;
   }
 
   _handleAnswer(data, msg) {

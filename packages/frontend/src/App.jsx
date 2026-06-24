@@ -35,11 +35,22 @@ function App() {
   const [view, setView] = useState('landing');
   const [selectedGuild, setSelectedGuild] = useState(null);
   const [scrolled, setScrolled] = useState(false);
+  const [pendingDeepLink, setPendingDeepLink] = useState(null);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 60);
     window.addEventListener('scroll', onScroll);
     return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
+  // Parse deep link params on mount
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const questParam = params.get('quest');
+    if (questParam) {
+      setPendingDeepLink(questParam);
+      window.history.replaceState({}, '', window.location.pathname);
+    }
   }, []);
 
   const handleWalletConnect = async () => {
@@ -79,7 +90,7 @@ function App() {
         {view === 'connect' && <ConnectView wallet={wallet} onConnect={handleWalletConnect} />}
         {view === 'guild-select' && <GuildSelectView onSelect={handleGuildSelect} onCreate={handleCreatePassport} selected={selectedGuild} />}
         {view === 'passport' && <PassportView passport={passport} onEnter={() => setView('dashboard')} />}
-        {view === 'dashboard' && <DashboardView passport={passport} wallet={wallet} identity={wallet.identity} />}
+        {view === 'dashboard' && <DashboardView passport={passport} wallet={wallet} identity={wallet.identity} pendingDeepLink={pendingDeepLink} setPendingDeepLink={setPendingDeepLink} />}
       </div>
     );
   }
@@ -811,12 +822,21 @@ function PassportView({ passport, onEnter }) {
   );
 }
 
-function DashboardView({ passport, wallet, identity }) {
+function DashboardView({ passport, wallet, identity, pendingDeepLink, setPendingDeepLink }) {
   const [page, setPage] = useState('overview');
   const [menuOpen, setMenuOpen] = useState(false);
   const tag = identity ? formatUserTag(identity) : null;
 
   const { messages, connected, questState, clearMessages } = useQuestConsole(passport?.passportId);
+
+  // Auto-deploy deep link quest when passport is ready
+  useEffect(() => {
+    if (pendingDeepLink && passport?.passportId) {
+      deployQuest(pendingDeepLink);
+      setPage('quests');
+      setPendingDeepLink(null);
+    }
+  }, [pendingDeepLink, passport?.passportId]);
 
   const deployQuest = async (questId) => {
     try {
@@ -846,6 +866,7 @@ function DashboardView({ passport, wallet, identity }) {
   const navItems = [
     { id: 'overview', label: 'Overview', icon: '◉' },
     { id: 'quests', label: 'Quests', icon: '◆' },
+    { id: 'guild-chat', label: 'Guild Chat', icon: '💬' },
     { id: 'profile', label: 'Profile', icon: '◎' },
   ];
 
@@ -953,6 +974,7 @@ function DashboardView({ passport, wallet, identity }) {
       <div style={{ padding: '48px 20px 40px', maxWidth: 800, margin: '0 auto' }}>
         {page === 'overview' && <OverviewPage passport={passport} tag={tag} />}
         {page === 'quests' && <QuestsPage onDeploy={deployQuest} messages={messages} connected={connected} questState={questState} passportId={passport?.passportId} onSubmitAnswer={submitAnswer} onBackToQuests={() => { clearMessages(); }} />}
+        {page === 'guild-chat' && <GuildChatPage passport={passport} tag={tag} identity={identity} />}
         {page === 'profile' && <ProfilePage passport={passport} tag={tag} identity={identity} />}
       </div>
     </div>
@@ -1087,17 +1109,33 @@ function QuestsPage({ onDeploy, messages, connected, questState, passportId, onS
                 <p style={{ color: E, fontSize: 13, lineHeight: 1.5, margin: '0 0 12px', fontFamily: "'Mona Sans', sans-serif" }}>{q.desc}</p>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div style={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace", color: 'rgba(255,255,255,0.25)' }}>Agent: {q.agent}</div>
-                  {q.status === 'available' && (
-                    <button onClick={() => handleDeploy(q.id)} style={{ ...btnGrad, height: 32, padding: '0 16px', fontSize: 12, borderRadius: 8 }}>
-                      <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontFamily: "'Mona Sans', sans-serif" }}>
-                        Deploy Agent
-                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
-                      </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    {q.status === 'available' && (
+                      <button onClick={() => handleDeploy(q.id)} style={{ ...btnGrad, height: 32, padding: '0 16px', fontSize: 12, borderRadius: 8 }}>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontFamily: "'Mona Sans', sans-serif" }}>
+                          Deploy Agent
+                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                        </span>
+                      </button>
+                    )}
+                    {q.status === 'locked' && (
+                      <span style={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace", color: 'rgba(255,255,255,0.15)' }}>Complete previous quest →</span>
+                    )}
+                    <button
+                      onClick={() => {
+                        const link = `https://agent-quest-relay.vercel.app?quest=${q.id}`;
+                        navigator.clipboard?.writeText(link);
+                      }}
+                      style={{
+                        background: 'transparent', border: '1px solid rgba(255,255,255,0.08)',
+                        color: E, borderRadius: 6, padding: '4px 10px', fontSize: 10,
+                        fontFamily: "'JetBrains Mono', monospace", cursor: 'pointer',
+                      }}
+                      title="Copy quest deep link"
+                    >
+                      🔗 Share
                     </button>
-                  )}
-                  {q.status === 'locked' && (
-                    <span style={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace", color: 'rgba(255,255,255,0.15)' }}>Complete previous quest →</span>
-                  )}
+                  </div>
                 </div>
               </div>
             ))}
@@ -1250,6 +1288,211 @@ function ProfilePage({ passport, tag, identity }) {
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+// ── Guild Chat ──────────────────────────────────
+
+function GuildChatPage({ passport, tag, identity }) {
+  const [chatMessages, setChatMessages] = useState([]);
+  const [chatInput, setChatInput] = useState('');
+  const [wsConnected, setWsConnected] = useState(false);
+  const [guildName, setGuildName] = useState(null);
+  const wsRef = useRef(null);
+  const chatBottomRef = useRef(null);
+
+  // Initialize guild name from passport
+  useEffect(() => {
+    if (passport?.guild) {
+      setGuildName(`${passport.guild.charAt(0).toUpperCase() + passport.guild.slice(1)} Guild`);
+    }
+  }, [passport]);
+
+  // WebSocket connection for guild chat
+  useEffect(() => {
+    if (!passport?.passportId) return;
+    const wsUrl = RELAY_SERVER.replace(/^http/, 'ws') + '/ws/guild-chat';
+    let ws;
+    try {
+      ws = new WebSocket(wsUrl);
+      wsRef.current = ws;
+
+      ws.onopen = () => {
+        setWsConnected(true);
+        // Send join message
+        ws.send(JSON.stringify({ type: 'join', passportId: passport.passportId, userTag: tag }));
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.type === 'chat' || data.message) {
+            setChatMessages(prev => [...prev, {
+              id: Date.now() + Math.random(),
+              from: data.from || data.userTag || 'Agent',
+              message: data.message || data.text || data.content || '',
+              time: data.time || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+              system: false,
+            }]);
+          } else if (data.type === 'system' || data.system) {
+            setChatMessages(prev => [...prev, {
+              id: Date.now() + Math.random(),
+              from: 'SYSTEM',
+              message: data.message || data.text || '',
+              time: data.time || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+              system: true,
+            }]);
+          }
+        } catch {
+          // Plain text message
+          setChatMessages(prev => [...prev, {
+            id: Date.now() + Math.random(),
+            from: 'Relay',
+            message: event.data,
+            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            system: false,
+          }]);
+        }
+      };
+
+      ws.onclose = () => setWsConnected(false);
+      ws.onerror = () => setWsConnected(false);
+    } catch {
+      setWsConnected(false);
+    }
+
+    return () => {
+      if (ws) {
+        ws.close();
+        wsRef.current = null;
+      }
+    };
+  }, [passport?.passportId]);
+
+  // Auto-scroll to bottom
+  useEffect(() => {
+    chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatMessages]);
+
+  const handleChatSubmit = (e) => {
+    e.preventDefault();
+    if (!chatInput.trim() || !wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
+    const msg = chatInput.trim();
+    wsRef.current.send(JSON.stringify({ type: 'chat', message: msg, userTag: tag }));
+    setChatMessages(prev => [...prev, {
+      id: Date.now(),
+      from: tag || 'You',
+      message: msg,
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      system: false,
+    }]);
+    setChatInput('');
+  };
+
+  return (
+    <div>
+      {/* Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+        <div>
+          <h2 style={{ fontFamily: "'Hubot Sans', sans-serif", fontSize: 24, fontWeight: 600, margin: '0 0 4px' }}>
+            {guildName || 'Guild Chat'}
+          </h2>
+          <div style={{ fontSize: 12, color: E, fontFamily: "'Mona Sans', sans-serif", display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{
+              width: 6, height: 6, borderRadius: '50%',
+              background: wsConnected ? '#22c55e' : '#ef4444',
+              display: 'inline-block',
+              boxShadow: wsConnected ? '0 0 6px rgba(34,197,94,0.6)' : 'none',
+            }} />
+            {wsConnected ? 'Connected' : 'Disconnected'}
+          </div>
+        </div>
+      </div>
+
+      {/* Chat message area */}
+      <div style={{
+        ...glassCard, padding: 0, overflow: 'hidden', marginBottom: 12,
+      }}>
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '10px 16px', borderBottom: '1px solid rgba(255,255,255,0.04)',
+          background: 'rgba(255,111,0,0.03)',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontFamily: "'JetBrains Mono', monospace", fontSize: 10 }}>
+            <span style={{ color: A }}>$</span>
+            <span style={{ color: 'rgba(255,255,255,0.4)' }}>guild-chat --live</span>
+          </div>
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 4,
+            fontSize: 8, fontFamily: "'JetBrains Mono', monospace",
+            color: wsConnected ? '#22c55e' : '#ef4444',
+          }}>
+            <span style={{
+              width: 3, height: 3, borderRadius: '50%',
+              background: wsConnected ? '#22c55e' : '#ef4444',
+              display: 'inline-block',
+            }} />
+            {wsConnected ? 'STREAMING' : 'OFFLINE'}
+          </div>
+        </div>
+        <div style={{ padding: '8px 16px', maxHeight: 380, overflow: 'auto', minHeight: 180 }}>
+          {chatMessages.length === 0 ? (
+            <div style={{
+              padding: '50px 0', textAlign: 'center', fontFamily: "'JetBrains Mono', monospace",
+              fontSize: 11, color: 'rgba(255,255,255,0.15)',
+            }}>
+              {wsConnected ? 'Connected. Messages will appear here...' : 'Waiting for connection...'}
+            </div>
+          ) : (
+            chatMessages.map((m, i) => (
+              <div key={m.id} style={{
+                display: 'flex', gap: 8, padding: '7px 0',
+                borderBottom: i < chatMessages.length - 1 ? '1px solid rgba(255,255,255,0.03)' : 'none',
+                fontFamily: "'JetBrains Mono', monospace", fontSize: 11, lineHeight: 1.5,
+              }}>
+                <span style={{ color: 'rgba(255,255,255,0.12)', minWidth: 44, fontSize: 9 }}>{m.time}</span>
+                <span style={{
+                  color: m.system ? '#22c55e' : A,
+                  fontWeight: 600, minWidth: 70, fontSize: 10,
+                }}>
+                  {m.from}
+                </span>
+                <span style={{
+                  color: m.system ? 'rgba(34,197,94,0.6)' : D,
+                  flex: 1, wordBreak: 'break-word',
+                }}>
+                  {m.message}
+                </span>
+              </div>
+            ))
+          )}
+          <div ref={chatBottomRef} />
+        </div>
+      </div>
+
+      {/* Chat input */}
+      <form onSubmit={handleChatSubmit} style={{ display: 'flex', gap: 8 }}>
+        <input
+          type="text"
+          value={chatInput}
+          onChange={(e) => setChatInput(e.target.value)}
+          placeholder={wsConnected ? 'Type a message...' : 'Connecting...'}
+          disabled={!wsConnected}
+          style={{
+            flex: 1, padding: '10px 14px', borderRadius: 8,
+            background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
+            color: D, fontSize: 13, fontFamily: "'JetBrains Mono', monospace",
+            outline: 'none', opacity: wsConnected ? 1 : 0.4,
+          }}
+        />
+        <button type="submit" disabled={!wsConnected || !chatInput.trim()} style={{
+          ...btnGrad, height: 40, padding: '0 20px', fontSize: 13, borderRadius: 8,
+          opacity: wsConnected && chatInput.trim() ? 1 : 0.4,
+        }}>
+          Send
+        </button>
+      </form>
     </div>
   );
 }

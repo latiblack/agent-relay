@@ -1,8 +1,10 @@
 # 🤖 Agent Relay
 
-**Multi-agent quest platform built on Unicity.** Users get a Unicity passport, join a guild, and watch AI agents negotiate quests over Sphere SDK peer-to-peer DMs.
+**Multi-agent quest platform built on Unicity.** Connect your Sphere wallet, join a guild, and watch four AI agents negotiate quests over Sphere SDK peer-to-peer DMs — zero LLM calls, zero API spend.
 
-```
+The agents are discoverable on the **Sphere Market** bulletin board, use **NIP-29 group chats** for guild communication, and can be launched via **`unicity://connect` deep links**.
+
+```ascii
 ┌─────────────┐    ┌─────────────┐    ┌─────────────┐    ┌─────────────┐
 │ Verification│    │    Puzzle   │    │     Lore    │    │  Treasury   │
 │    Agent    │◄──►│    Agent    │◄──►│    Agent    │◄──►│    Agent    │
@@ -10,60 +12,93 @@
        ▲                 ▲                  ▲                    ▲
        │                 │                  │                    │
        └─────────────────┴────── Sphere SDK P2P DMs ────────────┘
+       │                 │                  │                    │
+       └─────────────────┴─── Market Intents (bulletin board) ──┘
                                  │
-                          ┌──────┴──────┐
-                          │  Relay API  │
-                          │  :3104/:3105│
-                          └──────┬──────┘
+                          ┌──────┴──────┐         ┌──────────────┐
+                          │  Relay API  │◄───────►│ NIP-29 Guild │
+                          │  :3104/:3105│         │  Group Chats │
+                          └──────┬──────┘         └──────────────┘
                                  │
-                          ┌──────┴──────┐
-                          │   Frontend  │
-                          │ (Vite+React)│
-                          └─────────────┘
+                    ┌────────────┴────────────┐
+                    │                         │
+             ┌──────┴──────┐          ┌───────┴───────┐
+             │   Frontend  │◄────────►│  Deep Links   │
+             │ (Vite+React)│   quest  │ unicity://___ │
+             └─────────────┘    param └───────────────┘
 ```
 
 ## ✨ Flow
 
-1. **Connect Wallet** — Sphere wallet via Sphere Connect SDK
-2. **XP Gate** — 100 XP check via SphereQuests popup bridge
-3. **Join Guild** — Explorer, Builder, Creator, or Research
-4. **Get Passport** — Relay key + passport ID for agent access
-5. **Agent Console** — Real-time stream of agent-to-agent mission negotiation
+1. **Connect Wallet** — Sphere wallet (any BIP39 mnemonic)
+2. **Join Guild** — Explorer, Builder, Creator, or Research guild
+3. **Get Passport** — Relay key + passport ID for agent access
+4. **Pick a Quest** — Available quests listed from the on-chain Market
+5. **Agent Console** — Real-time stream of agent-to-agent DM negotiation
+6. **Solve & Earn** — Submit answers → agents validate → XP rewarded
+
+### Deep Link Flow
+
+Share quests with anyone via a link:
+```
+https://agent-quest-relay.vercel.app?quest=signal-hunt-01
+```
+or from Sphere wallet:
+```
+unicity://connect/launch?questId=signal-hunt-01&passportId=AR-XXXX
+```
 
 ## 🧠 Quest Agents
 
-All agents are **zero-LLM state machines** — pure logic + Sphere SDK P2P DMs:
+All agents are **Sphere SDK identities** with their own mnemonics, nametags, and Nostr DMs:
 
-| Agent | Role | Subprotocol |
-|-------|------|-------------|
-| **Verification** | Validates passports & relay keys | Key exchange |
-| **Puzzle** | Presents puzzles, validates answers | Challenge/response |
-| **Lore** | Advances narrative, provides context | Story progression |
-| **Treasury** | Awards completion badges & on-chain rewards | Reward distribution |
+| Agent | Nametag | Role | Market Intent |
+|-------|---------|------|--------------|
+| **Verification** | `@ar-verify` | Validates passports & relay keys | `verify_key` service |
+| **Puzzle** | `@agentrelay-puzzle` | Presents puzzles, validates answers | Signal Hunt puzzle |
+| **Lore** | `@agentrelay-lore` | Advances narrative, provides context | Story progression |
+| **Treasury** | `@agentrelay-treasury` | Awards XP on completion | Reward claims |
+
+Each agent posts a **Market Intent** on startup, making them discoverable on the [Sphere Market](https://sphere.unicity.network/markets). Search for "quest" to find them.
+
+## 💬 NIP-29 Guild Group Chats
+
+Four guild chat rooms are created on server startup:
+
+| Room | Purpose |
+|------|---------|
+| `explorer-guild` | Discovery & recon missions |
+| `builder-guild` | Development & infrastructure |
+| `creator-guild` | Design & content |
+| `research-guild` | Investigation & analysis |
 
 ## 🏗️ Architecture
 
 ```
 agent-relay/
 ├── packages/
-│   ├── frontend/          # Vite + React + Sphere Connect
+│   ├── frontend/              # Vite + React (hosted on Vercel)
 │   │   └── src/
-│   │       ├── App.jsx           # Main flow UI
-│   │       ├── hooks/
-│   │       │   ├── useWallet.js        # Sphere wallet connection
-│   │       │   └── useSphereQuestsGate.js  # XP popup bridge
-│   │       └── ...
-│   └── relay-server/      # Node.js + Sphere SDK
+│   │       ├── App.jsx                # Main flow UI
+│   │       └── hooks/
+│   │           ├── useWallet.js       # Sphere wallet connection
+│   │           └── useQuestConsole.js # WS agent console
+│   └── relay-server/          # Node.js backend (VPS)
 │       └── src/
-│           ├── index.js             # HTTP API + WebSocket bridge
-│           ├── passport.js          # Passport/relay key generation
-│           ├── quest-agent.js       # Base agent class
-│           └── agents/
-│               ├── verification-agent.js
-│               ├── puzzle-agent.js
-│               ├── lore-agent.js
-│               └── treasury-agent.js
-├── package.json           # npm workspaces root
+│           ├── index.js               # HTTP API + WebSocket bridge
+│           ├── passport.js            # Passport/relay key + Supabase
+│           ├── quest-agent.js         # Base agent class (Sphere SDK)
+│           ├── quest-session.js       # Quest state machine
+│           ├── quest-loader.js        # .md quest parser
+│           ├── inapp-agent.js         # Per-user AI middleman
+│           ├── constants.js           # Agent registry, quest defs
+│           ├── agents/
+│           │   ├── verification-agent.js
+│           │   ├── puzzle-agent.js
+│           │   ├── lore-agent.js
+│           │   └── treasury-agent.js
+│           └── quests/               # .md quest definition files
+├── supabase/                  # DB schema for passport persistence
 └── README.md
 ```
 
@@ -73,8 +108,7 @@ agent-relay/
 
 - Node.js 18+
 - npm 9+
-- [Sphere SDK](https://docs.unicity.network/sphere-sdk) compatible wallet
-- SphereQuests account with 100+ XP (for gated features)
+- [Sphere SDK](https://sphere.unicity.network/developers) compatible wallet
 
 ### Local Development
 
@@ -119,11 +153,15 @@ Frontend runs on `http://localhost:3000`, relay server on `http://localhost:3104
 | `PUZZLE_MNEMONIC` | — | Sphere mnemonic for Puzzle Agent |
 | `LORE_MNEMONIC` | — | Sphere mnemonic for Lore Agent |
 | `TREASURY_MNEMONIC` | — | Sphere mnemonic for Treasury Agent |
+| `IN_APP_MNEMONIC` | — | Sphere mnemonic for per-user InApp Agent |
+| `SUPABASE_URL` | — | Supabase project URL (passport persistence) |
+| `SUPABASE_SERVICE_KEY` | — | Supabase service role key |
+| `CONNECT_DEEP_LINK_BASE` | `unicity://connect` | Deep link URL scheme |
 
 ## 🌐 Deployment
 
-- **Frontend** → Deploy `packages/frontend` to **Vercel** (SPA rewrites configured in `vercel.json`). Set `VITE_RELAY_SERVER` env var in Vercel dashboard.
-- **Relay Server** → Deploy `packages/relay-server` to your own Node host (VPS, Fly.io, Railway, Render).
+- **Frontend** → Deploy `packages/frontend` to **Vercel** (SPA rewrites configured in `vercel.json`). Set `VITE_RELAY_SERVER` env var.
+- **Relay Server** → Deploy to your own Node host (VPS, Fly.io, Railway). Requires a Supabase project for passport persistence.
 
 ## 🧪 API
 
@@ -133,10 +171,7 @@ Frontend runs on `http://localhost:3000`, relay server on `http://localhost:3104
 POST /passport
 Content-Type: application/json
 
-{
-  "walletAddress": "0x...",
-  "guild": "explorer"
-}
+{ "walletAddress": "DIRECT://...", "guild": "explorer", "nametag": "@alice" }
 
 → {
   "success": true,
@@ -144,9 +179,67 @@ Content-Type: application/json
     "passportId": "AR-a1b2c3d4",
     "relayKey": "x9k2-m4v7",
     "guild": "explorer",
-    "walletAddress": "0x..."
+    "walletAddress": "DIRECT://..."
   }
 }
+```
+
+### Deploy Quest
+
+```http
+POST /quest/deploy
+Content-Type: application/json
+
+{ "passportId": "AR-a1b2c3d4", "questId": "signal-hunt-01" }
+
+→ { "success": true, "data": { "questId": "signal-hunt-01", "quest": "Signal Hunt", "fragments": 5 } }
+```
+
+### Submit Answer
+
+```http
+POST /quest/submit-answer
+Content-Type: application/json
+
+{ "passportId": "AR-a1b2c3d4", "answer": "light" }
+
+→ { "success": true }
+```
+
+### Explore Market (Sphere Bulletin Board)
+
+```http
+GET /quest/market/explore?q=quest&limit=10
+
+→ {
+  "source": "market",
+  "count": 4,
+  "intents": [ ... agent listings ... ],
+  "localQuests": [ ... local quest defs ... ]
+}
+```
+
+### Launch via Deep Link
+
+```http
+POST /connect/launch
+Content-Type: application/json
+
+{ "questId": "signal-hunt-01", "passportId": "AR-a1b2c3d4" }
+
+→ {
+  "success": true,
+  "deepLink": "unicity://connect/launch?questId=signal-hunt-01&passportId=AR-a1b2c3d4",
+  "data": { "questId": "signal-hunt-01", "quest": "Signal Hunt", "guild": "explorer" }
+}
+```
+
+### Health Check
+
+```http
+GET /health
+
+→ { "status": "ok", "agents": 4, "quests": 1, "sessions": 0 }
 ```
 
 ### WebSocket Bridge
@@ -155,11 +248,15 @@ Connect to `ws://<host>:3105` to stream agent-to-agent messages in real time.
 
 ## 🔮 Roadmap
 
+- [x] **Pure Sphere SDK Identity** — All agents run as Sphere instances with Nostr DMs
+- [x] **Market Intents** — Agents discoverable on the Sphere bulletin board
+- [x] **NIP-29 Group Chats** — Guild chat rooms on the NIP-29 relay
+- [x] **Deep Links** — `unicity://connect` URL scheme for quest launc
+- [ ] **AgentSphere Listing** — Register on sphere.unicity.network/agents
 - [ ] **In-app Guide Agent** — Cheap pooled LLM (Haiku/4o-mini) for player onboarding
-- [ ] **Quest State Machine** — Full multi-agent orchestration with branching paths
 - [ ] **Guild Leaderboards** — Reputation & completion tracking
 - [ ] **Astrid WASM Migration** — Sandboxed agent capsules for trustless execution
-- [ ] **Universal .md Protocol** — Any AI client can parse quests and submit answers
+- [ ] **Sponsored Missions** — Third-party quest submissions via Market Intents
 
 ## 🛡️ License
 

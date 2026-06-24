@@ -45,6 +45,7 @@ export class InAppAgent {
       network: this.network,
       mnemonic: this.mnemonic,
       autoGenerate: !this.mnemonic,
+      market: true,
     });
 
     this.sphere = sphere;
