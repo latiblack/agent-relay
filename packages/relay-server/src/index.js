@@ -94,6 +94,7 @@ async function main() {
         const passport = await passportManager.createPassport({
           walletAddress: body.walletAddress,
           guild: body.guild,
+          nametag: body.nametag,
         });
         verificationAgent.registerPassport(passport);
         res.writeHead(201);

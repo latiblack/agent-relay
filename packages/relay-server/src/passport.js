@@ -1,38 +1,49 @@
-// Agent Relay - Passport System
-// Generates passport IDs and relay keys, manages storage
+// Agent Relay - Passport System with Supabase
+// Persists passport data to Supabase Postgres
 
-import { Sphere } from '@unicitylabs/sphere-sdk';
-import { createNodeProviders } from '@unicitylabs/sphere-sdk/impl/nodejs';
-import { v4 as uuidv4 } from 'uuid';
+import { createClient } from '@supabase/supabase-js';
+
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
 
 export class PassportManager {
   constructor({ network = 'testnet', dataDir }) {
     this.network = network;
     this.dataDir = dataDir;
-    this.sphere = null;
-    this.passports = new Map(); // In-memory; replace with Neon/Postgres
+    this.passports = new Map(); // local cache for fast lookups
+    this.supabase = null;
+
+    if (SUPABASE_URL && SUPABASE_SERVICE_KEY) {
+      this.supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+      console.log('[PassportManager] Supabase connected');
+    } else {
+      console.warn('[PassportManager] No Supabase credentials — using in-memory only');
+    }
   }
 
   async init(agentMnemonic) {
-    const providers = createNodeProviders({
-      network: this.network,
-      dataDir: this.dataDir,
-    });
-
-    const { sphere } = await Sphere.init({
-      ...providers,
-      network: this.network,
-      mnemonic: agentMnemonic,
-    });
-
-    this.sphere = sphere;
+    // Warm cache from Supabase on startup
+    if (this.supabase) {
+      try {
+        const { data } = await this.supabase
+          .from('passports')
+          .select('*');
+        if (data) {
+          for (const row of data) {
+            const passport = this._rowToPassport(row);
+            this.passports.set(passport.passportId, passport);
+            this.passports.set(passport.relayKey, passport);
+          }
+          console.log(`[PassportManager] Loaded ${data.length} passports from Supabase`);
+        }
+      } catch (err) {
+        console.error('[PassportManager] Failed to warm cache:', err.message);
+      }
+    }
     return this;
   }
 
-  /**
-   * Generate a new passport for a user
-   */
-  async createPassport({ walletAddress, guild }) {
+  async createPassport({ walletAddress, guild, nametag }) {
     const passportId = this._generatePassportId();
     const relayKey = this._generateRelayKey();
 
@@ -41,51 +52,104 @@ export class PassportManager {
       relayKey,
       walletAddress,
       guild,
+      nametag: nametag || null,
       createdAt: Date.now(),
       questsCompleted: 0,
       totalXp: 0,
     };
 
+    // Persist to Supabase
+    if (this.supabase) {
+      const { error } = await this.supabase
+        .from('passports')
+        .insert({
+          passport_id: passportId,
+          relay_key: relayKey,
+          wallet_address: walletAddress,
+          nametag: nametag || null,
+          guild,
+          quests_completed: 0,
+          total_xp: 0,
+        });
+      if (error) {
+        console.error('[PassportManager] Supabase insert error:', error.message);
+        throw new Error(`Failed to save passport: ${error.message}`);
+      }
+    }
+
+    // Local cache
     this.passports.set(passportId, passport);
     this.passports.set(relayKey, passport);
 
-    // TODO: Store on Unicity as a Sphere L3 token
-    // const token = await this.sphere.payments.mintFungibleToken(ASSET_COIN_ID, 1n);
-    // Store passport data as token metadata via IPFS
-
     return passport;
   }
 
-  /**
-   * Validate a relay key or passport ID
-   */
   validatePassport(key) {
-    return this.passports.has(key)
-      ? { valid: true, passport: this.passports.get(key) }
+    const passport = this.passports.get(key);
+    return passport
+      ? { valid: true, passport }
       : { valid: false };
   }
 
-  /**
-   * Record quest completion
-   */
-  recordCompletion(passportId, questId, xpEarned) {
+  async recordCompletion(passportId, questId, xpEarned) {
     const passport = this.passports.get(passportId);
     if (!passport) return null;
+
     passport.questsCompleted++;
     passport.totalXp += xpEarned;
+
+    // Update in Supabase
+    if (this.supabase) {
+      await this.supabase
+        .from('passports')
+        .update({
+          quests_completed: passport.questsCompleted,
+          total_xp: passport.totalXp,
+        })
+        .eq('passport_id', passportId);
+    }
+
     return passport;
   }
 
+  async getPassportByWallet(walletAddress) {
+    // Check cache first
+    for (const p of this.passports.values()) {
+      if (p.walletAddress === walletAddress) return p;
+    }
+    // Fallback to Supabase query
+    if (this.supabase) {
+      const { data } = await this.supabase
+        .from('passports')
+        .select('*')
+        .eq('wallet_address', walletAddress)
+        .single();
+      if (data) return this._rowToPassport(data);
+    }
+    return null;
+  }
+
+  _rowToPassport(row) {
+    return {
+      passportId: row.passport_id,
+      relayKey: row.relay_key,
+      walletAddress: row.wallet_address,
+      nametag: row.nametag,
+      guild: row.guild,
+      createdAt: new Date(row.created_at).getTime(),
+      questsCompleted: row.quests_completed,
+      totalXp: row.total_xp,
+    };
+  }
+
   _generatePassportId() {
-    const short = uuidv4().split('-')[0].toUpperCase();
-    return `AR-${short}`;
+    const hex = Math.random().toString(16).slice(2, 10).toUpperCase();
+    return `AR-${hex}`;
   }
 
   _generateRelayKey() {
-    const parts = [
-      uuidv4().split('-')[0].slice(0, 4).toUpperCase(),
-      uuidv4().split('-')[0].slice(0, 4).toUpperCase(),
-    ];
-    return parts.join('-');
+    const a = Math.random().toString(36).slice(2, 6).toUpperCase();
+    const b = Math.random().toString(36).slice(2, 6).toUpperCase();
+    return `${a}-${b}`;
   }
 }

@@ -57,7 +57,7 @@ function App() {
       const res = await fetch(`${RELAY_SERVER}/passport`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ walletAddress: wallet.identity.directAddress, guild: selectedGuild }),
+        body: JSON.stringify({ walletAddress: wallet.identity.directAddress, guild: selectedGuild, nametag: wallet.identity.nametag || null }),
       });
       const data = await res.json();
       if (data.success) { setPassport(data.passport); setView('passport'); }
