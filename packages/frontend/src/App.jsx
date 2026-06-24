@@ -16,11 +16,15 @@ const I = 'rgba(255, 111, 0, 0.12)';
 
 const RELAY_SERVER = import.meta.env.VITE_RELAY_SERVER || 'http://localhost:3104';
 
-function formatUserTag(address) {
-  if (!address) return null;
-  // Extract hex portion from DIRECT://0x... or similar formats
-  const hex = address.replace(/^direct:\/\//i, '').replace(/^0x/i, '');
-  if (hex.length < 8) return address.slice(0, 12);
+function formatUserTag(identity) {
+  if (!identity) return null;
+  // Use nametag if available (e.g. @lati)
+  if (identity.nametag) return identity.nametag.startsWith('@') ? identity.nametag : `@${identity.nametag}`;
+  // Fall back to formatted address
+  const addr = identity.directAddress;
+  if (!addr) return null;
+  const hex = addr.replace(/^direct:\/\//i, '').replace(/^0x/i, '');
+  if (hex.length < 8) return addr.slice(0, 12);
   return `0x${hex.slice(0, 4)}...${hex.slice(-4)}`;
 }
 
@@ -657,7 +661,7 @@ function LandingPage({ onStart, scrolled }) {
 // ───────────────────────────────────────────────────
 
 function HeaderSmall({ onBack, identity }) {
-  const tag = identity?.directAddress ? formatUserTag(identity.directAddress) : null;
+  const tag = identity ? formatUserTag(identity) : null;
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 32 }}>
       <button onClick={onBack} style={{
@@ -679,7 +683,7 @@ function HeaderSmall({ onBack, identity }) {
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontSize: 7, fontWeight: 700, color: '#fff',
             fontFamily: "'JetBrains Mono', monospace",
-          }}>{tag.slice(2, 6).toUpperCase()}</div>
+          }}>{tag.replace(/^@/, '').slice(0, 4).toUpperCase()}</div>
           <span style={{ fontSize: 11, fontFamily: "'JetBrains Mono', monospace", color: A, fontWeight: 600 }}>{tag}</span>
         </div>
       )}
@@ -688,7 +692,7 @@ function HeaderSmall({ onBack, identity }) {
 }
 
 function ConnectView({ wallet, onConnect }) {
-  const tag = wallet.identity?.directAddress ? formatUserTag(wallet.identity.directAddress) : null;
+  const tag = wallet.identity ? formatUserTag(wallet.identity) : null;
   return (
     <div style={glassCard}>
       <StepNum n={1} />
@@ -713,7 +717,7 @@ function ConnectView({ wallet, onConnect }) {
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontSize: 12, fontWeight: 700, color: '#fff',
             fontFamily: "'JetBrains Mono', monospace",
-          }}>{tag?.slice(2, 6).toUpperCase()}</div>
+          }}>{tag?.replace(/^@/, '').slice(0, 4).toUpperCase()}</div>
           <div>
             <div style={{ fontSize: 11, fontFamily: "'JetBrains Mono', monospace", color: A, fontWeight: 600 }}>{tag}</div>
             <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)', fontFamily: "'Mona Sans', sans-serif" }}>Sphere identity verified</div>
