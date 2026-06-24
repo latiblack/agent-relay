@@ -63,7 +63,7 @@ function App() {
   if (view !== 'landing') {
     return (
       <div style={{ maxWidth: 640, margin: '0 auto', padding: '40px 20px 80px', fontFamily: "'Mona Sans', sans-serif", backgroundColor: C, color: D, minHeight: '100vh' }}>
-        <HeaderSmall onBack={() => setView('landing')} />
+        <HeaderSmall onBack={() => setView('landing')} identity={wallet.identity} />
         {view === 'connect' && <ConnectView wallet={wallet} onConnect={handleWalletConnect} />}
         {view === 'guild-select' && <GuildSelectView onSelect={handleGuildSelect} onCreate={handleCreatePassport} selected={selectedGuild} />}
         {view === 'passport' && <PassportView passport={passport} onEnter={() => setView('dashboard')} />}
@@ -656,7 +656,8 @@ function LandingPage({ onStart, scrolled }) {
 // INNER VIEWS
 // ───────────────────────────────────────────────────
 
-function HeaderSmall({ onBack }) {
+function HeaderSmall({ onBack, identity }) {
+  const tag = identity?.directAddress ? formatUserTag(identity.directAddress) : null;
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 32 }}>
       <button onClick={onBack} style={{
@@ -666,6 +667,22 @@ function HeaderSmall({ onBack }) {
       }}>← Back</button>
       <LogoMark size={22} />
       <span style={{ fontFamily: "'Hubot Sans', sans-serif", fontWeight: 600, fontSize: 14, letterSpacing: '0.1em' }}>AGENT RELAY</span>
+      {tag && (
+        <div style={{
+          marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6,
+          background: H, border: `1px solid ${I}`, borderRadius: 8,
+          padding: '4px 10px 4px 4px',
+        }}>
+          <div style={{
+            width: 20, height: 20, borderRadius: '50%',
+            background: `linear-gradient(135deg, ${A}, ${B})`,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 7, fontWeight: 700, color: '#fff',
+            fontFamily: "'JetBrains Mono', monospace",
+          }}>{tag.slice(2, 6).toUpperCase()}</div>
+          <span style={{ fontSize: 11, fontFamily: "'JetBrains Mono', monospace", color: A, fontWeight: 600 }}>{tag}</span>
+        </div>
+      )}
     </div>
   );
 }
