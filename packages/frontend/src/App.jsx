@@ -124,7 +124,7 @@ function App() {
         {view === 'connect' && <ConnectView wallet={wallet} onConnect={handleWalletConnect} />}
         {view === 'guild-select' && <GuildSelectView onSelect={handleGuildSelect} onCreate={handleCreatePassport} selected={selectedGuild} />}
         {view === 'passport' && <PassportView passport={passport} onEnter={() => setView('dashboard')} />}
-        {view === 'dashboard' && <DashboardView passport={passport} wallet={wallet} identity={wallet.identity} pendingDeepLink={pendingDeepLink} setPendingDeepLink={setPendingDeepLink} />}
+        {view === 'dashboard' && <DashboardView passport={passport} wallet={wallet} identity={wallet.identity} pendingDeepLink={pendingDeepLink} setPendingDeepLink={setPendingDeepLink} onPassportUpdate={(updates) => setPassport(prev => prev ? { ...prev, ...updates } : null)} />}
       </div>
     );
   }
@@ -862,7 +862,7 @@ function PassportView({ passport, onEnter }) {
   );
 }
 
-function DashboardView({ passport, wallet, identity, pendingDeepLink, setPendingDeepLink }) {
+function DashboardView({ passport, wallet, identity, pendingDeepLink, setPendingDeepLink, onPassportUpdate }) {
   const [page, setPage] = useState('overview');
   const [menuOpen, setMenuOpen] = useState(false);
   const tag = identity ? formatUserTag(identity) : null;
@@ -1021,7 +1021,7 @@ function DashboardView({ passport, wallet, identity, pendingDeepLink, setPending
         {page === 'overview' && <OverviewPage passport={passport} tag={tag} />}
         {page === 'quests' && <QuestsPage onDeploy={deployQuest} messages={messages} connected={connected} questState={questState} passportId={passport?.passportId} onSubmitAnswer={submitAnswer} onBackToQuests={() => { clearMessages(); }} />}
         {page === 'guild-chat' && <GuildChatPage passport={passport} tag={tag} identity={identity} />}
-        {page === 'profile' && <ProfilePage passport={passport} tag={tag} identity={identity} />}
+        {page === 'profile' && <ProfilePage passport={passport} tag={tag} identity={identity} onPassportUpdate={onPassportUpdate} />}
       </div>
     </div>
   );
@@ -1296,10 +1296,15 @@ function QuestsPage({ onDeploy, messages, connected, questState, passportId, onS
   );
 }
 
-function ProfilePage({ passport, tag, identity }) {
+function ProfilePage({ passport, tag, identity, onPassportUpdate }) {
   const [pfp, setPfp] = useState(passport?.avatarUrl || null);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef(null);
+
+  // Sync pfp when passport data updates (e.g., after API re-fetch)
+  useEffect(() => {
+    if (passport?.avatarUrl) setPfp(passport.avatarUrl);
+  }, [passport?.avatarUrl]);
 
   const details = [
     { label: 'PASSPORT ID', value: passport?.passportId, color: A },
@@ -1316,24 +1321,34 @@ function ProfilePage({ passport, tag, identity }) {
     const file = e.target.files?.[0];
     if (!file || !passport?.passportId) return;
 
-    // Show local preview immediately
-    const reader = new FileReader();
-    reader.onload = (ev) => setPfp(ev.target.result);
-    reader.readAsDataURL(file);
-
+    // Read file FIRST, then upload
     setUploading(true);
     try {
+      const dataUrl = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(new Error('Failed to read file'));
+        reader.readAsDataURL(file);
+      });
+
+      // Show local preview
+      setPfp(dataUrl);
+
+      // Upload to server
       const res = await fetch(`${RELAY_SERVER}/avatar/upload`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ passportId: passport.passportId, image: reader.result }),
+        body: JSON.stringify({ passportId: passport.passportId, image: dataUrl }),
       });
       const data = await res.json();
       if (data.success) {
         setPfp(data.avatarUrl);
+        onPassportUpdate?.({ avatarUrl: data.avatarUrl });
+      } else {
+        console.error('Upload failed:', data.error);
       }
     } catch (err) {
-      console.error('Upload failed:', err);
+      console.error('Upload error:', err);
     } finally {
       setUploading(false);
     }
