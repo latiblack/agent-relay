@@ -16,6 +16,14 @@ const I = 'rgba(255, 111, 0, 0.12)';
 
 const RELAY_SERVER = import.meta.env.VITE_RELAY_SERVER || 'http://localhost:3104';
 
+function formatUserTag(address) {
+  if (!address) return null;
+  // Extract hex portion from DIRECT://0x... or similar formats
+  const hex = address.replace(/^direct:\/\//i, '').replace(/^0x/i, '');
+  if (hex.length < 8) return address.slice(0, 12);
+  return `0x${hex.slice(0, 4)}...${hex.slice(-4)}`;
+}
+
 function App() {
   const wallet = useWallet();
   const [passport, setPassport] = useState(null);
@@ -35,13 +43,17 @@ function App() {
     if (wallet.status === 'connected') setView('guild-select');
   };
 
-  const handleGuildSelect = async (guild) => {
+  const handleGuildSelect = (guild) => {
     setSelectedGuild(guild);
+  };
+
+  const handleCreatePassport = async () => {
+    if (!selectedGuild || !wallet.identity?.directAddress) return;
     try {
       const res = await fetch(`${RELAY_SERVER}/passport`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ walletAddress: wallet.identity.directAddress, guild }),
+        body: JSON.stringify({ walletAddress: wallet.identity.directAddress, guild: selectedGuild }),
       });
       const data = await res.json();
       if (data.success) { setPassport(data.passport); setView('passport'); }
@@ -53,7 +65,7 @@ function App() {
       <div style={{ maxWidth: 640, margin: '0 auto', padding: '40px 20px 80px', fontFamily: "'Mona Sans', sans-serif", backgroundColor: C, color: D, minHeight: '100vh' }}>
         <HeaderSmall onBack={() => setView('landing')} />
         {view === 'connect' && <ConnectView wallet={wallet} onConnect={handleWalletConnect} />}
-        {view === 'guild-select' && <GuildSelectView onSelect={handleGuildSelect} selected={selectedGuild} />}
+        {view === 'guild-select' && <GuildSelectView onSelect={handleGuildSelect} onCreate={handleCreatePassport} selected={selectedGuild} />}
         {view === 'passport' && <PassportView passport={passport} onEnter={() => setView('dashboard')} />}
         {view === 'dashboard' && <DashboardView />}
       </div>
@@ -659,6 +671,7 @@ function HeaderSmall({ onBack }) {
 }
 
 function ConnectView({ wallet, onConnect }) {
+  const tag = wallet.identity?.directAddress ? formatUserTag(wallet.identity.directAddress) : null;
   return (
     <div style={glassCard}>
       <StepNum n={1} />
@@ -671,12 +684,30 @@ function ConnectView({ wallet, onConnect }) {
       <button onClick={onConnect} disabled={wallet.status === 'connecting'} style={{ ...btnGrad, opacity: wallet.status === 'connecting' ? 0.5 : 1 }}>
         {wallet.status === 'connecting' ? 'Connecting...' : 'Connect Wallet'}
       </button>
-      {wallet.identity && <p style={{ color: A, fontSize: 13, fontWeight: 600, marginTop: 12, fontFamily: "'Mona Sans', sans-serif" }}>Connected: {wallet.identity.directAddress?.slice(0, 16)}...</p>}
+      {wallet.identity && (
+        <div style={{
+          marginTop: 16, padding: '12px 16px', background: H,
+          border: `1px solid ${I}`, borderRadius: 10,
+          display: 'flex', alignItems: 'center', gap: 10,
+        }}>
+          <div style={{
+            width: 32, height: 32, borderRadius: '50%',
+            background: `linear-gradient(135deg, ${A}, ${B})`,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 12, fontWeight: 700, color: '#fff',
+            fontFamily: "'JetBrains Mono', monospace",
+          }}>{tag?.slice(2, 6).toUpperCase()}</div>
+          <div>
+            <div style={{ fontSize: 11, fontFamily: "'JetBrains Mono', monospace", color: A, fontWeight: 600 }}>{tag}</div>
+            <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)', fontFamily: "'Mona Sans', sans-serif" }}>Sphere identity verified</div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-function GuildSelectView({ onSelect, selected }) {
+function GuildSelectView({ onSelect, onCreate, selected }) {
   const guilds = [
     { id: 'explorer', name: 'Explorer Guild', desc: 'Discovery missions', icon: '🔭' },
     { id: 'builder', name: 'Builder Guild', desc: 'Development missions', icon: '⚒️' },
@@ -701,6 +732,21 @@ function GuildSelectView({ onSelect, selected }) {
           </button>
         ))}
       </div>
+      {/* Continue button */}
+      <button
+        onClick={onCreate}
+        disabled={!selected}
+        style={{
+          ...btnGrad, marginTop: 20, width: '100%',
+          opacity: selected ? 1 : 0.35,
+          cursor: selected ? 'pointer' : 'not-allowed',
+        }}
+      >
+        <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontFamily: "'Mona Sans', sans-serif" }}>
+          {selected ? `Join ${guilds.find(g => g.id === selected)?.name || 'Guild'}` : 'Select a guild to continue'}
+          {selected && <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>}
+        </span>
+      </button>
     </div>
   );
 }
