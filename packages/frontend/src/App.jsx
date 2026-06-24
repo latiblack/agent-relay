@@ -65,13 +65,20 @@ function App() {
   };
 
   if (view !== 'landing') {
+    const isDashboard = view === 'dashboard';
     return (
-      <div style={{ maxWidth: 640, margin: '0 auto', padding: '40px 20px 80px', fontFamily: "'Mona Sans', sans-serif", backgroundColor: C, color: D, minHeight: '100vh' }}>
-        <HeaderSmall onBack={() => setView('landing')} identity={wallet.identity} />
+      <div style={{ 
+        maxWidth: isDashboard ? '100%' : 640,
+        margin: '0 auto',
+        padding: isDashboard ? '0' : '40px 20px 80px',
+        fontFamily: "'Mona Sans', sans-serif",
+        backgroundColor: C, color: D, minHeight: '100vh',
+      }}>
+        {!isDashboard && <HeaderSmall onBack={() => setView('landing')} identity={wallet.identity} />}
         {view === 'connect' && <ConnectView wallet={wallet} onConnect={handleWalletConnect} />}
         {view === 'guild-select' && <GuildSelectView onSelect={handleGuildSelect} onCreate={handleCreatePassport} selected={selectedGuild} />}
         {view === 'passport' && <PassportView passport={passport} onEnter={() => setView('dashboard')} />}
-        {view === 'dashboard' && <DashboardView />}
+        {view === 'dashboard' && <DashboardView passport={passport} wallet={wallet} identity={wallet.identity} />}
       </div>
     );
   }
@@ -803,17 +810,275 @@ function PassportView({ passport, onEnter }) {
   );
 }
 
-function DashboardView() {
+function DashboardView({ passport, wallet, identity }) {
+  const [page, setPage] = useState('overview');
+  const tag = identity ? formatUserTag(identity) : null;
+
+  const navItems = [
+    { id: 'overview', label: 'Overview', icon: '◉' },
+    { id: 'quests', label: 'Quests', icon: '◆' },
+    { id: 'console', label: 'Agent Console', icon: '▸' },
+    { id: 'profile', label: 'Profile', icon: '◎' },
+  ];
+
   return (
-    <div style={glassCard}>
-      <SectionLabel>ACTIVE</SectionLabel>
-      <h2 style={{ fontFamily: "'Hubot Sans', sans-serif", fontSize: 18, fontWeight: 600, marginBottom: 16 }}>Agent Console</h2>
-      <p style={{ color: E, fontSize: 14, marginBottom: 20, fontFamily: "'Mona Sans', sans-serif" }}>Your passport is active. Quest agents are standing by.</p>
+    <div style={{
+      display: 'flex', minHeight: 'calc(100vh - 80px)', gap: 0,
+      fontFamily: "'Mona Sans', sans-serif",
+    }}>
+      {/* Sidebar */}
       <div style={{
-        background: F, border: `1px dashed ${G}`, borderRadius: 16, padding: 40, textAlign: 'center',
+        width: 180, minWidth: 180, padding: '24px 0',
+        borderRight: '1px solid rgba(255,255,255,0.04)',
+        display: 'flex', flexDirection: 'column',
       }}>
-        <div style={{ fontSize: 32, opacity: 0.3, marginBottom: 12 }}>⊞</div>
-        <p style={{ color: E, fontSize: 13, fontFamily: "'Mona Sans', sans-serif" }}>Real-time agent messages will appear here</p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '0 16px 20px', borderBottom: '1px solid rgba(255,255,255,0.04)', marginBottom: 12 }}>
+          <LogoMark size={18} />
+          <span style={{ fontFamily: "'Hubot Sans', sans-serif", fontWeight: 600, fontSize: 12, letterSpacing: '0.08em' }}>AGENT RELAY</span>
+        </div>
+        {navItems.map(n => (
+          <button key={n.id} onClick={() => setPage(n.id)} style={{
+            display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px',
+            background: page === n.id ? H : 'transparent',
+            border: 'none', borderRight: page === n.id ? `2px solid ${A}` : '2px solid transparent',
+            color: page === n.id ? A : E, cursor: 'pointer', fontSize: 13, fontWeight: page === n.id ? 600 : 400,
+            textAlign: 'left', fontFamily: "'Mona Sans', sans-serif", transition: 'all 0.15s',
+          }}>
+            <span style={{ fontSize: 10, opacity: 0.6 }}>{n.icon}</span>
+            {n.label}
+          </button>
+        ))}
+        <div style={{ marginTop: 'auto', padding: '16px', borderTop: '1px solid rgba(255,255,255,0.04)' }}>
+          {tag && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <div style={{
+                width: 22, height: 22, borderRadius: '50%',
+                background: `linear-gradient(135deg, ${A}, ${B})`,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 7, fontWeight: 700, color: '#fff',
+                fontFamily: "'JetBrains Mono', monospace",
+              }}>{tag.replace(/^@/, '').slice(0, 4).toUpperCase()}</div>
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 600, color: D, fontFamily: "'JetBrains Mono', monospace" }}>{tag}</div>
+                <div style={{ fontSize: 9, color: E }}>{passport?.guild || 'no guild'}</div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Main content */}
+      <div style={{ flex: 1, padding: '28px 32px', overflow: 'auto' }}>
+        {page === 'overview' && <OverviewPage passport={passport} tag={tag} />}
+        {page === 'quests' && <QuestsPage />}
+        {page === 'console' && <AgentConsolePage />}
+        {page === 'profile' && <ProfilePage passport={passport} tag={tag} identity={identity} />}
+      </div>
+    </div>
+  );
+}
+
+// ── Dashboard Pages ──────────────────────────────
+
+function OverviewPage({ passport, tag }) {
+  const stats = [
+    { label: 'Passport', value: passport?.passportId || '—', color: A },
+    { label: 'Guild', value: passport?.guild ? `${passport.guild.charAt(0).toUpperCase() + passport.guild.slice(1)} Guild` : '—', color: D },
+    { label: 'Quests Done', value: passport?.questsCompleted || 0, color: D },
+    { label: 'Total XP', value: passport?.totalXp || 0, color: D },
+    { label: 'Relay Key', value: passport?.relayKey || '—', color: A },
+    { label: 'Agent Status', value: '4/4 Online', color: '#22c55e' },
+  ];
+
+  return (
+    <div>
+      <h2 style={{ fontFamily: "'Hubot Sans', sans-serif", fontSize: 24, fontWeight: 600, marginBottom: 4 }}>Overview</h2>
+      <p style={{ color: E, fontSize: 14, marginBottom: 28, fontFamily: "'Mona Sans', sans-serif" }}>Welcome back, {tag}. Your agents are standing by.</p>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12, marginBottom: 32 }}>
+        {stats.map((s, i) => (
+          <div key={i} style={{ ...glassCard, padding: '18px 16px' }}>
+            <div style={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace", color: E, marginBottom: 6, letterSpacing: '0.06em' }}>{s.label}</div>
+            <div style={{ fontSize: 15, fontWeight: 600, color: s.color, fontFamily: "'JetBrains Mono', monospace", wordBreak: 'break-all' }}>{s.value}</div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ ...glassCard, padding: '20px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+          <SectionLabel>AGENT ACTIVITY</SectionLabel>
+          <span style={{ fontSize: 8, color: '#22c55e', fontFamily: "'JetBrains Mono', monospace", display: 'flex', alignItems: 'center', gap: 4 }}>
+            <span style={{ width: 4, height: 4, borderRadius: '50%', background: '#22c55e', display: 'inline-block' }} />
+            LIVE
+          </span>
+        </div>
+        <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, lineHeight: 1.8 }}>
+          <span style={{ color: A }}>[VERIFICATION]</span> <span style={{ color: 'rgba(255,255,255,0.25)' }}>Waiting for relay handshake...</span><br />
+          <span style={{ color: A }}>[PUZZLE]</span> <span style={{ color: 'rgba(255,255,255,0.25)' }}>Scanning for quest triggers...</span><br />
+          <span style={{ color: A }}>[LORE]</span> <span style={{ color: 'rgba(255,255,255,0.25)' }}>Awaiting narrative signal...</span><br />
+          <span style={{ color: A }}>[TREASURY]</span> <span style={{ color: 'rgba(255,255,255,0.25)' }}>Standing by for rewards...</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function QuestsPage() {
+  const quests = [
+    { id: 'QS-01', title: 'Signal Hunt', desc: 'Collect clues from 5 agents to locate the hidden signal.', difficulty: 'Easy', reward: '50 XP', status: 'available', agent: 'Puzzle' },
+    { id: 'QS-02', title: 'Secret Market', desc: 'Agents negotiate prices for rare intel. Best offer wins.', difficulty: 'Medium', reward: '100 XP', status: 'available', agent: 'Treasury' },
+    { id: 'QS-03', title: 'Lost Archive', desc: 'Agents search decentralized records for a forgotten fragment.', difficulty: 'Medium', reward: '120 XP', status: 'locked', agent: 'Lore' },
+    { id: 'QS-04', title: 'Agent Escape Room', desc: 'Combine clues from all 4 agents to unlock the exit.', difficulty: 'Hard', reward: '250 XP', status: 'locked', agent: 'Verification' },
+  ];
+
+  return (
+    <div>
+      <h2 style={{ fontFamily: "'Hubot Sans', sans-serif", fontSize: 24, fontWeight: 600, marginBottom: 4 }}>Quests</h2>
+      <p style={{ color: E, fontSize: 14, marginBottom: 28, fontFamily: "'Mona Sans', sans-serif" }}>Your agents are ready. Pick a mission and deploy.</p>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {quests.map((q, i) => (
+          <div key={i} style={{
+            ...glassCard, padding: '20px',
+            opacity: q.status === 'locked' ? 0.5 : 1,
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+                  <span style={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace", color: 'rgba(255,255,255,0.2)' }}>{q.id}</span>
+                  <span style={{
+                    fontSize: 9, fontFamily: "'JetBrains Mono', monospace", fontWeight: 600,
+                    color: q.status === 'available' ? A : 'rgba(255,255,255,0.2)',
+                    background: q.status === 'available' ? H : 'transparent',
+                    padding: '2px 8px', borderRadius: 4,
+                  }}>{q.status.toUpperCase()}</span>
+                </div>
+                <h3 style={{ fontFamily: "'Hubot Sans', sans-serif", fontSize: 16, fontWeight: 600 }}>{q.title}</h3>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace", color: A }}>{q.reward}</div>
+                <div style={{ fontSize: 9, fontFamily: "'JetBrains Mono', monospace", color: E, marginTop: 2 }}>{q.difficulty}</div>
+              </div>
+            </div>
+            <p style={{ color: E, fontSize: 13, lineHeight: 1.5, margin: '0 0 12px', fontFamily: "'Mona Sans', sans-serif" }}>{q.desc}</p>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace", color: 'rgba(255,255,255,0.25)' }}>
+                Agent: {q.agent}
+              </div>
+              {q.status === 'available' && (
+                <button style={{
+                  ...btnGrad, height: 32, padding: '0 16px', fontSize: 12, borderRadius: 8,
+                }}>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontFamily: "'Mona Sans', sans-serif" }}>
+                    Deploy Agent
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                  </span>
+                </button>
+              )}
+              {q.status === 'locked' && (
+                <span style={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace", color: 'rgba(255,255,255,0.15)' }}>Complete previous quest →</span>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function AgentConsolePage() {
+  const [messages] = useState([
+    { time: '09:20:12', from: 'VERIFICATION', to: 'PUZZLE', msg: 'Handshake verified. Relay key A31F-897E confirmed.' },
+    { time: '09:20:14', from: 'PUZZLE', to: 'VERIFICATION', msg: 'Acknowledged. Scanning quest channel 4 for triggers.' },
+    { time: '09:20:17', from: 'PUZZLE', to: 'LORE', msg: 'Signal detected. Requesting narrative context for quest signal-hunt.' },
+    { time: '09:20:19', from: 'LORE', to: 'PUZZLE', msg: 'Context loaded. Entry coordinates: 0x8f3a... Route encrypted.' },
+    { time: '09:20:22', from: 'PUZZLE', to: 'TREASURY', msg: 'Quest signal-hunt initialized. Awaiting reward seal.' },
+    { time: '09:20:24', from: 'TREASURY', to: 'PUZZLE', msg: 'Reward capsule minted. Broadcast signed. Ready on delivery.' },
+  ]);
+
+  return (
+    <div>
+      <h2 style={{ fontFamily: "'Hubot Sans', sans-serif", fontSize: 24, fontWeight: 600, marginBottom: 4 }}>Agent Console</h2>
+      <p style={{ color: E, fontSize: 14, marginBottom: 28, fontFamily: "'Mona Sans', sans-serif" }}>Real-time agent-to-agent communication over Nostr DMs.</p>
+
+      <div style={{ ...glassCard, padding: 0, overflow: 'hidden' }}>
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '12px 20px', borderBottom: '1px solid rgba(255,255,255,0.04)',
+          background: 'rgba(255,111,0,0.03)',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontFamily: "'JetBrains Mono', monospace", fontSize: 11 }}>
+            <span style={{ color: A }}>$</span>
+            <span style={{ color: 'rgba(255,255,255,0.4)' }}>agent-relay comms --tail</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 9, fontFamily: "'JetBrains Mono', monospace", color: '#22c55e' }}>
+            <span style={{ width: 4, height: 4, borderRadius: '50%', background: '#22c55e', display: 'inline-block' }} />
+            STREAMING
+          </div>
+        </div>
+        <div style={{ padding: '16px 20px', maxHeight: 400, overflow: 'auto' }}>
+          {messages.map((m, i) => (
+            <div key={i} style={{
+              display: 'flex', gap: 8, padding: '7px 0',
+              borderBottom: i < messages.length - 1 ? '1px solid rgba(255,255,255,0.03)' : 'none',
+              fontFamily: "'JetBrains Mono', monospace", fontSize: 11, lineHeight: 1.5,
+            }}>
+              <span style={{ color: 'rgba(255,255,255,0.15)', minWidth: 55, fontSize: 10 }}>{m.time}</span>
+              <span style={{ color: A, fontWeight: 600, minWidth: 85 }}>{m.from}</span>
+              <svg width="14" height="12" viewBox="0 0 24 12" fill="none" style={{ minWidth: 14 }}>
+                <path d="M2 6h18M14 2l6 4-6 4" stroke="rgba(255,111,0,0.3)" strokeWidth="1.5"/>
+              </svg>
+              <span style={{ color: '#22c55e', minWidth: 85 }}>{m.to}</span>
+              <span style={{ color: 'rgba(255,255,255,0.45)' }}>{m.msg}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ProfilePage({ passport, tag, identity }) {
+  const details = [
+    { label: 'PASSPORT ID', value: passport?.passportId, color: A },
+    { label: 'RELAY KEY', value: passport?.relayKey, color: A },
+    { label: 'WALLET', value: passport?.walletAddress || identity?.directAddress?.slice(0, 24)+'...', color: D },
+    { label: 'GUILD', value: passport?.guild ? `${passport.guild.charAt(0).toUpperCase() + passport.guild.slice(1)} Guild` : '—', color: D },
+    { label: 'NETWORK', value: 'Unicity Testnet 2', color: D },
+    { label: 'NAMETAG', value: tag || '—', color: A },
+  ];
+
+  return (
+    <div>
+      <h2 style={{ fontFamily: "'Hubot Sans', sans-serif", fontSize: 24, fontWeight: 600, marginBottom: 4 }}>Profile</h2>
+      <p style={{ color: E, fontSize: 14, marginBottom: 28, fontFamily: "'Mona Sans', sans-serif" }}>Your agent passport and identity details.</p>
+
+      <div style={{ ...glassCard, marginBottom: 20 }}>
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 16, marginBottom: 24,
+          padding: '20px 0 24px', borderBottom: '1px solid rgba(255,255,255,0.04)',
+        }}>
+          <div style={{
+            width: 56, height: 56, borderRadius: '50%',
+            background: `linear-gradient(135deg, ${A}, ${B})`,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 22, fontWeight: 700, color: '#fff',
+            fontFamily: "'JetBrains Mono', monospace",
+          }}>{tag?.replace(/^@/, '').slice(0, 4).toUpperCase()}</div>
+          <div>
+            <div style={{ fontFamily: "'Hubot Sans', sans-serif", fontSize: 20, fontWeight: 600 }}>{tag}</div>
+            <div style={{ color: E, fontSize: 13, marginTop: 2, fontFamily: "'Mona Sans', sans-serif" }}>{passport?.guild ? `${passport.guild.charAt(0).toUpperCase() + passport.guild.slice(1)} Guild` : 'No guild'}</div>
+          </div>
+        </div>
+        {details.map((d, i) => (
+          <div key={i} style={{
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            padding: '10px 0', borderBottom: i < details.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none',
+          }}>
+            <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.1em', color: E, fontFamily: "'JetBrains Mono', monospace" }}>{d.label}</span>
+            <span style={{ fontSize: 13, fontWeight: 500, color: d.color, fontFamily: "'JetBrains Mono', monospace" }}>{d.value || '—'}</span>
+          </div>
+        ))}
       </div>
     </div>
   );
