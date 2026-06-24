@@ -240,7 +240,7 @@ async function main() {
           inAppAgents.get(passportId).stop();
         }
 
-        // Spawn in-app agent (user's AI middleman)
+        // Spawn in-app agent (user's AI middleman) — runs as its own Sphere identity
         const tag = userTag || passport.nametag || '@user';
         const agent = new InAppAgent({
           questId,
@@ -248,11 +248,16 @@ async function main() {
           passport,
           userTag: tag,
           onMessage: (msg) => broadcastToConsole(passportId, msg),
+          mnemonic: process.env.IN_APP_MNEMONIC,
+          network: NETWORK,
+          dataDir: DATA_DIR,
         });
         inAppAgents.set(passportId, agent);
 
-        // Start the agent (verification → lore → first clue)
-        agent.start().catch(err => {
+        // Initialize Sphere SDK and then start
+        agent.init()
+          .then(() => agent.start())
+          .catch(err => {
           console.error('[InAppAgent] Error:', err);
           broadcastToConsole(passportId, {
             from: 'SYSTEM', to: tag,

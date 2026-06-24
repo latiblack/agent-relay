@@ -15,9 +15,15 @@ export class QuestAgent {
   }
 
   async init() {
+    const apiKey = process.env.TESTNET2_API_KEY;
+    const oracle = apiKey
+      ? { apiKey, url: process.env.TESTNET2_GATEWAY || 'https://gateway.testnet2.unicity.network' }
+      : undefined;
+
     const providers = createNodeProviders({
       network: this.network,
       dataDir: this.dataDir,
+      oracle,
     });
 
     const { sphere } = await Sphere.init({
@@ -28,6 +34,16 @@ export class QuestAgent {
 
     this.sphere = sphere;
     console.log(`[${this.nametag}] Agent online as ${sphere.identity?.directAddress}`);
+
+    // Register nametag on Nostr so agents can be reached by @name
+    try {
+      if (this.nametag && !sphere.getNametag()) {
+        await sphere.registerNametag(this.nametag.replace('@', ''));
+        console.log(`[${this.nametag}] Nametag registered`);
+      }
+    } catch (err) {
+      console.warn(`[${this.nametag}] Nametag registration skipped (may already exist): ${err.message}`);
+    }
 
     // Listen for incoming DMs
     sphere.communications.onDirectMessage((msg) => {
@@ -62,14 +78,15 @@ export class QuestAgent {
             payload: result,
           });
         }
-      } else {
-        console.warn(`[${this.nametag}] No handler for action: ${payload?.action}`);
+      } else if (payload?.action) {
+        console.warn(`[${this.nametag}] No handler for action: ${payload.action}`);
         await this.respond(msg.senderNametag || msg.senderPubkey, {
           type: 'error',
           from: this.nametag,
           payload: { error: `Unknown action: ${payload?.action}` },
         });
       }
+      // Silently ignore messages without an action (Nostr protocol noise)
     } catch (err) {
       console.error(`[${this.nametag}] Error handling message:`, err);
     }
