@@ -285,6 +285,19 @@ async function main() {
         return;
       }
 
+      // GET /passport/wallet/:address — Lookup passport by wallet address
+      if (url.pathname.startsWith('/passport/wallet/') && req.method === 'GET') {
+        const address = decodeURIComponent(url.pathname.split('/passport/wallet/')[1]);
+        const passport = await passportManager.getPassportByWallet(address);
+        if (passport) {
+          res.end(JSON.stringify({ success: true, passport }));
+        } else {
+          res.writeHead(404);
+          res.end(JSON.stringify({ success: false, error: 'No passport found for this wallet' }));
+        }
+        return;
+      }
+
       // GET /passport/:key — Validate passport/relay key
       if (url.pathname.startsWith('/passport/') && req.method === 'GET') {
         const key = url.pathname.split('/passport/')[1];

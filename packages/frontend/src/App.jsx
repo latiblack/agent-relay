@@ -56,7 +56,23 @@ function App() {
   const handleWalletConnect = async () => {
     setView('connect');
     await wallet.connect();
-    if (wallet.status === 'connected') setView('guild-select');
+    if (wallet.status === 'connected' && wallet.identity?.directAddress) {
+      // Check if user already has a passport
+      try {
+        const res = await fetch(`${RELAY_SERVER}/passport/wallet/${encodeURIComponent(wallet.identity.directAddress)}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success && data.passport) {
+            setPassport(data.passport);
+            setView('dashboard');
+            return;
+          }
+        }
+      } catch (err) {
+        console.warn('Failed to check existing passport:', err);
+      }
+      setView('guild-select');
+    }
   };
 
   const handleGuildSelect = (guild) => {
@@ -932,13 +948,9 @@ function DashboardView({ passport, wallet, identity, pendingDeepLink, setPending
       }}>
         {/* Sidebar header */}
         <div style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          display: 'flex', alignItems: 'center', justifyContent: 'flex-end',
           padding: '16px 16px 20px', borderBottom: '1px solid rgba(255,255,255,0.04)',
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <LogoMark size={18} />
-            <span style={{ fontFamily: "'Hubot Sans', sans-serif", fontWeight: 600, fontSize: 12, letterSpacing: '0.08em' }}>AGENT RELAY</span>
-          </div>
           <button onClick={() => setMenuOpen(false)} style={{
             background: 'none', border: 'none', color: 'rgba(255,255,255,0.3)', cursor: 'pointer', fontSize: 18, padding: 0,
           }}>✕</button>
