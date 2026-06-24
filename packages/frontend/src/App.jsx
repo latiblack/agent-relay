@@ -1056,7 +1056,22 @@ function OverviewPage({ passport, tag }) {
 
   return (
     <div>
-      <h2 style={{ fontFamily: "'Hubot Sans', sans-serif", fontSize: 24, fontWeight: 600, marginBottom: 4 }}>Overview</h2>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 4 }}>
+        <div style={{
+          width: 40, height: 40, borderRadius: '50%', overflow: 'hidden', flexShrink: 0,
+          background: passport?.avatarUrl ? 'transparent' : `linear-gradient(135deg, ${A}, ${B})`,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: 12, fontWeight: 700, color: '#fff',
+          fontFamily: "'JetBrains Mono', monospace",
+        }}>
+          {passport?.avatarUrl ? (
+            <img src={passport.avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          ) : (
+            tag?.replace(/^@/, '').slice(0, 4).toUpperCase() || '?'
+          )}
+        </div>
+        <h2 style={{ fontFamily: "'Hubot Sans', sans-serif", fontSize: 24, fontWeight: 600 }}>Overview</h2>
+      </div>
       <p style={{ color: E, fontSize: 14, marginBottom: 28, fontFamily: "'Mona Sans', sans-serif" }}>Welcome back, {tag}. Your agents are standing by.</p>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12, marginBottom: 32 }}>
