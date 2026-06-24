@@ -75,24 +75,34 @@ export const GUILDS = {
 };
 
 // ── Quest Definitions ───────────────────────────────
+// Loaded from .md puzzle files by quest-loader.js
+// Inline definitions below serve as fallback when .md files aren't available
 
 export const QUESTS = {
   'signal-hunt-01': {
     id: 'signal-hunt-01',
     title: 'Signal Hunt',
     guild: GUILDS.EXPLORER,
+    difficulty: 'Easy',
     description: 'Collect clues from 5 agents to find the hidden signal.',
-    answer: 'crystal_frequency',
+    answer: 'light_frequency_signal_cipher_convergence',
+    fragments: [
+      { clue: 'I am the first. What transmits through crystal without sound?', answer: 'light' },
+      { clue: 'I am the second. What do you call a pattern that repeats at regular intervals?', answer: 'frequency' },
+      { clue: 'I am the third. What word describes data sent across a network?', answer: 'signal' },
+      { clue: 'I am the fourth. What is the name for a hidden message within a message?', answer: 'cipher' },
+      { clue: 'I am the fifth. What do you call the point where two or more signals meet?', answer: 'convergence' },
+    ],
     hints: [
-      'The first clue is in the Lore Agent\'s domain...',
-      'Think about what transmits through crystal...',
-      'The answer is two words joined by an underscore',
+      'Each fragment is a single word. Think about network fundamentals.',
+      'The final answer is five words joined by underscores, in the order presented.',
+      'Fragment 1 = light, Fragment 2 = frequency... continue the sequence.',
     ],
     lore: {
-      intro: 'An ancient transmission has been detected...',
-      mid: 'The signal is getting clearer...',
-      complete: 'The signal has been decoded! The network is alive.',
+      intro: 'An ancient transmission has been detected at the edge of the network. Five beacon nodes are broadcasting fragments of a forgotten frequency. Decode them all to unlock the signal.',
+      mid: 'The fragments are aligning. The signal grows stronger with each piece recovered.',
+      complete: 'The signal has been decoded. The network hums with a new voice. Welcome to the relay.',
     },
-    reward: { xp: 50, tokens: '1000' },
+    reward: { xp: 50 },
   },
 };

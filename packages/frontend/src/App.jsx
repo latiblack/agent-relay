@@ -1,8 +1,9 @@
 // Agent Relay - Premium Landing Page
 // Full flow: Landing → Wallet → Guild → Passport → Dashboard → Agent Console
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useWallet } from './hooks/useWallet';
+import { useQuestConsole } from './hooks/useQuestConsole';
 
 const A = '#FF6F00';
 const B = '#E05A00';
@@ -815,6 +816,34 @@ function DashboardView({ passport, wallet, identity }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const tag = identity ? formatUserTag(identity) : null;
 
+  const { messages, connected, questState, clearMessages } = useQuestConsole(passport?.passportId);
+
+  const deployQuest = async (questId) => {
+    try {
+      clearMessages();
+      await fetch(`${RELAY_SERVER}/quest/deploy`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ passportId: passport.passportId, questId }),
+      });
+      setPage('console');
+    } catch (err) {
+      console.error('Failed to deploy quest:', err);
+    }
+  };
+
+  const submitAnswer = async (questId, answer) => {
+    try {
+      await fetch(`${RELAY_SERVER}/quest/submit-answer`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ passportId: passport.passportId, questId, answer }),
+      });
+    } catch (err) {
+      console.error('Failed to submit answer:', err);
+    }
+  };
+
   const navItems = [
     { id: 'overview', label: 'Overview', icon: '◉' },
     { id: 'quests', label: 'Quests', icon: '◆' },
@@ -925,8 +954,8 @@ function DashboardView({ passport, wallet, identity }) {
       {/* Main content */}
       <div style={{ padding: '48px 20px 40px', maxWidth: 800, margin: '0 auto' }}>
         {page === 'overview' && <OverviewPage passport={passport} tag={tag} />}
-        {page === 'quests' && <QuestsPage />}
-        {page === 'console' && <AgentConsolePage />}
+        {page === 'quests' && <QuestsPage onDeploy={deployQuest} />}
+        {page === 'console' && <AgentConsolePage messages={messages} connected={connected} questState={questState} passportId={passport?.passportId} onSubmitAnswer={submitAnswer} />
         {page === 'profile' && <ProfilePage passport={passport} tag={tag} identity={identity} />}
       </div>
     </div>
@@ -978,12 +1007,12 @@ function OverviewPage({ passport, tag }) {
   );
 }
 
-function QuestsPage() {
+function QuestsPage({ onDeploy }) {
   const quests = [
-    { id: 'QS-01', title: 'Signal Hunt', desc: 'Collect clues from 5 agents to locate the hidden signal.', difficulty: 'Easy', reward: '50 XP', status: 'available', agent: 'Puzzle' },
-    { id: 'QS-02', title: 'Secret Market', desc: 'Agents negotiate prices for rare intel. Best offer wins.', difficulty: 'Medium', reward: '100 XP', status: 'available', agent: 'Treasury' },
-    { id: 'QS-03', title: 'Lost Archive', desc: 'Agents search decentralized records for a forgotten fragment.', difficulty: 'Medium', reward: '120 XP', status: 'locked', agent: 'Lore' },
-    { id: 'QS-04', title: 'Agent Escape Room', desc: 'Combine clues from all 4 agents to unlock the exit.', difficulty: 'Hard', reward: '250 XP', status: 'locked', agent: 'Verification' },
+    { id: 'signal-hunt-01', title: 'Signal Hunt', desc: 'Collect clues from 5 agents to locate the hidden signal.', difficulty: 'Easy', reward: '50 XP', status: 'available', agent: 'Puzzle' },
+    { id: 'secret-market-01', title: 'Secret Market', desc: 'Agents negotiate prices for rare intel. Best offer wins.', difficulty: 'Medium', reward: '100 XP', status: 'available', agent: 'Treasury' },
+    { id: 'lost-archive-01', title: 'Lost Archive', desc: 'Agents search decentralized records for a forgotten fragment.', difficulty: 'Medium', reward: '120 XP', status: 'locked', agent: 'Lore' },
+    { id: 'agent-escape-room-01', title: 'Agent Escape Room', desc: 'Combine clues from all 4 agents to unlock the exit.', difficulty: 'Hard', reward: '250 XP', status: 'locked', agent: 'Verification' },
   ];
 
   return (
@@ -1021,7 +1050,7 @@ function QuestsPage() {
                 Agent: {q.agent}
               </div>
               {q.status === 'available' && (
-                <button style={{
+                <button onClick={() => onDeploy && onDeploy(q.id)} style={{
                   ...btnGrad, height: 32, padding: '0 16px', fontSize: 12, borderRadius: 8,
                 }}>
                   <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontFamily: "'Mona Sans', sans-serif" }}>
@@ -1041,21 +1070,61 @@ function QuestsPage() {
   );
 }
 
-function AgentConsolePage() {
-  const [messages] = useState([
-    { time: '09:20:12', from: 'VERIFICATION', to: 'PUZZLE', msg: 'Handshake verified. Relay key A31F-897E confirmed.' },
-    { time: '09:20:14', from: 'PUZZLE', to: 'VERIFICATION', msg: 'Acknowledged. Scanning quest channel 4 for triggers.' },
-    { time: '09:20:17', from: 'PUZZLE', to: 'LORE', msg: 'Signal detected. Requesting narrative context for quest signal-hunt.' },
-    { time: '09:20:19', from: 'LORE', to: 'PUZZLE', msg: 'Context loaded. Entry coordinates: 0x8f3a... Route encrypted.' },
-    { time: '09:20:22', from: 'PUZZLE', to: 'TREASURY', msg: 'Quest signal-hunt initialized. Awaiting reward seal.' },
-    { time: '09:20:24', from: 'TREASURY', to: 'PUZZLE', msg: 'Reward capsule minted. Broadcast signed. Ready on delivery.' },
-  ]);
+function AgentConsolePage({ messages, connected, questState, passportId, onSubmitAnswer }) {
+  const [answer, setAnswer] = useState('');
+  const [activeQuestId, setActiveQuestId] = useState(null);
+  const bottomRef = useRef(null);
+
+  useEffect(() => {
+    if (questState?.phase) {
+      setActiveQuestId(questState.questId || 'signal-hunt-01');
+    }
+  }, [questState]);
+
+  // Auto-scroll to bottom when new messages arrive
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!answer.trim() || !activeQuestId) return;
+    onSubmitAnswer(activeQuestId, answer.trim());
+    setAnswer('');
+  };
+
+  // Helper to get badge color by phase
+  const phaseColor = (p) => {
+    const colors = { init: A, verifying: '#3b82f6', lore_intro: '#a855f7', puzzle: A, lore_complete: '#a855f7', rewarding: '#22c55e', completed: '#22c55e', error: '#ef4444', ready: '#22c55e' };
+    return colors[p] || 'rgba(255,255,255,0.25)';
+  };
 
   return (
     <div>
       <h2 style={{ fontFamily: "'Hubot Sans', sans-serif", fontSize: 24, fontWeight: 600, marginBottom: 4 }}>Agent Console</h2>
-      <p style={{ color: E, fontSize: 14, marginBottom: 28, fontFamily: "'Mona Sans', sans-serif" }}>Real-time agent-to-agent communication over Nostr DMs.</p>
+      <p style={{ color: E, fontSize: 14, marginBottom: 16, fontFamily: "'Mona Sans', sans-serif" }}>
+        Real-time agent-to-agent communication over Sphere SDK DMs.
+        {connected ? (
+          <span style={{ color: '#22c55e', marginLeft: 8, fontSize: 11, fontFamily: "'JetBrains Mono', monospace" }}>● CONNECTED</span>
+        ) : (
+          <span style={{ color: '#ef4444', marginLeft: 8, fontSize: 11, fontFamily: "'JetBrains Mono', monospace" }}>○ DISCONNECTED</span>
+        )}
+      </p>
 
+      {/* Quest status bar */}
+      {questState && (
+        <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace", color: 'rgba(255,255,255,0.4)' }}>
+            Quest: {activeQuestId}
+          </span>
+          <span style={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace", color: phaseColor(questState.phase), display: 'flex', alignItems: 'center', gap: 4 }}>
+            <span style={{ width: 4, height: 4, borderRadius: '50%', background: phaseColor(questState.phase), display: 'inline-block' }} />
+            {questState.phase.toUpperCase()}
+          </span>
+        </div>
+      )}
+
+      {/* Message feed */}
       <div style={{ ...glassCard, padding: 0, overflow: 'hidden' }}>
         <div style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -1066,29 +1135,73 @@ function AgentConsolePage() {
             <span style={{ color: A }}>$</span>
             <span style={{ color: 'rgba(255,255,255,0.4)' }}>agent-relay comms --tail</span>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 9, fontFamily: "'JetBrains Mono', monospace", color: '#22c55e' }}>
-            <span style={{ width: 4, height: 4, borderRadius: '50%', background: '#22c55e', display: 'inline-block' }} />
-            STREAMING
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 9, fontFamily: "'JetBrains Mono', monospace", color: connected ? '#22c55e' : '#ef4444' }}>
+            <span style={{ width: 4, height: 4, borderRadius: '50%', background: connected ? '#22c55e' : '#ef4444', display: 'inline-block' }} />
+            {connected ? 'STREAMING' : 'OFFLINE'}
           </div>
         </div>
-        <div style={{ padding: '16px 20px', maxHeight: 400, overflow: 'auto' }}>
-          {messages.map((m, i) => (
-            <div key={i} style={{
-              display: 'flex', gap: 8, padding: '7px 0',
-              borderBottom: i < messages.length - 1 ? '1px solid rgba(255,255,255,0.03)' : 'none',
-              fontFamily: "'JetBrains Mono', monospace", fontSize: 11, lineHeight: 1.5,
-            }}>
-              <span style={{ color: 'rgba(255,255,255,0.15)', minWidth: 55, fontSize: 10 }}>{m.time}</span>
-              <span style={{ color: A, fontWeight: 600, minWidth: 85 }}>{m.from}</span>
-              <svg width="14" height="12" viewBox="0 0 24 12" fill="none" style={{ minWidth: 14 }}>
-                <path d="M2 6h18M14 2l6 4-6 4" stroke="rgba(255,111,0,0.3)" strokeWidth="1.5"/>
-              </svg>
-              <span style={{ color: '#22c55e', minWidth: 85 }}>{m.to}</span>
-              <span style={{ color: 'rgba(255,255,255,0.45)' }}>{m.msg}</span>
+        <div style={{ padding: '8px 20px', maxHeight: 340, overflow: 'auto', minHeight: 120 }}>
+          {messages.length === 0 ? (
+            <div style={{ padding: '40px 0', textAlign: 'center', fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: 'rgba(255,255,255,0.15)' }}>
+              Waiting for agent messages...<br />
+              <span style={{ fontSize: 10 }}>Deploy a quest from the Quests page to start.</span>
             </div>
-          ))}
+          ) : (
+            messages.map((m, i) => (
+              <div key={i} style={{
+                display: 'flex', gap: 8, padding: '6px 0',
+                borderBottom: i < messages.length - 1 ? '1px solid rgba(255,255,255,0.03)' : 'none',
+                fontFamily: "'JetBrains Mono', monospace", fontSize: 11, lineHeight: 1.5,
+              }}>
+                <span style={{ color: 'rgba(255,255,255,0.15)', minWidth: 55, fontSize: 10 }}>{m.time}</span>
+                <span style={{ color: phaseColor(m.phase), fontWeight: 600, minWidth: 90, fontSize: 10 }}>{m.from}</span>
+                <svg width="14" height="12" viewBox="0 0 24 12" fill="none" style={{ minWidth: 14 }}>
+                  <path d="M2 6h18M14 2l6 4-6 4" stroke="rgba(255,111,0,0.3)" strokeWidth="1.5"/>
+                </svg>
+                <span style={{ color: '#22c55e', minWidth: 90, fontSize: 10 }}>{m.to}</span>
+                <span style={{ color: m.phase === 'error' ? '#ef4444' : 'rgba(255,255,255,0.45)', flex: 1 }}>{m.message}</span>
+              </div>
+            ))
+          )}
+          <div ref={bottomRef} />
         </div>
       </div>
+
+      {/* Answer input (visible when in puzzle phase) */}
+      {questState?.phase === 'puzzle' && (
+        <form onSubmit={handleSubmit} style={{ marginTop: 16, display: 'flex', gap: 8 }}>
+          <input
+            type="text"
+            value={answer}
+            onChange={(e) => setAnswer(e.target.value)}
+            placeholder={`Submit answer for ${activeQuestId}...`}
+            style={{
+              flex: 1, padding: '10px 14px', borderRadius: 8,
+              background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
+              color: D, fontSize: 13, fontFamily: "'JetBrains Mono', monospace",
+              outline: 'none',
+            }}
+          />
+          <button type="submit" style={{
+            ...btnGrad, height: 40, padding: '0 20px', fontSize: 13, borderRadius: 8,
+          }}>
+            Submit
+          </button>
+        </form>
+      )}
+
+      {/* Quest complete state */}
+      {questState?.phase === 'completed' && (
+        <div style={{ marginTop: 16, padding: 16, ...glassCard, textAlign: 'center' }}>
+          <span style={{ fontSize: 24, marginBottom: 8, display: 'block' }}>🏆</span>
+          <div style={{ fontFamily: "'Hubot Sans', sans-serif", fontSize: 16, fontWeight: 600, color: '#22c55e' }}>
+            Quest Complete!
+          </div>
+          <div style={{ fontSize: 12, color: E, fontFamily: "'Mona Sans', sans-serif", marginTop: 4 }}>
+            Signal Hunt finished. All fragments collected.
+          </div>
+        </div>
+      )}
     </div>
   );
 }
