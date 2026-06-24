@@ -1257,14 +1257,27 @@ function QuestsPage({ onDeploy, messages, connected, questState, passportId, onS
 }
 
 function ProfilePage({ passport, tag, identity }) {
+  const [pfp, setPfp] = useState(null);
+  const fileInputRef = useRef(null);
+
   const details = [
     { label: 'PASSPORT ID', value: passport?.passportId, color: A },
     { label: 'RELAY KEY', value: passport?.relayKey, color: A },
-    { label: 'WALLET', value: passport?.walletAddress || identity?.directAddress?.slice(0, 24)+'...', color: D },
+    { label: 'WALLET', value: passport?.walletAddress || identity?.directAddress || '—', color: D, mono: true },
     { label: 'GUILD', value: passport?.guild ? `${passport.guild.charAt(0).toUpperCase() + passport.guild.slice(1)} Guild` : '—', color: D },
     { label: 'NETWORK', value: 'Unicity Testnet 2', color: D },
     { label: 'NAMETAG', value: tag || '—', color: A },
   ];
+
+  const handlePfpClick = () => fileInputRef.current?.click();
+
+  const handlePfpUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => setPfp(ev.target.result);
+    reader.readAsDataURL(file);
+  };
 
   return (
     <div>
@@ -1276,13 +1289,51 @@ function ProfilePage({ passport, tag, identity }) {
           display: 'flex', alignItems: 'center', gap: 16, marginBottom: 24,
           padding: '20px 0 24px', borderBottom: '1px solid rgba(255,255,255,0.04)',
         }}>
-          <div style={{
-            width: 56, height: 56, borderRadius: '50%',
-            background: `linear-gradient(135deg, ${A}, ${B})`,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 22, fontWeight: 700, color: '#fff',
-            fontFamily: "'JetBrains Mono', monospace",
-          }}>{tag?.replace(/^@/, '').slice(0, 4).toUpperCase()}</div>
+          {/* PFP with orange gradient stroke */}
+          <div onClick={handlePfpClick} style={{
+            position: 'relative', cursor: 'pointer', flexShrink: 0,
+          }}>
+            {/* Gradient stroke ring */}
+            <svg width="64" height="64" style={{ position: 'absolute', top: -4, left: -4, pointerEvents: 'none' }}>
+              <defs>
+                <linearGradient id="pfp-stroke" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor={A} />
+                  <stop offset="100%" stopColor={B} />
+                </linearGradient>
+              </defs>
+              <rect x="1" y="1" width="62" height="62" rx="31" ry="31"
+                fill="none" stroke="url(#pfp-stroke)" strokeWidth="2.5" />
+            </svg>
+            {/* Avatar */}
+            <div style={{
+              width: 56, height: 56, borderRadius: '50%', overflow: 'hidden',
+              background: pfp ? 'transparent' : `linear-gradient(135deg, ${A}, ${B})`,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 22, fontWeight: 700, color: '#fff',
+              fontFamily: "'JetBrains Mono', monospace",
+              position: 'relative',
+            }}>
+              {pfp ? (
+                <img src={pfp} alt="PFP" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              ) : (
+                tag?.replace(/^@/, '').slice(0, 4).toUpperCase()
+              )}
+              {/* Hover overlay */}
+              <div style={{
+                position: 'absolute', inset: 0, borderRadius: '50%',
+                background: 'rgba(0,0,0,0.4)', opacity: 0,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 16, transition: 'opacity 0.2s',
+              }} className="pfp-hover">📷</div>
+            </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              style={{ display: 'none' }}
+              onChange={handlePfpUpload}
+            />
+          </div>
           <div>
             <div style={{ fontFamily: "'Hubot Sans', sans-serif", fontSize: 20, fontWeight: 600 }}>{tag}</div>
             <div style={{ color: E, fontSize: 13, marginTop: 2, fontFamily: "'Mona Sans', sans-serif" }}>{passport?.guild ? `${passport.guild.charAt(0).toUpperCase() + passport.guild.slice(1)} Guild` : 'No guild'}</div>
@@ -1293,11 +1344,17 @@ function ProfilePage({ passport, tag, identity }) {
             display: 'flex', justifyContent: 'space-between', alignItems: 'center',
             padding: '10px 0', borderBottom: i < details.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none',
           }}>
-            <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.1em', color: E, fontFamily: "'JetBrains Mono', monospace" }}>{d.label}</span>
-            <span style={{ fontSize: 13, fontWeight: 500, color: d.color, fontFamily: "'JetBrains Mono', monospace" }}>{d.value || '—'}</span>
+            <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.1em', color: E, fontFamily: "'JetBrains Mono', monospace", flexShrink: 0 }}>{d.label}</span>
+            <span style={{ fontSize: 13, fontWeight: 500, color: d.color, fontFamily: "'JetBrains Mono', monospace", wordBreak: d.mono ? 'break-all' : 'normal', textAlign: 'right', maxWidth: '60%', marginLeft: 12 }}>{d.value || '—'}</span>
           </div>
         ))}
       </div>
+
+      {/* PFP hover style */}
+      <style>{`
+        .pfp-hover { opacity: 0; }
+        div:hover > .pfp-hover { opacity: 1; }
+      `}</style>
     </div>
   );
 }
