@@ -17,6 +17,24 @@ const I = 'rgba(255, 111, 0, 0.12)';
 
 const RELAY_SERVER = import.meta.env.VITE_RELAY_SERVER || 'https://api.virtusub.xyz/relay';
 
+function MaskedKey({ value, color = A }) {
+  const [revealed, setRevealed] = useState(false);
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: "'JetBrains Mono', monospace" }}>
+      <span style={{ fontSize: 13, fontWeight: 600, color, wordBreak: 'break-all', userSelect: revealed ? 'text' : 'none' }}>
+        {revealed ? value : '••••••••••••'}
+      </span>
+      <span
+        onClick={() => setRevealed(r => !r)}
+        style={{ cursor: 'pointer', fontSize: 14, opacity: 0.6, hover: { opacity: 1 }, lineHeight: 1, color: E, flexShrink: 0, transition: 'opacity 0.15s' }}
+        title={revealed ? 'Hide relay key' : 'Reveal relay key'}
+      >
+        {revealed ? '👁‍🗨' : '👁️'}
+      </span>
+    </span>
+  );
+}
+
 function formatUserTag(identity) {
   if (!identity) return null;
   // Use nametag if available (e.g. @lati)
@@ -819,7 +837,6 @@ function PassportView({ passport, onEnter }) {
       }}>
         {[
           ['PASSPORT ID', passport.passportId, D],
-          ['RELAY KEY', passport.relayKey, A],
           ['GUILD', passport.guild, D],
           ['WALLET', `${passport.walletAddress?.slice(0, 20)}...`, D],
         ].map(([label, value, color]) => (
@@ -831,6 +848,13 @@ function PassportView({ passport, onEnter }) {
             <span style={{ fontSize: 13, fontWeight: 600, color, fontFamily: "'JetBrains Mono', monospace" }}>{value}</span>
           </div>
         ))}
+        <div key="relay-key-row" style={{
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          padding: '8px 0',
+        }}>
+          <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', color: E, fontFamily: "'JetBrains Mono', monospace" }}>RELAY KEY</span>
+          <MaskedKey value={passport.relayKey} color={A} />
+        </div>
       </div>
       <p style={{ color: E, fontSize: 12, marginBottom: 16, fontFamily: "'Mona Sans', sans-serif" }}>Save your relay key — you'll need it to connect your AI agents.</p>
       <button onClick={onEnter} style={btnGrad}>Enter Agent Relay →</button>
@@ -1024,7 +1048,11 @@ function OverviewPage({ passport, tag }) {
         {stats.map((s, i) => (
           <div key={i} style={{ ...glassCard, padding: '18px 16px' }}>
             <div style={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace", color: E, marginBottom: 6, letterSpacing: '0.06em' }}>{s.label}</div>
-            <div style={{ fontSize: 15, fontWeight: 600, color: s.color, fontFamily: "'JetBrains Mono', monospace", wordBreak: 'break-all' }}>{s.value}</div>
+            {s.label === 'Relay Key' ? (
+              <MaskedKey value={s.value === '—' ? '—' : s.value} color={s.color} />
+            ) : (
+              <div style={{ fontSize: 15, fontWeight: 600, color: s.color, fontFamily: "'JetBrains Mono', monospace", wordBreak: 'break-all' }}>{s.value}</div>
+            )}
           </div>
         ))}
       </div>
@@ -1357,7 +1385,11 @@ function ProfilePage({ passport, tag, identity }) {
             padding: '10px 0', borderBottom: i < details.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none',
           }}>
             <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.1em', color: E, fontFamily: "'JetBrains Mono', monospace", flexShrink: 0 }}>{d.label}</span>
-            <span style={{ fontSize: 13, fontWeight: 500, color: d.color, fontFamily: "'JetBrains Mono', monospace", wordBreak: d.mono ? 'break-all' : 'normal', textAlign: 'right', maxWidth: '60%', marginLeft: 12 }}>{d.value || '—'}</span>
+            {d.label === 'RELAY KEY' ? (
+              <MaskedKey value={d.value || '—'} color={d.color} />
+            ) : (
+              <span style={{ fontSize: 13, fontWeight: 500, color: d.color, fontFamily: "'JetBrains Mono', monospace", wordBreak: d.mono ? 'break-all' : 'normal', textAlign: 'right', maxWidth: '60%', marginLeft: 12 }}>{d.value || '—'}</span>
+            )}
           </div>
         ))}
       </div>
