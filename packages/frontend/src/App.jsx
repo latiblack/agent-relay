@@ -116,7 +116,10 @@ function App() {
       <div style={{ 
         maxWidth: isDashboard ? '100%' : 640,
         margin: '0 auto',
-        padding: isDashboard ? '0' : '40px 20px 80px',
+        padding: isDashboard ? '0' : '40px 20px',
+        display: isDashboard ? 'block' : 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
         fontFamily: "'Mona Sans', sans-serif",
         backgroundColor: C, color: D, minHeight: '100vh',
       }}>
