@@ -2,6 +2,7 @@
 // Full flow: Landing → Wallet → Guild → Passport → Dashboard → Agent Console
 
 import React, { useState, useEffect, useRef } from 'react';
+import { Routes, Route, useNavigate, Navigate } from 'react-router-dom';
 import { useWallet } from './hooks/useWallet';
 import { useQuestConsole } from './hooks/useQuestConsole';
 
@@ -50,11 +51,8 @@ function formatUserTag(identity) {
 function App() {
   const wallet = useWallet();
   const [passport, setPassport] = useState(null);
-  const [view, setView] = useState('landing');
-  const [selectedGuild, setSelectedGuild] = useState(null);
-  const [scrolled, setScrolled] = useState(false);
   const [pendingDeepLink, setPendingDeepLink] = useState(null);
-  const [relayDown, setRelayDown] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 60);
@@ -62,97 +60,31 @@ function App() {
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
-  // Parse deep link params on mount
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const questParam = params.get('quest');
-    if (questParam) {
-      setPendingDeepLink(questParam);
-      window.history.replaceState({}, '', window.location.pathname);
-    }
-  }, []);
-
-  const handleWalletConnect = async () => {
-    setView('connect');
-    setRelayDown(false);
-    await wallet.connect();
-    if (wallet.status === 'connected' && wallet.identity?.directAddress) {
-      try {
-        const res = await fetch(`${RELAY_SERVER}/passport/wallet/${encodeURIComponent(wallet.identity.directAddress)}`);
-        if (res.ok) {
-          const data = await res.json();
-          if (data.success && data.passport) {
-            setPassport(data.passport);
-            setView('dashboard');
-            return;
-          }
-        }
-      } catch (err) {
-        console.warn('Failed to check existing passport:', err);
-        setRelayDown(true);
-        return;
-      }
-      setView('guild-select');
-    }
-  };
-
-  const handleGuildSelect = (guild) => {
-    setSelectedGuild(guild);
-  };
-
-  const handleCreatePassport = async () => {
-    if (!selectedGuild || !wallet.identity?.directAddress) return;
-    try {
-      const res = await fetch(`${RELAY_SERVER}/passport`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ walletAddress: wallet.identity.directAddress, guild: selectedGuild, nametag: wallet.identity.nametag || null }),
-      });
-      const data = await res.json();
-      if (data.success) { setPassport(data.passport); setView('passport'); }
-    } catch (err) { console.error('Failed to create passport:', err); }
-  };
-
-  if (relayDown) {
-    return <RelayDownView onRetry={() => { setRelayDown(false); handleWalletConnect(); }} />;
-  }
-
-  if (view !== 'landing') {
-    const isDashboard = view === 'dashboard';
-    return (
-      <div style={{ 
-        maxWidth: isDashboard ? '100%' : 640,
-        margin: '0 auto',
-        padding: isDashboard ? '0' : '40px 20px',
-        fontFamily: "'Mona Sans', sans-serif",
-        backgroundColor: C, color: D, minHeight: '100vh',
-        display: 'flex',
-        flexDirection: 'column',
-      }}>
-        {!isDashboard && <HeaderSmall onBack={() => setView('landing')} identity={wallet.identity} passport={passport} />}
-        <div style={{
-          flex: 1,
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'center',
-        }}>
-          {view === 'connect' && <ConnectView wallet={wallet} onConnect={handleWalletConnect} onPassportFound={(p) => { setPassport(p); }} />}
-          {view === 'guild-select' && <GuildSelectView onSelect={handleGuildSelect} onCreate={handleCreatePassport} selected={selectedGuild} />}
-          {view === 'passport' && <PassportView passport={passport} onEnter={() => setView('dashboard')} />}
-          {view === 'dashboard' && <DashboardView passport={passport} wallet={wallet} identity={wallet.identity} pendingDeepLink={pendingDeepLink} setPendingDeepLink={setPendingDeepLink} onPassportUpdate={(updates) => setPassport(prev => prev ? { ...prev, ...updates } : null)} />}
-        </div>
-      </div>
-    );
-  }
-
-  return <LandingPage onStart={handleWalletConnect} scrolled={scrolled} />;
+  return (
+    <Routes>
+      <Route path="/home" element={<LandingPage scrolled={scrolled} />} />
+      <Route path="/onboarding" element={<OnboardingPage wallet={wallet} onPassportReady={(p) => setPassport(p)} />} />
+      <Route path="/app" element={
+        <DashboardView
+          passport={passport}
+          wallet={wallet}
+          identity={wallet.identity}
+          pendingDeepLink={pendingDeepLink}
+          setPendingDeepLink={setPendingDeepLink}
+          onPassportUpdate={(updates) => setPassport(prev => prev ? { ...prev, ...updates } : null)}
+        />
+      } />
+      <Route path="*" element={<Navigate to="/home" replace />} />
+    </Routes>
+  );
 }
 
 // ───────────────────────────────────────────────────
 // LANDING PAGE
 // ───────────────────────────────────────────────────
 
-function LandingPage({ onStart, scrolled }) {
+function LandingPage({ scrolled }) {
+  const navigate = useNavigate();
   const agents = [
     { name: 'Verification', desc: 'Validates passports & relay keys', icon: '🛡️', protocol: 'Key exchange' },
     { name: 'Puzzle', desc: 'Presents challenges, validates answers', icon: '🧩', protocol: 'Challenge/response' },
@@ -239,7 +171,7 @@ function LandingPage({ onStart, scrolled }) {
         </p>
 
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', justifyContent: 'center' }}>
-          <button onClick={onStart} style={{
+          <button onClick={() => navigate('/onboarding')} style={{
             ...btnGrad,
             animation: 'glowPulse 4s ease-in-out infinite',
           }}>
@@ -668,7 +600,7 @@ function LandingPage({ onStart, scrolled }) {
             and activates your passport — all without a single LLM API call.
           </p>
           <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
-            <button onClick={onStart} style={{
+            <button onClick={() => navigate('/onboarding')} style={{
               ...btnGrad,
               animation: 'glowPulse 4s ease-in-out infinite',
             }}>
@@ -721,6 +653,78 @@ function LandingPage({ onStart, scrolled }) {
           </div>
         </div>
       </footer>
+    </div>
+  );
+}
+
+// ───────────────────────────────────────────────────
+// ONBOARDING PAGE (Connect → Guild Select → Passport)
+// ───────────────────────────────────────────────────
+
+function OnboardingPage({ wallet, onPassportReady }) {
+  const navigate = useNavigate();
+  const [step, setStep] = useState('connect');
+  const [passport, setPassport] = useState(null);
+  const [selectedGuild, setSelectedGuild] = useState(null);
+  const [relayDown, setRelayDown] = useState(false);
+
+  const handleWalletConnect = async () => {
+    setStep('connect');
+    setRelayDown(false);
+    await wallet.connect();
+    if (wallet.status === 'connected' && wallet.identity?.directAddress) {
+      try {
+        const res = await fetch(`${RELAY_SERVER}/passport/wallet/${encodeURIComponent(wallet.identity.directAddress)}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success && data.passport) {
+            setPassport(data.passport);
+            onPassportReady(data.passport);
+            navigate('/app');
+            return;
+          }
+        }
+      } catch (err) {
+        console.warn('Failed to check existing passport:', err);
+        setRelayDown(true);
+        return;
+      }
+      setStep('guild-select');
+    }
+  };
+
+  const handleCreatePassport = async () => {
+    if (!selectedGuild || !wallet.identity?.directAddress) return;
+    try {
+      const res = await fetch(`${RELAY_SERVER}/passport`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ walletAddress: wallet.identity.directAddress, guild: selectedGuild, nametag: wallet.identity.nametag || null }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setPassport(data.passport);
+        setStep('passport');
+      }
+    } catch (err) { console.error('Failed to create passport:', err); }
+  };
+
+  if (relayDown) {
+    return <RelayDownView onRetry={() => { setRelayDown(false); handleWalletConnect(); }} />;
+  }
+
+  return (
+    <div style={{
+      maxWidth: 640, margin: '0 auto', padding: '40px 20px',
+      fontFamily: "'Mona Sans', sans-serif", backgroundColor: C, color: D, minHeight: '100vh',
+      display: 'flex', flexDirection: 'column',
+    }}>
+      <HeaderSmall onBack={() => navigate('/home')} identity={wallet.identity} passport={passport} />
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+        {step === 'connect' && <ConnectView wallet={wallet} onConnect={handleWalletConnect} onPassportFound={(p) => { setPassport(p); onPassportReady(p); navigate('/app'); }} />}
+        {step === 'guild-select' && <GuildSelectView onSelect={setSelectedGuild} onCreate={handleCreatePassport} selected={selectedGuild} />}
+        {step === 'passport' && <PassportView passport={passport} onEnter={() => { onPassportReady(passport); navigate('/app'); }} />}
+      </div>
     </div>
   );
 }
