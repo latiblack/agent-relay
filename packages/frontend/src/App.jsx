@@ -54,6 +54,7 @@ function App() {
   const [selectedGuild, setSelectedGuild] = useState(null);
   const [scrolled, setScrolled] = useState(false);
   const [pendingDeepLink, setPendingDeepLink] = useState(null);
+  const [relayDown, setRelayDown] = useState(false);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 60);
@@ -73,9 +74,9 @@ function App() {
 
   const handleWalletConnect = async () => {
     setView('connect');
+    setRelayDown(false);
     await wallet.connect();
     if (wallet.status === 'connected' && wallet.identity?.directAddress) {
-      // Check if user already has a passport
       try {
         const res = await fetch(`${RELAY_SERVER}/passport/wallet/${encodeURIComponent(wallet.identity.directAddress)}`);
         if (res.ok) {
@@ -88,6 +89,8 @@ function App() {
         }
       } catch (err) {
         console.warn('Failed to check existing passport:', err);
+        setRelayDown(true);
+        return;
       }
       setView('guild-select');
     }
@@ -109,6 +112,10 @@ function App() {
       if (data.success) { setPassport(data.passport); setView('passport'); }
     } catch (err) { console.error('Failed to create passport:', err); }
   };
+
+  if (relayDown) {
+    return <RelayDownView onRetry={() => { setRelayDown(false); handleWalletConnect(); }} />;
+  }
 
   if (view !== 'landing') {
     const isDashboard = view === 'dashboard';
@@ -2007,5 +2014,38 @@ const btnOutline = {
   fontFamily: "'Mona Sans', sans-serif",
   background: 'transparent',
 };
+
+function RelayDownView({ onRetry }) {
+  return (
+    <div style={{
+      maxWidth: 480, margin: '0 auto', padding: '40px 20px',
+      fontFamily: "'Mona Sans', sans-serif", backgroundColor: C, color: D,
+      minHeight: '100vh', display: 'flex', flexDirection: 'column',
+      justifyContent: 'center', alignItems: 'center', textAlign: 'center',
+    }}>
+      <div style={{
+        width: 64, height: 64, borderRadius: 20,
+        background: 'rgba(255,111,0,0.1)', display: 'flex', alignItems: 'center',
+        justifyContent: 'center', fontSize: 28, marginBottom: 24,
+      }}>⚠️</div>
+      <h2 style={{
+        fontFamily: "'Hubot Sans', sans-serif", fontSize: 22, fontWeight: 600,
+        margin: '0 0 8px', letterSpacing: '-0.02em',
+      }}>Relay server offline</h2>
+      <p style={{ color: E, fontSize: 14, lineHeight: 1.6, margin: '0 0 32px', maxWidth: 360 }}>
+        The agent relay is temporarily unreachable. Your existing passport is safe —
+        no new profile will be created. Try again in a moment.
+      </p>
+      <button onClick={onRetry} style={{
+        ...btnGrad, fontFamily: "'Mona Sans', sans-serif",
+      }}>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          Retry connection
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+        </span>
+      </button>
+    </div>
+  );
+}
 
 export default App;
