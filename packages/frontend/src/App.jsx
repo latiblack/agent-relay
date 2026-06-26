@@ -2,7 +2,7 @@
 // Full flow: Landing → Wallet → Guild → Passport → Dashboard → Agent Console
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Routes, Route, useNavigate, useParams, Navigate } from 'react-router-dom';
+import { Routes, Route, useNavigate, useParams, useLocation, Navigate } from 'react-router-dom';
 import { useWallet } from './hooks/useWallet';
 import { useQuestConsole } from './hooks/useQuestConsole';
 
@@ -64,21 +64,23 @@ function App() {
     <Routes>
       <Route path="/home" element={<LandingPage scrolled={scrolled} />} />
       <Route path="/onboarding" element={<OnboardingPage wallet={wallet} onPassportReady={(p) => setPassport(p)} />} />
-      <Route path="/app/:sub?" element={
-        wallet.identity && passport ? (
-          <DashboardView
-            passport={passport}
-            wallet={wallet}
-            identity={wallet.identity}
-            pendingDeepLink={pendingDeepLink}
-            setPendingDeepLink={setPendingDeepLink}
-            onPassportUpdate={(updates) => setPassport(prev => prev ? { ...prev, ...updates } : null)}
-          />
-        ) : (
-          <Navigate to="/onboarding" replace />
-        )
-      } />
-      <Route path="/app" element={<Navigate to="/app/overview" replace />} />
+      <Route path="/app" element={<Navigate to="/overview" replace />} />
+      {['overview', 'quests', 'guild-chat', 'profile'].map(sub => (
+        <Route key={sub} path={`/${sub}`} element={
+          wallet.identity && passport ? (
+            <DashboardView
+              passport={passport}
+              wallet={wallet}
+              identity={wallet.identity}
+              pendingDeepLink={pendingDeepLink}
+              setPendingDeepLink={setPendingDeepLink}
+              onPassportUpdate={(updates) => setPassport(prev => prev ? { ...prev, ...updates } : null)}
+            />
+          ) : (
+            <Navigate to="/onboarding" replace />
+          )
+        } />
+      ))}
       <Route path="*" element={<Navigate to="/home" replace />} />
     </Routes>
   );
@@ -685,7 +687,7 @@ function OnboardingPage({ wallet, onPassportReady }) {
           if (data.success && data.passport) {
             setPassport(data.passport);
             onPassportReady(data.passport);
-            navigate('/app');
+            navigate('/overview');
             return;
           }
         }
@@ -726,9 +728,9 @@ function OnboardingPage({ wallet, onPassportReady }) {
     }}>
       <HeaderSmall onBack={() => navigate('/home')} identity={wallet.identity} passport={passport} />
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-        {step === 'connect' && <ConnectView wallet={wallet} onConnect={handleWalletConnect} onPassportFound={(p) => { setPassport(p); onPassportReady(p); navigate('/app'); }} />}
+        {step === 'connect' && <ConnectView wallet={wallet} onConnect={handleWalletConnect} onPassportFound={(p) => { setPassport(p); onPassportReady(p); navigate('/overview'); }} />}
         {step === 'guild-select' && <GuildSelectView onSelect={setSelectedGuild} onCreate={handleCreatePassport} selected={selectedGuild} />}
-        {step === 'passport' && <PassportView passport={passport} onEnter={() => { onPassportReady(passport); navigate('/app'); }} />}
+        {step === 'passport' && <PassportView passport={passport} onEnter={() => { onPassportReady(passport); navigate('/overview'); }} />}
       </div>
     </div>
   );
@@ -1006,9 +1008,9 @@ function PassportView({ passport, onEnter }) {
 }
 
 function DashboardView({ passport, wallet, identity, pendingDeepLink, setPendingDeepLink, onPassportUpdate }) {
-  const { sub } = useParams();
   const navigate = useNavigate();
-  const page = sub || 'overview';
+  const location = useLocation();
+  const page = location.pathname.replace(/^\//, '') || 'overview';
   const [menuOpen, setMenuOpen] = useState(false);
   const tag = identity ? formatUserTag(identity) : null;
 
@@ -1018,7 +1020,7 @@ function DashboardView({ passport, wallet, identity, pendingDeepLink, setPending
   useEffect(() => {
     if (pendingDeepLink && passport?.passportId) {
       deployQuest(pendingDeepLink);
-      navigate('/app/quests');
+      navigate('/quests');
       setPendingDeepLink(null);
     }
   }, [pendingDeepLink, passport?.passportId]);
@@ -1128,7 +1130,7 @@ function DashboardView({ passport, wallet, identity, pendingDeepLink, setPending
         {/* Nav items */}
         <div style={{ flex: 1, padding: '8px 0' }}>
           {navItems.map(n => (
-            <button key={n.id} onClick={() => { navigate('/app/' + n.id); setMenuOpen(false); }} style={{
+            <button key={n.id} onClick={() => { navigate('/' + n.id); setMenuOpen(false); }} style={{
               display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', width: '100%',
               background: page === n.id ? H : 'transparent',
               border: 'none', borderLeft: page === n.id ? `3px solid ${A}` : '3px solid transparent',
