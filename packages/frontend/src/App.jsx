@@ -65,14 +65,18 @@ function App() {
       <Route path="/home" element={<LandingPage scrolled={scrolled} />} />
       <Route path="/onboarding" element={<OnboardingPage wallet={wallet} onPassportReady={(p) => setPassport(p)} />} />
       <Route path="/app/:sub?" element={
-        <DashboardView
-          passport={passport}
-          wallet={wallet}
-          identity={wallet.identity}
-          pendingDeepLink={pendingDeepLink}
-          setPendingDeepLink={setPendingDeepLink}
-          onPassportUpdate={(updates) => setPassport(prev => prev ? { ...prev, ...updates } : null)}
-        />
+        wallet.identity && passport ? (
+          <DashboardView
+            passport={passport}
+            wallet={wallet}
+            identity={wallet.identity}
+            pendingDeepLink={pendingDeepLink}
+            setPendingDeepLink={setPendingDeepLink}
+            onPassportUpdate={(updates) => setPassport(prev => prev ? { ...prev, ...updates } : null)}
+          />
+        ) : (
+          <Navigate to="/onboarding" replace />
+        )
       } />
       <Route path="/app" element={<Navigate to="/app/overview" replace />} />
       <Route path="*" element={<Navigate to="/home" replace />} />
