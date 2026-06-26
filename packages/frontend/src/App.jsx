@@ -2,7 +2,7 @@
 // Full flow: Landing → Wallet → Guild → Passport → Dashboard → Agent Console
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Routes, Route, useNavigate, Navigate } from 'react-router-dom';
+import { Routes, Route, useNavigate, useParams, Navigate } from 'react-router-dom';
 import { useWallet } from './hooks/useWallet';
 import { useQuestConsole } from './hooks/useQuestConsole';
 
@@ -64,7 +64,7 @@ function App() {
     <Routes>
       <Route path="/home" element={<LandingPage scrolled={scrolled} />} />
       <Route path="/onboarding" element={<OnboardingPage wallet={wallet} onPassportReady={(p) => setPassport(p)} />} />
-      <Route path="/app" element={
+      <Route path="/app/:sub?" element={
         <DashboardView
           passport={passport}
           wallet={wallet}
@@ -74,6 +74,7 @@ function App() {
           onPassportUpdate={(updates) => setPassport(prev => prev ? { ...prev, ...updates } : null)}
         />
       } />
+      <Route path="/app" element={<Navigate to="/app/overview" replace />} />
       <Route path="*" element={<Navigate to="/home" replace />} />
     </Routes>
   );
@@ -924,7 +925,9 @@ function PassportView({ passport, onEnter }) {
 }
 
 function DashboardView({ passport, wallet, identity, pendingDeepLink, setPendingDeepLink, onPassportUpdate }) {
-  const [page, setPage] = useState('overview');
+  const { sub } = useParams();
+  const navigate = useNavigate();
+  const page = sub || 'overview';
   const [menuOpen, setMenuOpen] = useState(false);
   const tag = identity ? formatUserTag(identity) : null;
 
@@ -934,7 +937,7 @@ function DashboardView({ passport, wallet, identity, pendingDeepLink, setPending
   useEffect(() => {
     if (pendingDeepLink && passport?.passportId) {
       deployQuest(pendingDeepLink);
-      setPage('quests');
+      navigate('/app/quests');
       setPendingDeepLink(null);
     }
   }, [pendingDeepLink, passport?.passportId]);
@@ -1044,7 +1047,7 @@ function DashboardView({ passport, wallet, identity, pendingDeepLink, setPending
         {/* Nav items */}
         <div style={{ flex: 1, padding: '8px 0' }}>
           {navItems.map(n => (
-            <button key={n.id} onClick={() => { setPage(n.id); setMenuOpen(false); }} style={{
+            <button key={n.id} onClick={() => { navigate('/app/' + n.id); setMenuOpen(false); }} style={{
               display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', width: '100%',
               background: page === n.id ? H : 'transparent',
               border: 'none', borderLeft: page === n.id ? `3px solid ${A}` : '3px solid transparent',
