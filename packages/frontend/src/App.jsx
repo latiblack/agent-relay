@@ -788,19 +788,10 @@ function ConnectView({ wallet, onConnect, onPassportFound }) {
 
   const pfpUrl = connectPassport?.avatarUrl;
 
-  return (
-    <div style={glassCard}>
-      <StepNum n={1} />
-      <h2 style={{ fontFamily: "'Hubot Sans', sans-serif", fontSize: 18, fontWeight: 600, marginBottom: 16 }}>Connect Your Wallet</h2>
-      <p style={{ color: E, fontSize: 14, lineHeight: 1.7, marginBottom: 24, fontFamily: "'Mona Sans', sans-serif" }}>
-        Your Sphere wallet is your identity across the Unicity ecosystem.
-        No account needed — just connect and you're in.
-      </p>
-      {wallet.status === 'error' && <p style={{ color: '#ff6b6b', fontSize: 13, marginBottom: 12, fontFamily: "'Mona Sans', sans-serif" }}>{wallet.error}</p>}
-      <button onClick={onConnect} disabled={wallet.status === 'connecting'} style={{ ...btnGrad, opacity: wallet.status === 'connecting' ? 0.5 : 1 }}>
-        {wallet.status === 'connecting' ? 'Connecting...' : 'Connect Wallet'}
-      </button>
-      {wallet.identity && (
+  if (wallet.identity) {
+    return (
+      <div style={glassCard}>
+        <h2 style={{ fontFamily: "'Hubot Sans', sans-serif", fontSize: 18, fontWeight: 600, marginBottom: 16 }}>Connected</h2>
         <div style={{
           marginTop: 16, padding: '12px 16px', background: H,
           border: `1px solid ${I}`, borderRadius: 10,
@@ -838,49 +829,137 @@ function ConnectView({ wallet, onConnect, onPassportFound }) {
             </div>
           </div>
         </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ textAlign: 'center', padding: '20px 0' }}>
+      {wallet.status === 'error' && (
+        <p style={{ color: '#ff6b6b', fontSize: 13, marginBottom: 16, fontFamily: "'Mona Sans', sans-serif" }}>
+          {wallet.error}
+        </p>
       )}
+      <div style={{
+        width: 72, height: 72, margin: '0 auto 24px',
+      }}>
+        <svg viewBox="0 0 32 32" style={{ width: '100%', height: '100%' }}>
+          <rect width="32" height="32" rx="6" fill="#0a0a0a"/>
+          <circle cx="16" cy="16" r="14" stroke="#FF6F00" strokeWidth="1.5" opacity="0.3" fill="none"/>
+          <circle cx="16" cy="16" r="8" fill="#FF6F00" opacity="0.15"/>
+          <circle cx="16" cy="16" r="4" fill="#FF6F00"/>
+        </svg>
+      </div>
+      <h1 style={{
+        fontFamily: "'Hubot Sans', sans-serif", fontSize: 26, fontWeight: 600, marginBottom: 10,
+      }}>Connect Your Wallet</h1>
+      <p style={{ color: E, fontSize: 14, lineHeight: 1.6, maxWidth: 320, margin: '0 auto 32px', fontFamily: "'Mona Sans', sans-serif" }}>
+        Link your Sphere wallet to create a passport and deploy agents on the Unicity network.
+      </p>
+      <div style={{
+        display: 'inline-flex', alignItems: 'center', gap: 6,
+        padding: '8px 16px', background: H, border: `1px solid ${I}`, borderRadius: 9999,
+        fontSize: 11, color: A, fontFamily: "'JetBrains Mono', monospace", marginBottom: 32,
+      }}>
+        <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#22c55e', display: 'inline-block' }} />
+        Unicity Testnet2 · Chain ID 4
+      </div>
+      <div
+        onClick={wallet.status === 'connecting' ? undefined : onConnect}
+        style={{
+          width: '100%', maxWidth: 340, margin: '0 auto', display: 'flex', alignItems: 'center', gap: 16,
+          padding: '18px 20px', background: wallet.status === 'connecting' ? 'rgba(255,111,0,0.06)' : 'rgba(255,255,255,0.03)',
+          border: `1px solid ${wallet.status === 'connecting' ? I : G}`,
+          borderRadius: 14, cursor: wallet.status === 'connecting' ? 'not-allowed' : 'pointer',
+          transition: 'all 0.2s', opacity: wallet.status === 'connecting' ? 0.5 : 1,
+        }}
+      >
+        <div style={{
+          width: 44, height: 44, borderRadius: 12,
+          background: `linear-gradient(135deg, ${A}, ${B})`,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, flexShrink: 0,
+        }}>◈</div>
+        <div style={{ textAlign: 'left', flex: 1 }}>
+          <div style={{ fontSize: 15, fontWeight: 600 }}>{wallet.status === 'connecting' ? 'Connecting...' : 'Sphere Wallet'}</div>
+          <div style={{ fontSize: 11, color: E, marginTop: 2 }}>Connect via Sphere SDK</div>
+        </div>
+        <div style={{ color: 'rgba(255,255,255,0.2)', fontSize: 18 }}>→</div>
+      </div>
+      <div style={{ width: '100%', maxWidth: 340, margin: '20px auto 0', display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {[
+          'Identity handshake via Nostr DMs',
+          'Permissioned relay key generation',
+          'Multi-agent quest activation',
+        ].map((f, i) => (
+          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 12, color: 'rgba(241,245,249,0.35)' }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+            {f}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
 
 function GuildSelectView({ onSelect, onCreate, selected }) {
   const guilds = [
-    { id: 'explorer', name: 'Explorer Guild', desc: 'Discovery missions', icon: '🔭' },
-    { id: 'builder', name: 'Builder Guild', desc: 'Development missions', icon: '⚒️' },
-    { id: 'creator', name: 'Creator Guild', desc: 'Design & content', icon: '🎨' },
-    { id: 'research', name: 'Research Guild', desc: 'Investigation', icon: '🔬' },
+    { id: 'explorer', name: 'Explorer Guild', desc: 'Discovery and recon missions. First to test new quests.', icon: '🔭', color: A, members: 128, quests: 47, xp: '12.4k', iconClass: 'explorer' },
+    { id: 'builder', name: 'Builder Guild', desc: 'Develop and maintain relay infrastructure.', icon: '⚙️', color: '#3b82f6', members: 94, quests: 31, xp: '9.8k', iconClass: 'builder' },
+    { id: 'creator', name: 'Creator Guild', desc: 'Design quest narratives, puzzles, and lore.', icon: '🎨', color: '#a855f7', members: 76, quests: 23, xp: '7.2k', iconClass: 'creator' },
+    { id: 'research', name: 'Research Guild', desc: 'Investigate agent behavior and quest analytics.', icon: '🔬', color: '#22c55e', members: 52, quests: 18, xp: '5.6k', iconClass: 'research' },
   ];
   return (
-    <div style={glassCard}>
-      <StepNum n={2} />
-      <SectionLabel>AFFILIATION</SectionLabel>
-      <h2 style={{ fontFamily: "'Hubot Sans', sans-serif", fontSize: 18, fontWeight: 600, marginBottom: 16 }}>Choose Your Guild</h2>
-      <p style={{ color: E, fontSize: 14, marginBottom: 20, fontFamily: "'Mona Sans', sans-serif" }}>Each guild has its own missions and Master Agent.</p>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-        {guilds.map((g) => (
-          <button key={g.id} onClick={() => onSelect(g.id)} style={{
-            background: F, border: `1px solid ${selected === g.id ? A : G}`, borderRadius: 16, padding: '20px 16px',
-            cursor: 'pointer', color: D, textAlign: 'left', transition: 'border-color 0.2s', fontFamily: "'Mona Sans', sans-serif",
+    <div style={{ padding: '0 4px' }}>
+      <h1 style={{ fontFamily: "'Hubot Sans', sans-serif", fontSize: 24, fontWeight: 600, marginBottom: 4 }}>Choose Your Guild</h1>
+      <p style={{ color: E, fontSize: 13, marginBottom: 28, fontFamily: "'Mona Sans', sans-serif" }}>Your guild determines your role in the relay network.</p>
+      {guilds.map((g) => (
+        <div key={g.id}
+          onClick={() => onSelect(g.id)}
+          style={{
+            padding: 20, borderRadius: 14, marginBottom: 12, cursor: 'pointer',
+            background: selected === g.id ? 'rgba(255,111,0,0.06)' : 'rgba(255,255,255,0.03)',
+            border: selected === g.id ? `1px solid ${A}` : '1px solid rgba(255,255,255,0.06)',
+            transition: 'all 0.2s',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 10 }}>
+            <div style={{
+              width: 44, height: 44, borderRadius: 12,
+              background: `${g.color}1e`,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, flexShrink: 0,
+            }}>{g.icon}</div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 16, fontWeight: 600 }}>{g.name}</div>
+              <div style={{ fontSize: 12, color: E, marginTop: 2 }}>{g.desc}</div>
+            </div>
+          </div>
+          <div style={{
+            display: 'flex', gap: 20, paddingTop: 12, borderTop: '1px solid rgba(255,255,255,0.04)',
           }}>
-            <div style={{ fontSize: 24, marginBottom: 10 }}>{g.icon}</div>
-            <div style={{ fontFamily: "'Hubot Sans', sans-serif", fontSize: 14, fontWeight: 600, marginBottom: 4 }}>{g.name}</div>
-            <div style={{ fontSize: 12, color: E, fontFamily: "'Mona Sans', sans-serif" }}>{g.desc}</div>
-          </button>
-        ))}
-      </div>
-      {/* Continue button */}
+            {[
+              { val: g.members, lbl: 'MEMBERS' },
+              { val: g.quests, lbl: 'QUESTS' },
+              { val: g.xp, lbl: 'TOTAL XP' },
+            ].map((s, i) => (
+              <div key={i} style={{ textAlign: 'center' }}>
+                <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 14, fontWeight: 600, color: A }}>{s.val}</div>
+                <div style={{ fontSize: 9, color: 'rgba(241,245,249,0.3)', letterSpacing: '0.06em', marginTop: 2 }}>{s.lbl}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
       <button
         onClick={onCreate}
         disabled={!selected}
         style={{
-          ...btnGrad, marginTop: 20, width: '100%',
-          opacity: selected ? 1 : 0.35,
+          width: '100%', ...btnGrad, marginTop: 8,
+          opacity: selected ? 1 : 0.4,
           cursor: selected ? 'pointer' : 'not-allowed',
         }}
       >
         <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontFamily: "'Mona Sans', sans-serif" }}>
-          {selected ? `Join ${guilds.find(g => g.id === selected)?.name || 'Guild'}` : 'Select a guild to continue'}
-          {selected && <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>}
+          {selected ? `Create Passport →` : 'Select a guild to continue'}
         </span>
       </button>
     </div>
@@ -889,12 +968,10 @@ function GuildSelectView({ onSelect, onCreate, selected }) {
 
 function PassportView({ passport, onEnter }) {
   return (
-    <div style={glassCard}>
-      <StepNum n={3} />
-      <SectionLabel>IDENTITY</SectionLabel>
-      <h2 style={{ fontFamily: "'Hubot Sans', sans-serif", fontSize: 18, fontWeight: 600, marginBottom: 20 }}>Your Agent Passport</h2>
+    <div style={{ textAlign: 'center', padding: '10px 0' }}>
+      <h1 style={{ fontFamily: "'Hubot Sans', sans-serif", fontSize: 24, fontWeight: 600, marginBottom: 20 }}>Your Agent Passport</h1>
       <div style={{
-        background: H, border: `1px solid ${I}`, borderRadius: 12, padding: 20, marginBottom: 16,
+        background: H, border: `1px solid ${I}`, borderRadius: 12, padding: 20, marginBottom: 16, textAlign: 'left',
         fontFamily: "'JetBrains Mono', monospace",
       }}>
         {[
