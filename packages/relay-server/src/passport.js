@@ -186,10 +186,44 @@ export class PassportManager {
   }
 
   validatePassport(key) {
-    const passport = this.passports.get(key);
-    return passport
-      ? { valid: true, passport }
-      : { valid: false };
+    const cached = this.passports.get(key);
+    if (cached) return { valid: true, passport: cached };
+
+    // Fallback: check Supabase (handles server restart where cache is cold)
+    if (this.supabase) {
+      // Try as passport_id first, then relay_key
+      return this._lookupFromDb({ passport_id: key }).then((p) => {
+        if (p) {
+          this.passports.set(p.passportId, p);
+          this.passports.set(p.relayKey, p);
+          return { valid: true, passport: p };
+        }
+        // Try as relay_key
+        return this._lookupFromDb({ relay_key: key }).then((p2) => {
+          if (p2) {
+            this.passports.set(p2.passportId, p2);
+            this.passports.set(p2.relayKey, p2);
+            return { valid: true, passport: p2 };
+          }
+          return { valid: false };
+        });
+      });
+    }
+    return { valid: false };
+  }
+
+  async _lookupFromDb(filter) {
+    try {
+      const { data } = await this.supabase
+        .from('passports')
+        .select('*')
+        .match(filter)
+        .single();
+      return data ? this._rowToPassport(data) : null;
+    } catch (err) {
+      console.warn('[PassportManager] DB lookup failed:', err.message);
+      return null;
+    }
   }
 
   async recordCompletion(passportId, questId, xpEarned) {

@@ -388,7 +388,7 @@ async function main() {
       // GET /passport/:key — Validate passport/relay key
       if (url.pathname.startsWith('/passport/') && req.method === 'GET') {
         const key = url.pathname.split('/passport/')[1];
-        const result = passportManager.validatePassport(key);
+        const result = await passportManager.validatePassport(key);
         res.writeHead(result.valid ? 200 : 404);
         res.end(JSON.stringify(result));
         return;
@@ -458,7 +458,8 @@ async function main() {
       if (url.pathname === '/quest/deploy' && req.method === 'POST') {
         const body = await parseBody(req);
         const { passportId, questId, userTag } = body;
-        const passport = passportManager.validatePassport(passportId)?.passport;
+        const passportResult = await passportManager.validatePassport(passportId);
+        const passport = passportResult?.passport;
         if (!passport) {
           res.writeHead(400);
           res.end(JSON.stringify({ error: 'Invalid passport' }));
@@ -524,7 +525,8 @@ async function main() {
           return;
         }
 
-        const passport = passportManager.validatePassport(passportId)?.passport;
+        const passportResult = await passportManager.validatePassport(passportId);
+        const passport = passportResult?.passport;
         if (!passport) {
           res.writeHead(400);
           res.end(JSON.stringify({ error: 'Invalid passport' }));
