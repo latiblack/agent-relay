@@ -43,8 +43,8 @@ export function useWallet() {
     if (!c) return;
     try {
       const result = await c.query('sphere_getAssets');
-      if (result?.assets) {
-        setAssets(result.assets);
+      if (Array.isArray(result)) {
+        setAssets(result);
       }
     } catch (err) {
       console.warn('Failed to fetch wallet assets:', err);
@@ -77,9 +77,9 @@ export function useWallet() {
 
       // Fetch balance after connection
       try {
-        const assetsResult = await result.client.query('sphere_getAssets');
-        if (assetsResult?.assets) {
-          setAssets(assetsResult.assets);
+        const assetList = await result.client.query('sphere_getAssets');
+        if (Array.isArray(assetList)) {
+          setAssets(assetList);
         }
       } catch (err) {
         console.warn('Failed to fetch wallet assets:', err);
@@ -95,15 +95,19 @@ export function useWallet() {
     cleanup();
   }, [cleanup]);
 
-  // Get UCT balance as human-readable string
+  // Get UCT balance as human-readable string (pure BigInt math, no float)
   const getUctBalance = useCallback(() => {
     const uctAsset = assets.find(a => a.coinId === UCT_COIN_ID);
     if (!uctAsset) return '0';
     const raw = uctAsset.totalAmount || uctAsset.balance || '0';
-    // Convert from wei-like units (18 decimals)
-    const formatted = (BigInt(raw) / BigInt(10 ** 9)).toString(); // rough
-    const full = (Number(raw) / 10 ** UCT_DECIMALS).toFixed(4);
-    return full.replace(/\.?0+$/, '');
+    const decimals = uctAsset.decimals || 18;
+    // Convert from base units to human-readable using BigInt
+    const divisor = 10n ** BigInt(decimals);
+    const amount = BigInt(raw);
+    const whole = amount / divisor;
+    const fraction = amount % divisor;
+    const fractionStr = fraction.toString().padStart(decimals, '0').replace(/0+$/, '');
+    return fractionStr ? `${whole}.${fractionStr}` : whole.toString();
   }, [assets]);
 
   // Send UCT tokens via wallet intent
