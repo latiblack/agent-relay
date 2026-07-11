@@ -1328,39 +1328,66 @@ function QuestsPage({ onDeploy, messages, connected, questState, passportId, onS
     onDeploy(qId);
   };
 
-  // ── Typing animation for latest message ──
+  // ── Sequential typing animation — each message types out one at a time ──
+  const [typingIdx, setTypingIdx] = useState(-1);
   const [typingLen, setTypingLen] = useState(0);
-  const typingMessageRef = useRef('');
   const typingTimerRef = useRef(null);
+  const typedSetRef = useRef(new Set()); // indices fully typed
 
+  // When messages change, find untyped ones and start typing
+  const prevCountRef = useRef(0);
   useEffect(() => {
     if (messages.length === 0) return;
-    const last = messages[messages.length - 1];
-    if (!last?.message) return;
+    const prevCount = prevCountRef.current;
+    prevCountRef.current = messages.length;
 
+    // Find the next untyped message
+    let nextIdx = -1;
+    for (let i = 0; i < messages.length; i++) {
+      if (!typedSetRef.current.has(i) && messages[i]?.message) {
+        nextIdx = i;
+        break;
+      }
+    }
+
+    if (nextIdx === -1) return; // nothing to type
+
+    // If already typing something else, don't interrupt
+    if (typingIdx >= 0 && typingIdx < messages.length && typingLen < (messages[typingIdx]?.message?.length || 0)) {
+      return;
+    }
+
+    // Start typing this message
     if (typingTimerRef.current) clearInterval(typingTimerRef.current);
-
-    typingMessageRef.current = last.message;
+    setTypingIdx(nextIdx);
     setTypingLen(0);
 
     typingTimerRef.current = setInterval(() => {
-      const target = typingMessageRef.current;
-      if (!target) { clearInterval(typingTimerRef.current); typingTimerRef.current = null; return; }
+      const currentMessage = messages[nextIdx]?.message;
+      if (!currentMessage) {
+        clearInterval(typingTimerRef.current);
+        typingTimerRef.current = null;
+        return;
+      }
       setTypingLen(prev => {
-        const next = prev + 2;
-        if (next >= target.length) {
+        const next = prev + 3;
+        if (next >= currentMessage.length) {
           clearInterval(typingTimerRef.current);
           typingTimerRef.current = null;
-          return target.length;
+          typedSetRef.current.add(nextIdx);
+          // Trigger re-check for next untyped message
+          setTypingIdx(-1);
+          setTypingLen(0);
+          return currentMessage.length;
         }
         return next;
       });
-    }, 18);
+    }, 16);
 
     return () => {
       if (typingTimerRef.current) clearInterval(typingTimerRef.current);
     };
-  }, [messages.length]);
+  }, [messages.length, typingIdx]);
 
   // ── Determine which flow segment to highlight from phase ──
   const activeFlowSegment = (() => {
@@ -1667,9 +1694,10 @@ function QuestsPage({ onDeploy, messages, connected, questState, passportId, onS
                 </div>
               ) : (
                 messages.map((m, i) => {
-                  const isLatest = i === messages.length - 1;
-                  const msgText = isLatest ? m.message.slice(0, typingLen) || ' ' : m.message;
-                  const typingActive = isLatest && typingLen < (m.message?.length || 0);
+                  const isTyping = i === typingIdx;
+                  const isDone = typedSetRef.current.has(i);
+                  const msgText = isTyping ? m.message.slice(0, typingLen) : m.message;
+                  const cursorActive = isTyping && typingLen < (m.message?.length || 0);
                   return (
                     <div key={i} style={{ display: 'flex', gap: 6, padding: '5px 0', borderBottom: i < messages.length - 1 ? '1px solid rgba(255,255,255,0.03)' : 'none', fontFamily: "'JetBrains Mono', monospace", fontSize: 10, lineHeight: 1.5 }}>
                       <span style={{ color: 'rgba(255,255,255,0.12)', minWidth: 50, fontSize: 9 }}>{m.time}</span>
@@ -1680,7 +1708,7 @@ function QuestsPage({ onDeploy, messages, connected, questState, passportId, onS
                       <span style={{ color: '#22c55e', minWidth: 85, fontSize: 10 }}>{m.to}</span>
                       <span style={{ color: m.phase === 'error' ? '#ef4444' : 'rgba(255,255,255,0.45)', flex: 1 }}>
                         {msgText}
-                        {typingActive && <span style={{ animation: 'blink 0.7s step-end infinite', color: '#FF6F00' }}>▌</span>}
+                        {cursorActive && <span style={{ animation: 'blink 0.7s step-end infinite', color: '#FF6F00' }}>▌</span>}
                       </span>
                     </div>
                   );
