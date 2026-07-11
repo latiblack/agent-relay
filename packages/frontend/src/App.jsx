@@ -1329,10 +1329,18 @@ function QuestsPage({ onDeploy, messages, connected, questState, passportId, onS
   };
 
   // ── Confirm a pending user action (user clicks to send their agent's message) ──
+  const [confirming, setConfirming] = useState(false);
+  const confirmingRef = useRef(false);
   const handleConfirmAction = () => {
-    if (!pendingAction) return;
+    if (!pendingAction || confirmingRef.current) return;
+    confirmingRef.current = true;
+    setConfirming(true);
     typedSetRef.current.add(pendingAction.idx);
-    setPendingAction(null);
+    setTimeout(() => {
+      confirmingRef.current = false;
+      setConfirming(false);
+      setPendingAction(null);
+    }, 1200);
   };
 
   // ── Sequential typing animation — single persistent interval (survives message arrivals) ──
@@ -1626,12 +1634,22 @@ function QuestsPage({ onDeploy, messages, connected, questState, passportId, onS
                 <span style={{ color: '#22c55e' }}>{pendingAction.to}</span>
                 <div style={{ color: 'rgba(255,255,255,0.7)', marginTop: 4, fontSize: 11 }}>{pendingAction.message}</div>
               </div>
-              <button onClick={handleConfirmAction} style={{ ...btnGrad, height: 36, padding: '0 20px', fontSize: 12, borderRadius: 8, whiteSpace: 'nowrap' }}>
-                {pendingAction.message.startsWith('[VERIFY]') ? 'Verify →' :
-                 pendingAction.message.startsWith('[REQUEST]') ? 'Request →' :
-                 pendingAction.message.startsWith('[READY]') ? 'Ready →' :
-                 pendingAction.message.startsWith('[ANSWER]') ? 'Answer →' :
-                 'Send →'}
+              <button onClick={handleConfirmAction} disabled={confirming} style={{ ...btnGrad, height: 36, padding: '0 20px', fontSize: 12, borderRadius: 8, whiteSpace: 'nowrap', opacity: confirming ? 0.7 : 1, cursor: confirming ? 'not-allowed' : 'pointer' }}>
+                {confirming ? (
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontFamily: "'Mona Sans', sans-serif" }}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" style={{ animation: 'spin 0.8s linear infinite' }}>
+                      <circle cx="12" cy="12" r="10" stroke="currentColor" opacity="0.3" />
+                      <path d="M12 2a10 10 0 0 1 10 10" strokeLinecap="round" />
+                    </svg>
+                    Sending...
+                  </span>
+                ) : (
+                  pendingAction.message.startsWith('[VERIFY]') ? 'Verify →' :
+                  pendingAction.message.startsWith('[REQUEST]') ? 'Request →' :
+                  pendingAction.message.startsWith('[READY]') ? 'Standing by →' :
+                  pendingAction.message.startsWith('[ANSWER]') ? 'Answer →' :
+                  'Send →'
+                )}
               </button>
             </div>
           ) : questState?.phase === 'puzzle' || questState?.phase === 'ready' ? (
