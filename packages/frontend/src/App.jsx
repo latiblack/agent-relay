@@ -1534,22 +1534,22 @@ function QuestsPage({ onDeploy, messages, connected, questState, passportId, onS
               <text x="48" y="20" textAnchor="middle" fill="#FF6F00" fontSize="11" fontFamily="'JetBrains Mono', monospace">YOU</text>
 
               {/* 2. Verify */}
-              <circle cx="192" cy="16" r="14" fill="rgba(255,111,0,0.08)" stroke="#FF6F00" strokeWidth="1.5" />
+              <circle cx="192" cy="16" r="14" fill="#1a1a1e" stroke="#FF6F00" strokeWidth="1.5" />
               <text x="192" y="20" textAnchor="middle" fill="#fff" fontSize="9" fontFamily="'JetBrains Mono', monospace" opacity="0.5">🛡️</text>
               <text x="192" y="30" textAnchor="middle" fill="rgba(255,255,255,0.2)" fontSize="7" fontFamily="'JetBrains Mono', monospace">verify</text>
 
               {/* 3. Lore */}
-              <circle cx="302" cy="16" r="14" fill="rgba(255,111,0,0.08)" stroke="#FF6F00" strokeWidth="1.5" />
+              <circle cx="302" cy="16" r="14" fill="#1a1a1e" stroke="#FF6F00" strokeWidth="1.5" />
               <text x="302" y="20" textAnchor="middle" fill="#fff" fontSize="9" fontFamily="'JetBrains Mono', monospace" opacity="0.5">📜</text>
               <text x="302" y="30" textAnchor="middle" fill="rgba(255,255,255,0.2)" fontSize="7" fontFamily="'JetBrains Mono', monospace">lore</text>
 
               {/* 4. Puzzle */}
-              <circle cx="412" cy="16" r="14" fill="rgba(255,111,0,0.08)" stroke="#FF6F00" strokeWidth="1.5" />
+              <circle cx="412" cy="16" r="14" fill="#1a1a1e" stroke="#FF6F00" strokeWidth="1.5" />
               <text x="412" y="20" textAnchor="middle" fill="#fff" fontSize="9" fontFamily="'JetBrains Mono', monospace" opacity="0.5">🧩</text>
               <text x="412" y="30" textAnchor="middle" fill="rgba(255,255,255,0.2)" fontSize="7" fontFamily="'JetBrains Mono', monospace">puzzle</text>
 
               {/* 5. Treasury */}
-              <circle cx="522" cy="16" r="14" fill="rgba(255,111,0,0.08)" stroke="#FF6F00" strokeWidth="1.5" />
+              <circle cx="522" cy="16" r="14" fill="#1a1a1e" stroke="#FF6F00" strokeWidth="1.5" />
               <text x="522" y="20" textAnchor="middle" fill="#fff" fontSize="9" fontFamily="'JetBrains Mono', monospace" opacity="0.5">🏆</text>
               <text x="522" y="30" textAnchor="middle" fill="rgba(255,255,255,0.2)" fontSize="7" fontFamily="'JetBrains Mono', monospace">reward</text>
 
