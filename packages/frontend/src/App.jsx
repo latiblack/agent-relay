@@ -1574,65 +1574,20 @@ function QuestsPage({ onDeploy, messages, connected, questState, passportId, onS
               <line x1="302" y1="16" x2="412" y2="16" stroke="rgba(255,111,0,0.08)" strokeWidth="1.5" strokeDasharray="4 4" />
               <line x1="412" y1="16" x2="522" y2="16" stroke="rgba(255,111,0,0.08)" strokeWidth="1.5" strokeDasharray="4 4" />
 
-              {/* Active segment highlight — pulsing dashed line */}
+              {/* Active segment — moving dots only (no dash line) */}
               {activeFlowSegment && (
                 <>
-                  <line x1={activeFlowSegment[0]} y1="16" x2={activeFlowSegment[1]} y2="16"
-                    stroke="#FF6F00" strokeWidth="2.5" strokeDasharray="6 6"
-                    style={{ animation: 'dashMove 1.2s linear infinite' }}
-                    opacity="0.7" />
-                  {/* Glow under-line */}
-                  <line x1={activeFlowSegment[0]} y1="16" x2={activeFlowSegment[1]} y2="16"
-                    stroke="#FF6F00" strokeWidth="6"
-                    opacity="0.15"
-                    style={{ animation: 'dashMove 1.2s linear infinite' }} />
+                  <circle r="3" fill="url(#flow-grad)" filter="url(#flow-glow)">
+                    <animateMotion dur="1.5s" repeatCount="indefinite" path={`M${activeFlowSegment[0]},16 L${activeFlowSegment[1]},16`} />
+                  </circle>
+                  <circle r="2" fill="url(#flow-grad)" filter="url(#flow-glow)">
+                    <animateMotion dur="1.5s" repeatCount="indefinite" begin="0.3s" path={`M${activeFlowSegment[0]},16 L${activeFlowSegment[1]},16`} />
+                  </circle>
+                  <circle r="1.5" fill="url(#flow-grad)" filter="url(#flow-glow)">
+                    <animateMotion dur="1.5s" repeatCount="indefinite" begin="0.6s" path={`M${activeFlowSegment[0]},16 L${activeFlowSegment[1]},16`} />
+                  </circle>
                 </>
               )}
-
-              {/* Animated flow dots — 3 dots per segment */}
-              {/* Segment 1: User → Verify */}
-              <circle r="3" fill="url(#flow-grad)" filter="url(#flow-glow)">
-                <animateMotion dur="2s" repeatCount="indefinite" path="M82,16 L192,16" />
-              </circle>
-              <circle r="2" fill="url(#flow-grad)" filter="url(#flow-glow)">
-                <animateMotion dur="2s" repeatCount="indefinite" begin="0.4s" path="M82,16 L192,16" />
-              </circle>
-              <circle r="1.5" fill="url(#flow-grad)" filter="url(#flow-glow)">
-                <animateMotion dur="2s" repeatCount="indefinite" begin="0.8s" path="M82,16 L192,16" />
-              </circle>
-
-              {/* Segment 2: Verify → Lore */}
-              <circle r="3" fill="url(#flow-grad)" filter="url(#flow-glow)">
-                <animateMotion dur="2.5s" repeatCount="indefinite" begin="0.5s" path="M192,16 L302,16" />
-              </circle>
-              <circle r="2" fill="url(#flow-grad)" filter="url(#flow-glow)">
-                <animateMotion dur="2.5s" repeatCount="indefinite" begin="0.9s" path="M192,16 L302,16" />
-              </circle>
-              <circle r="1.5" fill="url(#flow-grad)" filter="url(#flow-glow)">
-                <animateMotion dur="2.5s" repeatCount="indefinite" begin="1.3s" path="M192,16 L302,16" />
-              </circle>
-
-              {/* Segment 3: Lore → Puzzle */}
-              <circle r="3" fill="url(#flow-grad)" filter="url(#flow-glow)">
-                <animateMotion dur="2s" repeatCount="indefinite" begin="1s" path="M302,16 L412,16" />
-              </circle>
-              <circle r="2" fill="url(#flow-grad)" filter="url(#flow-glow)">
-                <animateMotion dur="2s" repeatCount="indefinite" begin="1.4s" path="M302,16 L412,16" />
-              </circle>
-              <circle r="1.5" fill="url(#flow-grad)" filter="url(#flow-glow)">
-                <animateMotion dur="2s" repeatCount="indefinite" begin="1.8s" path="M302,16 L412,16" />
-              </circle>
-
-              {/* Segment 4: Puzzle → Treasury */}
-              <circle r="3" fill="url(#flow-grad)" filter="url(#flow-glow)">
-                <animateMotion dur="2.5s" repeatCount="indefinite" begin="1.5s" path="M412,16 L522,16" />
-              </circle>
-              <circle r="2" fill="url(#flow-grad)" filter="url(#flow-glow)">
-                <animateMotion dur="2.5s" repeatCount="indefinite" begin="1.9s" path="M412,16 L522,16" />
-              </circle>
-              <circle r="1.5" fill="url(#flow-grad)" filter="url(#flow-glow)">
-                <animateMotion dur="2.5s" repeatCount="indefinite" begin="2.3s" path="M412,16 L522,16" />
-              </circle>
 
               {/* Agent nodes */}
               {/* 1. User — render avatar or tag initials */}
@@ -1651,22 +1606,22 @@ function QuestsPage({ onDeploy, messages, connected, questState, passportId, onS
               )}
 
               {/* 2. Verify */}
-              <circle cx="192" cy="16" r="14" fill="rgba(255,111,0,0.15)" stroke="#FF6F00" strokeWidth="1.5" />
+              <circle cx="192" cy="16" r="14" fill="#1a1a1e" stroke="#FF6F00" strokeWidth="1.5" />
               <text x="192" y="20" textAnchor="middle" fill="#fff" fontSize="9" fontFamily="'JetBrains Mono', monospace" opacity="0.5">🛡️</text>
               <text x="192" y="30" textAnchor="middle" fill="rgba(255,255,255,0.2)" fontSize="7" fontFamily="'JetBrains Mono', monospace">verify</text>
 
               {/* 3. Lore */}
-              <circle cx="302" cy="16" r="14" fill="rgba(255,111,0,0.15)" stroke="#FF6F00" strokeWidth="1.5" />
+              <circle cx="302" cy="16" r="14" fill="#1a1a1e" stroke="#FF6F00" strokeWidth="1.5" />
               <text x="302" y="20" textAnchor="middle" fill="#fff" fontSize="9" fontFamily="'JetBrains Mono', monospace" opacity="0.5">📜</text>
               <text x="302" y="30" textAnchor="middle" fill="rgba(255,255,255,0.2)" fontSize="7" fontFamily="'JetBrains Mono', monospace">lore</text>
 
               {/* 4. Puzzle */}
-              <circle cx="412" cy="16" r="14" fill="rgba(255,111,0,0.15)" stroke="#FF6F00" strokeWidth="1.5" />
+              <circle cx="412" cy="16" r="14" fill="#1a1a1e" stroke="#FF6F00" strokeWidth="1.5" />
               <text x="412" y="20" textAnchor="middle" fill="#fff" fontSize="9" fontFamily="'JetBrains Mono', monospace" opacity="0.5">🧩</text>
               <text x="412" y="30" textAnchor="middle" fill="rgba(255,255,255,0.2)" fontSize="7" fontFamily="'JetBrains Mono', monospace">puzzle</text>
 
               {/* 5. Treasury */}
-              <circle cx="522" cy="16" r="14" fill="rgba(255,111,0,0.15)" stroke="#FF6F00" strokeWidth="1.5" />
+              <circle cx="522" cy="16" r="14" fill="#1a1a1e" stroke="#FF6F00" strokeWidth="1.5" />
               <text x="522" y="20" textAnchor="middle" fill="#fff" fontSize="9" fontFamily="'JetBrains Mono', monospace" opacity="0.5">🏆</text>
               <text x="522" y="30" textAnchor="middle" fill="rgba(255,255,255,0.2)" fontSize="7" fontFamily="'JetBrains Mono', monospace">reward</text>
 
