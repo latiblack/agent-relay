@@ -1562,7 +1562,6 @@ function QuestsPage({ onDeploy, messages, connected, questState, passportId, onS
                   const isTyping = i === typingIdx;
                   const isDone = typedSetRef.current.has(i);
                   const msgText = isTyping ? m.message.slice(0, typingLen) : m.message;
-                  const cursorActive = isTyping && typingLen < (m.message?.length || 0);
                   return (
                     <div key={i} style={{ display: 'flex', gap: 6, padding: '5px 0', borderBottom: i < messages.length - 1 ? '1px solid rgba(255,255,255,0.03)' : 'none', fontFamily: "'JetBrains Mono', monospace", fontSize: 10, lineHeight: 1.5 }}>
                       <span style={{ color: 'rgba(255,255,255,0.12)', minWidth: 50, fontSize: 9 }}>{m.time}</span>
@@ -1573,7 +1572,6 @@ function QuestsPage({ onDeploy, messages, connected, questState, passportId, onS
                       <span style={{ color: '#22c55e', minWidth: 85, fontSize: 10 }}>{m.to}</span>
                       <span style={{ color: m.phase === 'error' ? '#ef4444' : 'rgba(255,255,255,0.45)', flex: 1 }}>
                         {msgText}
-                        {cursorActive && <span style={{ animation: 'blink 0.7s step-end infinite', color: '#FF6F00' }}>▌</span>}
                       </span>
                     </div>
                   );
