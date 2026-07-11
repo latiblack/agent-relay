@@ -193,6 +193,7 @@ export class InAppAgent {
 
     const clean = answer.trim();
     if (!clean) return;
+    const cleanLower = clean.toLowerCase();
 
     // Show user's answer going through their agent
     this._emit(this.userTag, AGENT_REGISTRY.PUZZLE,
@@ -202,70 +203,47 @@ export class InAppAgent {
     const fragment = this.quest.fragments[this.currentClueIndex];
     if (!fragment) return;
 
-    // Send answer DM to Puzzle agent
-    try {
-      const puzzleResp = await this._sendAndWait(
-        AGENT_REGISTRY.PUZZLE,
-        {
-          action: 'submit_answer',
-          data: { questId: this.questId, answer: clean },
-          questId: this.questId,
-        },
-        'puzzle_result'
-      );
+    // Validate locally immediately (no DM wait — same fix as lore)
+    const isCorrect = cleanLower === fragment.answer.toLowerCase();
+    if (isCorrect) {
+      this.collectedFragments.push(fragment.answer);
+      this.currentClueIndex = this.collectedFragments.length;
 
-      const resultData = puzzleResp?.payload?.data;
-      const isCorrect = resultData?.correct;
+      this._emit(AGENT_REGISTRY.PUZZLE, this.userTag,
+        `[CORRECT] Fragment ${this.collectedFragments.length}/${this.quest.fragments.length} collected!`,
+        'puzzle');
 
-      if (isCorrect) {
-        this.collectedFragments.push(fragment.answer);
-        this.currentClueIndex = this.collectedFragments.length;
-
-        this._emit(AGENT_REGISTRY.PUZZLE, this.userTag,
-          `[CORRECT] Fragment ${this.collectedFragments.length}/${this.quest.fragments.length} collected!`,
-          'puzzle');
-
-        // Check if all fragments collected
-        if (this.collectedFragments.length >= this.quest.fragments.length) {
-          await this._completeQuest();
-        } else {
-          // Puzzle agent already sent the next clue in its response
-          const nextClue = resultData?.clue;
-          if (nextClue) {
-            this._emit(AGENT_REGISTRY.PUZZLE, this.userTag,
-              `[FRAGMENT ${this.collectedFragments.length + 1}/${this.quest.fragments.length}] ${nextClue}`,
-              'puzzle',
-              { fragmentIndex: this.currentClueIndex, total: this.quest.fragments.length, collected: this.collectedFragments.length });
-          } else {
-            this._presentClue();
-          }
-        }
+      if (this.collectedFragments.length >= this.quest.fragments.length) {
+        await this._completeQuest();
       } else {
-        const hint = resultData?.hint || "Doesn't match. Try again.";
-        this._emit(AGENT_REGISTRY.PUZZLE, this.userTag,
-          `[INCORRECT] ${hint}`,
-          'puzzle');
+        this._presentClue();
       }
-    } catch (err) {
-      // Fallback: local validation if DM fails
-      const isCorrect = clean.toLowerCase() === fragment.answer.toLowerCase();
-      if (isCorrect) {
-        this.collectedFragments.push(fragment.answer);
-        this.currentClueIndex = this.collectedFragments.length;
-        this._emit(AGENT_REGISTRY.PUZZLE, this.userTag,
-          `[CORRECT] Fragment ${this.collectedFragments.length}/${this.quest.fragments.length} collected!`,
-          'puzzle');
-        if (this.collectedFragments.length >= this.quest.fragments.length) {
-          await this._completeQuest();
-        } else {
-          this._presentClue();
-        }
-      } else {
-        this._emit(AGENT_REGISTRY.PUZZLE, this.userTag,
-          `[INCORRECT] "${clean}" doesn't match. Try again.`,
-          'puzzle');
-      }
+    } else {
+      this._emit(AGENT_REGISTRY.PUZZLE, this.userTag,
+        `[INCORRECT] "${clean}" doesn't match. Try again.`,
+        'puzzle');
     }
+
+    // Fire DM in background (fire-and-forget) so agent still logs it
+    this._sendAndWait(
+      AGENT_REGISTRY.PUZZLE,
+      {
+        action: 'submit_answer',
+        data: { questId: this.questId, answer: clean },
+        questId: this.questId,
+      },
+      'puzzle_result'
+    ).then(puzzleResp => {
+      const resultData = puzzleResp?.payload?.data;
+      if (resultData?.correct !== undefined && resultData.correct !== isCorrect) {
+        // DM disagrees with local — emit correction
+        this._emit(AGENT_REGISTRY.PUZZLE, this.userTag,
+          resultData.correct
+            ? `[CORRECT] Fragment ${this.collectedFragments.length + 1}/${this.quest.fragments.length} collected!`
+            : `[INCORRECT] ${resultData.hint || "Doesn't match. Try again."}`,
+          'puzzle');
+      }
+    }).catch(() => {});
   }
 
   // ── Present current clue ──────────────────────────

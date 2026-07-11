@@ -1354,7 +1354,14 @@ function QuestsPage({ onDeploy, messages, connected, questState, passportId, onS
           break;
         }
       }
-      if (nextIdx === -1) return;
+      if (nextIdx === -1) {
+        // All messages typed — ensure typing is fully cleared
+        if (typingIdxRef.current !== -1) {
+          setTypingIdx(-1);
+          setTypingLen(0);
+        }
+        return;
+      }
 
       // Hold period — wait before revealing next message
       if (holdUntilRef.current > Date.now()) return;
