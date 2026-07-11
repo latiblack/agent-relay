@@ -1382,7 +1382,7 @@ function QuestsPage({ onDeploy, messages, connected, questState, passportId, onS
         }
         return next;
       });
-    }, 35);
+    }, 55);
     typingTimerRef.current = timer;
 
     return () => {
@@ -1503,10 +1503,19 @@ function QuestsPage({ onDeploy, messages, connected, questState, passportId, onS
                   <div style={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace", color: 'rgba(255,255,255,0.25)' }}>Agent: {q.agent}</div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                     {q.status === 'available' && (
-                      <button onClick={() => handleDeploy(q.id)} style={{ ...btnGrad, height: 32, padding: '0 16px', fontSize: 12, borderRadius: 8 }}>
+                      <button onClick={() => handleDeploy(q.id)} disabled={!!deployingQuest} style={{ ...btnGrad, height: 32, padding: '0 16px', fontSize: 12, borderRadius: 8, opacity: deployingQuest ? 0.6 : 1, cursor: deployingQuest ? 'not-allowed' : 'pointer' }}>
                         <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontFamily: "'Mona Sans', sans-serif" }}>
-                          Deploy Agent
-                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                          {deployingQuest ? 'Deploying...' : 'Deploy Agent'}
+                          {deployingQuest ? (
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" style={{ animation: 'spin 0.8s linear infinite' }}>
+                              <circle cx="12" cy="12" r="10" stroke="currentColor" opacity="0.3" />
+                              <path d="M12 2a10 10 0 0 1 10 10" strokeLinecap="round" />
+                            </svg>
+                          ) : (
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                              <path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>
+                            </svg>
+                          )}
                         </span>
                       </button>
                     )}
