@@ -68,6 +68,10 @@ function App() {
           0% { transform: rotate(0deg); }
           100% { transform: rotate(360deg); }
         }
+        @keyframes blink {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0; }
+        }
       `}</style>
       <Routes>
       <Route path="/home" element={<LandingPage scrolled={scrolled} />} />
@@ -1324,6 +1328,57 @@ function QuestsPage({ onDeploy, messages, connected, questState, passportId, onS
     onDeploy(qId);
   };
 
+  // ── Typing animation for latest message ──
+  const [typingLen, setTypingLen] = useState(0);
+  const typingMessageRef = useRef('');
+  const typingTimerRef = useRef(null);
+
+  useEffect(() => {
+    if (messages.length === 0) return;
+    const last = messages[messages.length - 1];
+    if (!last?.message) return;
+
+    if (typingTimerRef.current) clearInterval(typingTimerRef.current);
+
+    typingMessageRef.current = last.message;
+    setTypingLen(0);
+
+    typingTimerRef.current = setInterval(() => {
+      const target = typingMessageRef.current;
+      if (!target) { clearInterval(typingTimerRef.current); typingTimerRef.current = null; return; }
+      setTypingLen(prev => {
+        const next = prev + 2;
+        if (next >= target.length) {
+          clearInterval(typingTimerRef.current);
+          typingTimerRef.current = null;
+          return target.length;
+        }
+        return next;
+      });
+    }, 18);
+
+    return () => {
+      if (typingTimerRef.current) clearInterval(typingTimerRef.current);
+    };
+  }, [messages.length]);
+
+  // ── Determine which flow segment to highlight from phase ──
+  const activeFlowSegment = (() => {
+    const phase = questState?.phase;
+    if (!phase) return null;
+    const segments = {
+      init: [48, 192],
+      deploying: [48, 192],
+      verifying: [192, 302],
+      lore_intro: [302, 412],
+      lore: [302, 412],
+      puzzle: [412, 522],
+      lore_complete: [522, 522],
+      rewarding: [522, 530],
+    };
+    return segments[phase] || null;
+  })();
+
   const phaseColor = (p) => {
     const colors = { deploying: A, verifying: '#3b82f6', lore: '#a855f7', puzzle: A, lore_complete: '#a855f7', rewarding: '#22c55e', completed: '#22c55e', error: '#ef4444' };
     return colors[p] || 'rgba(255,255,255,0.25)';
@@ -1492,6 +1547,21 @@ function QuestsPage({ onDeploy, messages, connected, questState, passportId, onS
               <line x1="302" y1="16" x2="412" y2="16" stroke="rgba(255,111,0,0.08)" strokeWidth="1.5" strokeDasharray="4 4" />
               <line x1="412" y1="16" x2="522" y2="16" stroke="rgba(255,111,0,0.08)" strokeWidth="1.5" strokeDasharray="4 4" />
 
+              {/* Active segment highlight — pulsing dashed line */}
+              {activeFlowSegment && (
+                <>
+                  <line x1={activeFlowSegment[0]} y1="16" x2={activeFlowSegment[1]} y2="16"
+                    stroke="#FF6F00" strokeWidth="2.5" strokeDasharray="6 6"
+                    style={{ animation: 'dashMove 1.2s linear infinite' }}
+                    opacity="0.7" />
+                  {/* Glow under-line */}
+                  <line x1={activeFlowSegment[0]} y1="16" x2={activeFlowSegment[1]} y2="16"
+                    stroke="#FF6F00" strokeWidth="6"
+                    opacity="0.15"
+                    style={{ animation: 'dashMove 1.2s linear infinite' }} />
+                </>
+              )}
+
               {/* Animated flow dots — 3 dots per segment */}
               {/* Segment 1: User → Verify */}
               <circle r="3" fill="url(#flow-grad)" filter="url(#flow-glow)">
@@ -1596,17 +1666,25 @@ function QuestsPage({ onDeploy, messages, connected, questState, passportId, onS
                   Initializing agent handshake...
                 </div>
               ) : (
-                messages.map((m, i) => (
-                  <div key={i} style={{ display: 'flex', gap: 6, padding: '5px 0', borderBottom: i < messages.length - 1 ? '1px solid rgba(255,255,255,0.03)' : 'none', fontFamily: "'JetBrains Mono', monospace", fontSize: 10, lineHeight: 1.5 }}>
-                    <span style={{ color: 'rgba(255,255,255,0.12)', minWidth: 50, fontSize: 9 }}>{m.time}</span>
-                    <span style={{ color: m.from === 'SYSTEM' ? '#22c55e' : phaseColor(m.phase), fontWeight: 600, minWidth: 85, fontSize: 10 }}>{m.from}</span>
-                    <svg width="12" height="10" viewBox="0 0 24 12" fill="none" style={{ minWidth: 12 }}>
-                      <path d="M2 6h18M14 2l6 4-6 4" stroke="rgba(255,111,0,0.3)" strokeWidth="1.5"/>
-                    </svg>
-                    <span style={{ color: '#22c55e', minWidth: 85, fontSize: 10 }}>{m.to}</span>
-                    <span style={{ color: m.phase === 'error' ? '#ef4444' : 'rgba(255,255,255,0.45)', flex: 1 }}>{m.message}</span>
-                  </div>
-                ))
+                messages.map((m, i) => {
+                  const isLatest = i === messages.length - 1;
+                  const msgText = isLatest ? m.message.slice(0, typingLen) || ' ' : m.message;
+                  const typingActive = isLatest && typingLen < (m.message?.length || 0);
+                  return (
+                    <div key={i} style={{ display: 'flex', gap: 6, padding: '5px 0', borderBottom: i < messages.length - 1 ? '1px solid rgba(255,255,255,0.03)' : 'none', fontFamily: "'JetBrains Mono', monospace", fontSize: 10, lineHeight: 1.5 }}>
+                      <span style={{ color: 'rgba(255,255,255,0.12)', minWidth: 50, fontSize: 9 }}>{m.time}</span>
+                      <span style={{ color: m.from === 'SYSTEM' ? '#22c55e' : phaseColor(m.phase), fontWeight: 600, minWidth: 85, fontSize: 10 }}>{m.from}</span>
+                      <svg width="12" height="10" viewBox="0 0 24 12" fill="none" style={{ minWidth: 12 }}>
+                        <path d="M2 6h18M14 2l6 4-6 4" stroke="rgba(255,111,0,0.3)" strokeWidth="1.5" />
+                      </svg>
+                      <span style={{ color: '#22c55e', minWidth: 85, fontSize: 10 }}>{m.to}</span>
+                      <span style={{ color: m.phase === 'error' ? '#ef4444' : 'rgba(255,255,255,0.45)', flex: 1 }}>
+                        {msgText}
+                        {typingActive && <span style={{ animation: 'blink 0.7s step-end infinite', color: '#FF6F00' }}>▌</span>}
+                      </span>
+                    </div>
+                  );
+                })
               )}
               <div ref={bottomRef} />
             </div>
