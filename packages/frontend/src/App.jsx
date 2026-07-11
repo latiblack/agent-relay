@@ -1065,6 +1065,13 @@ function DashboardView({ passport, wallet, identity, pendingDeepLink, setPending
       fontFamily: "'Mona Sans', sans-serif",
       position: 'relative',
     }}>
+      {/* Background dot grid */}
+      <div style={{
+        position: 'fixed', inset: 0, zIndex: 48,
+        pointerEvents: 'none',
+        backgroundImage: 'radial-gradient(circle, rgba(255,111,0,0.06) 1px, transparent 1px)',
+        backgroundSize: '24px 24px',
+      }} />
       {/* Terminal scan line overlay */}
       <div style={{
         position: 'fixed', inset: 0, zIndex: 50,
