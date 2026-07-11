@@ -67,6 +67,14 @@ export class InAppAgent {
         ? JSON.parse(msg.content)
         : msg.content;
 
+      // Only process messages relevant to this session (filter by questId)
+      const msgQuestId = payload?.questId || payload?.payload?.questId;
+      if (msgQuestId && msgQuestId !== this.questId) return;
+
+      // Check sender — we only care about responses from known quest agents
+      const sender = payload?.from || '';
+      if (sender && !sender.startsWith('@ar-') && !sender.startsWith('@agentrelay-')) return;
+
       const action = payload?.payload?.action || payload?.action;
       if (action && this._pendingResponses.has(action)) {
         const { resolve, timer } = this._pendingResponses.get(action);
@@ -75,12 +83,8 @@ export class InAppAgent {
         resolve(payload);
       }
 
-      // Also broadcast to console if relevant
-      if (payload?.from && payload?.to) {
-        this._emit(payload.from, payload.to,
-          payload.message || payload.payload?.data?.message || JSON.stringify(payload.payload?.data || ''),
-          payload.phase || 'puzzle');
-      }
+      // Only broadcast to console if this agent initiated the exchange
+      // (i.e. there was a pending response match). Otherwise it's another user's DM.
     } catch (err) {
       console.error('[InAppAgent] Error parsing DM:', err);
     }

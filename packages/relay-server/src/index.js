@@ -167,7 +167,11 @@ async function main() {
     dataDir: DATA_DIR,
   });
 
-  // 2. Quest Agents
+  // 2. Initialize passport manager (warms cache from Supabase)
+  console.log('\nInitializing passport manager...');
+  await passportManager.init(process.env.VERIFICATION_MNEMONIC);
+
+  // 3. Quest Agents
   const verificationAgent = new VerificationAgent({
     network: NETWORK,
     dataDir: `${DATA_DIR}/agents/verification`,
@@ -204,13 +208,13 @@ async function main() {
     return null;
   };
 
-  // 3. Quest Session Manager
+  // 4. Quest Session Manager
   const sessionManager = new QuestSessionManager();
 
-  // 4. In-App Agent instances (user's AI middleman)
+  // 5. In-App Agent instances (user's AI middleman)
   const inAppAgents = new Map(); // passportId -> InAppAgent
 
-  // 5. Start all agents
+  // 6. Start all agents
   console.log('\nStarting quest agents...');
   await Promise.all([
     verificationAgent.init(),
@@ -220,6 +224,15 @@ async function main() {
   ]);
   console.log('All quest agents online');
   agentsOnline = true;
+
+  // Sync all existing passports from passport manager into verification agent
+  // so existing users' relay keys are recognized on restart
+  if (passportManager.passports) {
+    for (const [key, passport] of passportManager.passports) {
+      verificationAgent.passports.set(key, passport);
+    }
+    console.log(`[VerificationAgent] Synced ${passportManager.passports.size / 2} passport(s) from cache`);
+  }
 
   // ── Create NIP-29 Group Chat Guild Rooms ──────────
   async function ensureGuildGroupChats(agents) {
