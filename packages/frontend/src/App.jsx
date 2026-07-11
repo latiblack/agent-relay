@@ -1338,13 +1338,15 @@ function QuestsPage({ onDeploy, messages, connected, questState, passportId, onS
   // ── Sequential typing animation — single persistent interval (survives message arrivals) ──
   const [typingLen, setTypingLen] = useState(0);
   const [typingIdx, setTypingIdx] = useState(-1);
-  const [pendingAction, setPendingAction] = useState(null); // {text, from, to, message} waiting for user confirm
+  const [pendingAction, setPendingAction] = useState(null);
   const typedSetRef = useRef(new Set());
   const messagesRef = useRef(messages);
   const holdUntilRef = useRef(0);
   const typingIdxRef = useRef(-1);
   const typingLenRef = useRef(0);
+  const pendingRef = useRef(null); // ref copy so interval reads latest
   messagesRef.current = messages;
+  pendingRef.current = pendingAction;
 
   if (typingIdx !== typingIdxRef.current) typingIdxRef.current = typingIdx;
   if (typingLen !== typingLenRef.current) typingLenRef.current = typingLen;
@@ -1373,7 +1375,7 @@ function QuestsPage({ onDeploy, messages, connected, questState, passportId, onS
       }
 
       // If there's a pending user action, don't advance
-      if (pendingAction) return;
+      if (pendingRef.current) return;
 
       // Hold period
       if (holdUntilRef.current > Date.now()) return;
@@ -1420,7 +1422,7 @@ function QuestsPage({ onDeploy, messages, connected, questState, passportId, onS
 
     const interval = setInterval(tick, 55);
     return () => clearInterval(interval);
-  }, [pendingAction]); // re-subscribe when pendingAction changes so it can be skipped
+  }, []); // runs once, lives forever
 
   const phaseColor = (p) => {
     const colors = { deploying: A, verifying: '#3b82f6', lore: '#a855f7', puzzle: A, lore_complete: '#a855f7', rewarding: '#22c55e', completed: '#22c55e', error: '#ef4444' };
