@@ -1029,6 +1029,48 @@ function DashboardView({ passport, wallet, identity, pendingDeepLink, setPending
 
   const { messages, connected, questState, clearMessages } = useQuestConsole(passport?.passportId);
   const [deployingQuest, setDeployingQuest] = useState(null);
+  const [completedQuests, setCompletedQuests] = useState(new Set());
+
+  // Auto-refresh passport data (re-reads from server on mount / when stats change)
+  const [passportData, setPassportData] = useState(null);
+  useEffect(() => {
+    if (passport) setPassportData(passport);
+  }, [passport]);
+
+  // Detect quest completion → persist to server → update local state
+  const didComplete = useRef(false);
+  useEffect(() => {
+    if (questState?.phase === 'completed' && passport?.passportId && !didComplete.current) {
+      didComplete.current = true;
+      const qId = questState.questId || 'signal-hunt-01';
+      const xp = questState.data?.xpAwarded || 50;
+      fetch(`${RELAY_SERVER}/quest/complete`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ passportId: passport.passportId, questId: qId, xpEarned: xp }),
+      })
+        .then(r => r.json())
+        .then(data => {
+          if (data.success) {
+            setCompletedQuests(prev => new Set([...prev, qId]));
+            setPassportData(prev => prev ? {
+              ...prev,
+              questsCompleted: data.passport.questsCompleted,
+              totalXp: data.passport.totalXp,
+            } : prev);
+            onPassportUpdate?.({
+              questsCompleted: data.passport.questsCompleted,
+              totalXp: data.passport.totalXp,
+            });
+          }
+        })
+        .catch(err => console.error('Failed to record completion:', err));
+    }
+    // Reset flag when a new quest starts
+    if (questState?.phase === 'deploying' || questState?.phase === 'init') {
+      didComplete.current = false;
+    }
+  }, [questState?.phase, passport?.passportId]);
 
   // Auto-deploy deep link quest when passport is ready
   useEffect(() => {
@@ -1212,8 +1254,8 @@ function DashboardView({ passport, wallet, identity, pendingDeepLink, setPending
 
       {/* Main content */}
       <div style={{ padding: '48px 20px 40px', maxWidth: 800, margin: '0 auto' }}>
-        {page === 'overview' && <OverviewPage passport={passport} tag={tag} />}
-        {page === 'quests' && <QuestsPage onDeploy={deployQuest} messages={messages} connected={connected} questState={questState} passportId={passport?.passportId} onSubmitAnswer={submitAnswer} onBackToQuests={() => { clearMessages(); }} deployingQuest={deployingQuest} passport={passport} tag={tag} />}
+        {page === 'overview' && <OverviewPage passport={passportData || passport} tag={tag} />}
+        {page === 'quests' && <QuestsPage onDeploy={deployQuest} messages={messages} connected={connected} questState={questState} passportId={passport?.passportId} onSubmitAnswer={submitAnswer} onBackToQuests={() => { clearMessages(); }} deployingQuest={deployingQuest} passport={passport} tag={tag} completedQuests={completedQuests} />}
         {page === 'guild-chat' && <GuildChatPage passport={passport} tag={tag} identity={identity} />}
         {page === 'profile' && <ProfilePage passport={passport} tag={tag} identity={identity} onPassportUpdate={onPassportUpdate} />}
       </div>
@@ -1297,7 +1339,7 @@ function OverviewPage({ passport, tag }) {
   );
 }
 
-function QuestsPage({ onDeploy, messages, connected, questState, passportId, onSubmitAnswer, onBackToQuests, deployingQuest, passport, tag }) {
+function QuestsPage({ onDeploy, messages, connected, questState, passportId, onSubmitAnswer, onBackToQuests, deployingQuest, passport, tag, completedQuests = new Set() }) {
   const [answer, setAnswer] = useState('');
   const [activeQuest, setActiveQuest] = useState(null);
   const bottomRef = useRef(null);
@@ -1496,13 +1538,15 @@ function QuestsPage({ onDeploy, messages, connected, questState, passportId, onS
             Your agents are ready. Pick a mission and deploy.
           </p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {quests.map((q, i) => (
-              <div key={i} style={{ ...glassCard, padding: '20px', opacity: q.status === 'locked' ? 0.5 : 1 }}>
+            {quests.map((q, i) => {
+              const isCompleted = completedQuests.has(q.id);
+              return (
+              <div key={i} style={{ ...glassCard, padding: '20px', opacity: q.status === 'locked' ? 0.5 : isCompleted ? 0.4 : 1, filter: isCompleted ? 'grayscale(0.8)' : 'none', pointerEvents: isCompleted ? 'none' : 'auto' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
                       <span style={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace", color: 'rgba(255,255,255,0.2)' }}>{q.id}</span>
-                      <span style={{ fontSize: 9, fontFamily: "'JetBrains Mono', monospace", fontWeight: 600, color: q.status === 'available' ? A : 'rgba(255,255,255,0.2)', background: q.status === 'available' ? H : 'transparent', padding: '2px 8px', borderRadius: 4 }}>{q.status.toUpperCase()}</span>
+                      <span style={{ fontSize: 9, fontFamily: "'JetBrains Mono', monospace", fontWeight: 600, color: isCompleted ? '#22c55e' : q.status === 'available' ? A : 'rgba(255,255,255,0.2)', background: isCompleted ? 'rgba(34,197,94,0.1)' : q.status === 'available' ? H : 'transparent', padding: '2px 8px', borderRadius: 4 }}>{isCompleted ? 'COMPLETED' : q.status.toUpperCase()}</span>
                     </div>
                     <h3 style={{ fontFamily: "'Hubot Sans', sans-serif", fontSize: 16, fontWeight: 600, margin: 0 }}>{q.title}</h3>
                   </div>
@@ -1515,7 +1559,12 @@ function QuestsPage({ onDeploy, messages, connected, questState, passportId, onS
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div style={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace", color: 'rgba(255,255,255,0.25)' }}>Agent: {q.agent}</div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    {q.status === 'available' && (
+                    {isCompleted ? (
+                      <span style={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace", color: '#22c55e', display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+                        Done
+                      </span>
+                    ) : q.status === 'available' && (
                       <button onClick={() => handleDeploy(q.id)} disabled={!!deployingQuest} style={{ ...btnGrad, height: 32, padding: '0 16px', fontSize: 12, borderRadius: 8, opacity: deployingQuest ? 0.6 : 1, cursor: deployingQuest ? 'not-allowed' : 'pointer' }}>
                         <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontFamily: "'Mona Sans', sans-serif" }}>
                           {deployingQuest ? 'Deploying...' : 'Deploy Agent'}
@@ -1552,7 +1601,8 @@ function QuestsPage({ onDeploy, messages, connected, questState, passportId, onS
                   </div>
                 </div>
               </div>
-            ))}
+            );
+          })}
           </div>
         </>
       ) : (

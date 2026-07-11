@@ -296,6 +296,7 @@ export class InAppAgent {
       `[CLAIM] Quest ${this.questId} complete. Requesting reward.`,
       'rewarding');
 
+    let xpAwarded = this.quest.reward.xp;
     try {
       const rewardResp = await this._sendAndWait(
         AGENT_REGISTRY.TREASURY,
@@ -307,22 +308,23 @@ export class InAppAgent {
         'reward_issued'
       );
 
-      const xpAwarded = rewardResp?.payload?.data?.xpAwarded || this.quest.reward.xp;
+      xpAwarded = rewardResp?.payload?.data?.xpAwarded || this.quest.reward.xp;
       this._emit(AGENT_REGISTRY.TREASURY, this.userTag,
-        `[REWARD] +${xpAwarded} XP awarded! Total: ${xpAwarded} XP`,
+        `[REWARD] +${xpAwarded} XP awarded!`,
         'rewarding',
         { xpAwarded });
     } catch (err) {
       this._emit(AGENT_REGISTRY.TREASURY, this.userTag,
-        `[REWARD] +${this.quest.reward.xp} XP awarded! Total: ${this.quest.reward.xp} XP`,
+        `[REWARD] +${xpAwarded} XP awarded!`,
         'rewarding',
-        { xpAwarded: this.quest.reward.xp });
+        { xpAwarded });
     }
 
     this.phase = 'completed';
     this._emit('SYSTEM', this.userTag,
       `[QUEST COMPLETE] ${this.quest.title} finished. All agents returning to standby.`,
-      'completed');
+      'completed',
+      { xpAwarded, questId: this.questId });
 
     if (this.sphere) {
       await this.sphere.destroy();

@@ -619,6 +619,32 @@ async function main() {
         return;
       }
 
+      // POST /quest/complete — Record quest completion and persist to Supabase
+      if (url.pathname === '/quest/complete' && req.method === 'POST') {
+        const body = await parseBody(req);
+        const { passportId, questId, xpEarned } = body;
+        if (!passportId) {
+          res.writeHead(400);
+          res.end(JSON.stringify({ error: 'Missing passportId' }));
+          return;
+        }
+        const passport = await passportManager.recordCompletion(passportId, questId, xpEarned || 50);
+        if (!passport) {
+          res.writeHead(404);
+          res.end(JSON.stringify({ error: 'Passport not found' }));
+          return;
+        }
+        // Broadcast updated passport state to console
+        broadcastToConsole(passportId, {
+          from: 'SYSTEM', to: 'user',
+          message: `[STATS] Quests: ${passport.questsCompleted} | Total XP: ${passport.totalXp}`,
+          phase: 'stats',
+          data: { questsCompleted: passport.questsCompleted, totalXp: passport.totalXp },
+        });
+        res.end(JSON.stringify({ success: true, passport: { questsCompleted: passport.questsCompleted, totalXp: passport.totalXp } }));
+        return;
+      }
+
       // GET /quest/state/:passportId — Get current quest state
       if (url.pathname.startsWith('/quest/state/') && req.method === 'GET') {
         const pid = url.pathname.split('/quest/state/')[1];
