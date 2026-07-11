@@ -1332,6 +1332,7 @@ function QuestsPage({ onDeploy, messages, connected, questState, passportId, onS
   const [typingLen, setTypingLen] = useState(0);
   const [typingIdx, setTypingIdx] = useState(-1);
   const typingTimerRef = useRef(null);
+  const flowSegmentRef = useRef(null);
   const typedSetRef = useRef(new Set());
   const messagesRef = useRef(messages);
   messagesRef.current = messages;
@@ -1392,7 +1393,7 @@ function QuestsPage({ onDeploy, messages, connected, questState, passportId, onS
 
   // ── Determine which flow segment to highlight from the currently-typing message ──
   const userTagNormalized = tag ? `@${tag.replace(/^@/, '')}` : '@user';
-  const isUserRef = (name) => !name || name === 'SYSTEM' || name === '@user' || name === userTagNormalized;
+  const isUserRef = (name) => !name || name === 'SYSTEM' || name === 'user' || name === '@user' || name === userTagNormalized;
   const getNodeX = (name) => {
     const map = {
       '@ar-verify': 192,
@@ -1407,7 +1408,16 @@ function QuestsPage({ onDeploy, messages, connected, questState, passportId, onS
   const activeMessage = (typingIdx >= 0 && messages[typingIdx]) ? messages[typingIdx] : null;
   const flowFrom = activeMessage ? getNodeX(activeMessage.from) : null;
   const flowTo = activeMessage ? getNodeX(activeMessage.to) : null;
-  const activeFlowSegment = (flowFrom !== null && flowTo !== null && flowFrom !== flowTo) ? [flowFrom, flowTo] : null;
+  // Keep the last valid segment alive even between messages for visual continuity
+  if (flowFrom !== null && flowTo !== null && flowFrom !== flowTo) {
+    flowSegmentRef.current = [flowFrom, flowTo];
+  }
+  // Only clear if typing has fully stopped and there's no next message pending
+  const activeFlowSegment = (flowFrom !== null && flowTo !== null && flowFrom !== flowTo)
+    ? [flowFrom, flowTo]
+    : (flowSegmentRef.current
+      ? flowSegmentRef.current
+      : null);
 
   const phaseColor = (p) => {
     const colors = { deploying: A, verifying: '#3b82f6', lore: '#a855f7', puzzle: A, lore_complete: '#a855f7', rewarding: '#22c55e', completed: '#22c55e', error: '#ef4444' };
@@ -1580,16 +1590,16 @@ function QuestsPage({ onDeploy, messages, connected, questState, passportId, onS
               <line x1="302" y1="16" x2="412" y2="16" stroke="rgba(255,111,0,0.08)" strokeWidth="1.5" strokeDasharray="4 4" />
               <line x1="412" y1="16" x2="522" y2="16" stroke="rgba(255,111,0,0.08)" strokeWidth="1.5" strokeDasharray="4 4" />
 
-              {/* Active segment — moving dots only (no dash line) */}
+              {/* Active segment — moving dots only (solid orange so visible) */}
               {activeFlowSegment && (
                 <>
-                  <circle r="3" fill="url(#flow-grad)" filter="url(#flow-glow)">
+                  <circle r="3" fill="#FF6F00" filter="url(#flow-glow)">
                     <animateMotion dur="1.5s" repeatCount="indefinite" path={`M${activeFlowSegment[0]},16 L${activeFlowSegment[1]},16`} />
                   </circle>
-                  <circle r="2" fill="url(#flow-grad)" filter="url(#flow-glow)">
+                  <circle r="2" fill="#FF6F00" filter="url(#flow-glow)">
                     <animateMotion dur="1.5s" repeatCount="indefinite" begin="0.3s" path={`M${activeFlowSegment[0]},16 L${activeFlowSegment[1]},16`} />
                   </circle>
-                  <circle r="1.5" fill="url(#flow-grad)" filter="url(#flow-glow)">
+                  <circle r="1.5" fill="#FF6F00" filter="url(#flow-glow)">
                     <animateMotion dur="1.5s" repeatCount="indefinite" begin="0.6s" path={`M${activeFlowSegment[0]},16 L${activeFlowSegment[1]},16`} />
                   </circle>
                 </>
