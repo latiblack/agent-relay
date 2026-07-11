@@ -312,7 +312,8 @@ export class PassportManager {
       const { error } = await this.supabase
         .from('guild_messages')
         .select('id', { count: 'exact', head: true });
-      if (error && error.message?.includes('relation')) {
+      // Supabase returns "Could not find the table" when table doesn't exist
+      if (error && (error.message?.includes('relation') || error.message?.includes('Could not find the table'))) {
         console.log('[PassportManager] Creating guild_messages table...');
         await this._createGuildMessagesTableViaPsql();
         this.supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
