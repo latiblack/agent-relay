@@ -1561,6 +1561,8 @@ function QuestsPage({ onDeploy, messages, connected, questState, passportId, onS
                 messages.map((m, i) => {
                   const isTyping = i === typingIdx;
                   const isDone = typedSetRef.current.has(i);
+                  // Don't reveal messages before their turn in the animation
+                  if (!isTyping && !isDone) return null;
                   const msgText = isTyping ? m.message.slice(0, typingLen) : m.message;
                   return (
                     <div key={i} style={{ display: 'flex', gap: 6, padding: '5px 0', borderBottom: i < messages.length - 1 ? '1px solid rgba(255,255,255,0.03)' : 'none', fontFamily: "'JetBrains Mono', monospace", fontSize: 10, lineHeight: 1.5 }}>
