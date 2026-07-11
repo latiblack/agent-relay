@@ -1333,9 +1333,15 @@ function QuestsPage({ onDeploy, messages, connected, questState, passportId, onS
   const [typingIdx, setTypingIdx] = useState(-1);
   const typingTimerRef = useRef(null);
   const typedSetRef = useRef(new Set());
+  const messagesRef = useRef(messages);
+  messagesRef.current = messages;
 
   useEffect(() => {
-    if (messages.length === 0) return;
+    // Reset typed set when messages are cleared (new quest deploy)
+    if (messages.length === 0) {
+      typedSetRef.current = new Set();
+      return;
+    }
 
     // Find the next untyped message
     let nextIdx = -1;
@@ -1349,7 +1355,7 @@ function QuestsPage({ onDeploy, messages, connected, questState, passportId, onS
     if (nextIdx === -1) return;
 
     // If another message is already being typed, don't interrupt
-    if (typingIdx >= 0 && typingIdx < messages.length && typingLen > 0) return;
+    if (typingIdx >= 0 && typingLen > 0) return;
 
     // Start typing this message
     if (typingTimerRef.current) clearInterval(typingTimerRef.current);
@@ -1358,7 +1364,8 @@ function QuestsPage({ onDeploy, messages, connected, questState, passportId, onS
 
     const idx = nextIdx;
     const timer = setInterval(() => {
-      const msg = messages[idx]?.message;
+      const latest = messagesRef.current;
+      const msg = latest[idx]?.message;
       if (!msg) { clearInterval(timer); return; }
       setTypingLen(prev => {
         const next = prev + 3;
@@ -1584,10 +1591,10 @@ function QuestsPage({ onDeploy, messages, connected, questState, passportId, onS
 
               {/* Agent nodes — with dynamic glow on active sender/receiver */}
               {[{ cx: 48, label: tag?.replace(/^@/, '').slice(0, 3).toUpperCase() || 'YOU', key: 'user' },
-                { cx: 192, label: '🛡️', sub: 'verify', key: '@ar-verify' },
-                { cx: 302, label: '📜', sub: 'lore', key: '@agentrelay-lore' },
-                { cx: 412, label: '🧩', sub: 'puzzle', key: '@agentrelay-puzzle' },
-                { cx: 522, label: '🏆', sub: 'reward', key: '@agentrelay-treasury' },
+                { cx: 192, label: '🛡️', key: '@ar-verify' },
+                { cx: 302, label: '📜', key: '@agentrelay-lore' },
+                { cx: 412, label: '🧩', key: '@agentrelay-puzzle' },
+                { cx: 522, label: '🏆', key: '@agentrelay-treasury' },
               ].map((node) => {
                 const isFrom = activeMessage && (node.key === 'user'
                   ? isUserRef(activeMessage.from)
@@ -1618,9 +1625,6 @@ function QuestsPage({ onDeploy, messages, connected, questState, passportId, onS
                       </text>
                     ) : (
                       <text x={node.cx} y="20" textAnchor="middle" fill="#fff" fontSize="9" fontFamily="'JetBrains Mono', monospace" opacity="0.6">{node.label}</text>
-                    )}
-                    {node.sub && (
-                      <text x={node.cx} y="30" textAnchor="middle" fill="rgba(255,255,255,0.2)" fontSize="7" fontFamily="'JetBrains Mono', monospace">{node.sub}</text>
                     )}
                   </g>
                 );
