@@ -1328,19 +1328,29 @@ function QuestsPage({ onDeploy, messages, connected, questState, passportId, onS
     onDeploy(qId);
   };
 
+  // ── Confirm a pending user action (user clicks to send their agent's message) ──
+  const handleConfirmAction = () => {
+    if (!pendingAction) return;
+    typedSetRef.current.add(pendingAction.idx);
+    setPendingAction(null);
+  };
+
   // ── Sequential typing animation — single persistent interval (survives message arrivals) ──
   const [typingLen, setTypingLen] = useState(0);
   const [typingIdx, setTypingIdx] = useState(-1);
+  const [pendingAction, setPendingAction] = useState(null); // {text, from, to, message} waiting for user confirm
   const typedSetRef = useRef(new Set());
   const messagesRef = useRef(messages);
   const holdUntilRef = useRef(0);
-  const typingIdxRef = useRef(-1);      // ref copy so interval can read current value
-  const typingLenRef = useRef(0);        // ref copy for same reason
+  const typingIdxRef = useRef(-1);
+  const typingLenRef = useRef(0);
   messagesRef.current = messages;
 
-  // Track refs from state
   if (typingIdx !== typingIdxRef.current) typingIdxRef.current = typingIdx;
   if (typingLen !== typingLenRef.current) typingLenRef.current = typingLen;
+
+  const userTagNormalized = tag ? `@${tag.replace(/^@/, '')}` : '@user';
+  const isUserFrom = (from) => from === 'user' || from === '@user' || from === userTagNormalized;
 
   // Persistent ticker — runs once, lives forever, looks at refs for current state
   useEffect(() => {
@@ -1355,7 +1365,6 @@ function QuestsPage({ onDeploy, messages, connected, questState, passportId, onS
         }
       }
       if (nextIdx === -1) {
-        // All messages typed — ensure typing is fully cleared
         if (typingIdxRef.current !== -1) {
           setTypingIdx(-1);
           setTypingLen(0);
@@ -1363,26 +1372,42 @@ function QuestsPage({ onDeploy, messages, connected, questState, passportId, onS
         return;
       }
 
-      // Hold period — wait before revealing next message
+      // If there's a pending user action, don't advance
+      if (pendingAction) return;
+
+      // Hold period
       if (holdUntilRef.current > Date.now()) return;
 
       const currentIdx = typingIdxRef.current;
       const currentLen = typingLenRef.current;
+      const nextMsg = msgs[nextIdx];
 
-      // If nothing currently typing, start the next untyped message
+      // If the next message is from the user → preload as pending action
+      if (isUserFrom(nextMsg.from) && currentIdx === -1) {
+        setPendingAction({
+          idx: nextIdx,
+          from: nextMsg.from,
+          to: nextMsg.to,
+          message: nextMsg.message,
+          phase: nextMsg.phase,
+        });
+        return;
+      }
+
+      // Nothing currently typing, start agent message
       if (currentIdx === -1) {
         setTypingLen(0);
         setTypingIdx(nextIdx);
         return;
       }
 
-      // If the current message is done, clear so next tick can advance
+      // If current message is done, clear
       if (typedSetRef.current.has(currentIdx)) {
         setTypingIdx(-1);
         return;
       }
 
-      // Typing the current message — advance one character
+      // Advance one char
       const msg = msgs[currentIdx]?.message;
       if (!msg) return;
       const nextLen = currentLen + 1;
@@ -1395,7 +1420,7 @@ function QuestsPage({ onDeploy, messages, connected, questState, passportId, onS
 
     const interval = setInterval(tick, 55);
     return () => clearInterval(interval);
-  }, []); // runs once, lives forever
+  }, [pendingAction]); // re-subscribe when pendingAction changes so it can be skipped
 
   const phaseColor = (p) => {
     const colors = { deploying: A, verifying: '#3b82f6', lore: '#a855f7', puzzle: A, lore_complete: '#a855f7', rewarding: '#22c55e', completed: '#22c55e', error: '#ef4444' };
@@ -1590,28 +1615,42 @@ function QuestsPage({ onDeploy, messages, connected, questState, passportId, onS
             </div>
           </div>
 
-          {/* Answer input — always visible during active quest */}
-          <form onSubmit={handleSubmit} style={{ marginTop: 12, display: 'flex', gap: 8 }}>
-            <input
-              type="text"
-              value={answer}
-              onChange={(e) => setAnswer(e.target.value)}
-              placeholder={questState?.phase === 'puzzle' ? `Type answer for ${activeQuest}...` : 'Waiting for system...'}
-              disabled={questState?.phase !== 'puzzle' || typingIdx >= 0}
-              style={{
-                flex: 1, padding: '10px 14px', borderRadius: 8,
-                background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
-                color: D, fontSize: 13, fontFamily: "'JetBrains Mono', monospace",
-                outline: 'none', opacity: questState?.phase !== 'puzzle' || typingIdx >= 0 ? 0.4 : 1,
-              }}
-            />
-            <button type="submit" disabled={questState?.phase !== 'puzzle' || typingIdx >= 0} style={{
-              ...btnGrad, height: 40, padding: '0 20px', fontSize: 13, borderRadius: 8,
-              opacity: questState?.phase !== 'puzzle' || typingIdx >= 0 ? 0.4 : 1,
-            }}>
-              Send
-            </button>
-          </form>
+          {/* Pending action — user must confirm their agent's next move */}
+          {pendingAction ? (
+            <div style={{ marginTop: 12, ...glassCard, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{ flex: 1, fontFamily: "'JetBrains Mono', monospace", fontSize: 12 }}>
+                <span style={{ color: A, fontWeight: 600 }}>{pendingAction.from}</span>
+                <span style={{ color: 'rgba(255,255,255,0.25)', margin: '0 6px' }}>→</span>
+                <span style={{ color: '#22c55e' }}>{pendingAction.to}</span>
+                <div style={{ color: 'rgba(255,255,255,0.7)', marginTop: 4, fontSize: 11 }}>{pendingAction.message}</div>
+              </div>
+              <button onClick={handleConfirmAction} style={{ ...btnGrad, height: 36, padding: '0 20px', fontSize: 12, borderRadius: 8, whiteSpace: 'nowrap' }}>
+                {pendingAction.to.includes('verify') || pendingAction.to.includes('lore') || pendingAction.to.includes('puzzle') || pendingAction.to.includes('treasury') ? 'Verify →' : 'Confirm →'}
+              </button>
+            </div>
+          ) : questState?.phase === 'puzzle' || questState?.phase === 'ready' ? (
+            <form onSubmit={handleSubmit} style={{ marginTop: 12, display: 'flex', gap: 8 }}>
+              <input
+                type="text"
+                value={answer}
+                onChange={(e) => setAnswer(e.target.value)}
+                placeholder={questState?.phase === 'puzzle' ? `Type answer for ${activeQuest}...` : 'Waiting for system...'}
+                disabled={questState?.phase !== 'puzzle'}
+                style={{
+                  flex: 1, padding: '10px 14px', borderRadius: 8,
+                  background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
+                  color: D, fontSize: 13, fontFamily: "'JetBrains Mono', monospace",
+                  outline: 'none', opacity: questState?.phase !== 'puzzle' ? 0.4 : 1,
+                }}
+              />
+              <button type="submit" disabled={questState?.phase !== 'puzzle'} style={{
+                ...btnGrad, height: 40, padding: '0 20px', fontSize: 13, borderRadius: 8,
+                opacity: questState?.phase !== 'puzzle' ? 0.4 : 1,
+              }}>
+                Send
+              </button>
+            </form>
+          ) : null}
 
           {/* Quest complete banner */}
           {questState?.phase === 'completed' && (
