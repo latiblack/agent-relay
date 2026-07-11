@@ -1363,25 +1363,31 @@ function QuestsPage({ onDeploy, messages, connected, questState, passportId, onS
     setTypingLen(0);
 
     const idx = nextIdx;
+    let intervalEndTimer = null;
     const timer = setInterval(() => {
       const latest = messagesRef.current;
       const msg = latest[idx]?.message;
       if (!msg) { clearInterval(timer); return; }
       setTypingLen(prev => {
-        const next = prev + 3;
+        const next = prev + 1;
         if (next >= msg.length) {
           clearInterval(timer);
           typedSetRef.current.add(idx);
-          setTypingIdx(-1);
-          setTypingLen(0);
+          intervalEndTimer = setTimeout(() => {
+            setTypingIdx(-1);
+            setTypingLen(0);
+          }, 600);
           return msg.length;
         }
         return next;
       });
-    }, 16);
+    }, 35);
     typingTimerRef.current = timer;
 
-    return () => { clearInterval(timer); };
+    return () => {
+      clearInterval(timer);
+      if (intervalEndTimer) clearTimeout(intervalEndTimer);
+    };
   }, [messages.length, typingIdx]);
 
   // ── Determine which flow segment to highlight from the currently-typing message ──
