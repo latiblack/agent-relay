@@ -1297,7 +1297,7 @@ function OverviewPage({ passport, tag, wallet }) {
   const stats = [
     { label: 'Passport', value: passport?.passportId || '—', color: A },
     { label: 'Guild', value: passport?.guild ? `${passport.guild.charAt(0).toUpperCase() + passport.guild.slice(1)} Guild` : '—', color: D },
-    { label: 'UCT Balance', value: `${uctBalance} UCT`, color: '#fbbf24' },
+    { label: 'UCT Balance', value: `${uctBalance} UCT`, color: A },
     { label: 'Quests Done', value: passport?.questsCompleted || 0, color: D },
     { label: 'Total XP', value: passport?.totalXp || 0, color: D },
     { label: 'Relay Key', value: passport?.relayKey || '—', color: A },
