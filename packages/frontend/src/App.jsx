@@ -1072,6 +1072,8 @@ function DashboardView({ passport, wallet, identity, pendingDeepLink, setPending
               totalXp: data.passport.totalXp,
               uctBalance: data.passport.uctBalance,
             });
+            // Refresh wallet balance to show new UCT
+            wallet?.fetchBalance?.();
           }
         })
         .catch(err => console.error('Failed to record completion:', err));
@@ -1103,15 +1105,11 @@ function DashboardView({ passport, wallet, identity, pendingDeepLink, setPending
     try {
       // Step 1: Charge 0.1 UCT (100000000000000000 wei = 0.1 UCT with 18 decimals)
       const UCT_DEPLOY_COST = '100000000000000000';
-      // Treasury address from the relay server (the in-app agent's pubkey sends rewards)
-      // For now, send to the quest treasury agent's sphere identity
-      // We use the server's relay name as the recipient which resolves via Sphere
       const RELAY_TREASURY_TAG = '@agentrelay-treasury';
       
       if (wallet?.sendUct) {
         try {
-          const paymentResult = await wallet.sendUct(RELAY_TREASURY_TAG, UCT_DEPLOY_COST);
-          console.log('UCT payment sent:', paymentResult);
+          await wallet.sendUct(RELAY_TREASURY_TAG, UCT_DEPLOY_COST);
         } catch (payErr) {
           console.error('UCT payment failed:', payErr);
           setDeployingQuest(null);
