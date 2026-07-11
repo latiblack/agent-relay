@@ -16,6 +16,7 @@ import { loadAllQuests } from './quest-loader.js';
 import { InAppAgent } from './inapp-agent.js';
 import { ACTIONS, QUESTS, AGENT_REGISTRY, GUILDS } from './constants.js';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -28,10 +29,38 @@ const WSS_PORT = parseInt(process.env.WSS_PORT || '3105', 10);
 const wsClients = new Map(); // { passportId -> [ws, ...] }
 
 // ── NIP-29 Group Chat Guild Rooms ─────────────────
+const GUILD_GROUPS_FILE = path.join(DATA_DIR, 'guild-groups.json');
 const guildGroupChats = new Map(); // guildName -> { groupId, relayUrl }
 
 function getGuildGroupChat(guildName) {
   return guildGroupChats.get(guildName) || null;
+}
+
+function saveGuildGroupsToDisk() {
+  try {
+    const data = Object.fromEntries(guildGroupChats);
+    const dir = path.dirname(GUILD_GROUPS_FILE);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(GUILD_GROUPS_FILE, JSON.stringify(data, null, 2));
+    console.log(`[GroupChat] Saved ${guildGroupChats.size} guild group(s) to disk`);
+  } catch (err) {
+    console.warn('[GroupChat] Failed to save guild groups to disk:', err.message);
+  }
+}
+
+function loadGuildGroupsFromDisk() {
+  try {
+    if (!fs.existsSync(GUILD_GROUPS_FILE)) return false;
+    const data = JSON.parse(fs.readFileSync(GUILD_GROUPS_FILE, 'utf-8'));
+    for (const [name, info] of Object.entries(data)) {
+      guildGroupChats.set(name, info);
+    }
+    console.log(`[GroupChat] Loaded ${guildGroupChats.size} guild group(s) from disk`);
+    return guildGroupChats.size > 0;
+  } catch (err) {
+    console.warn('[GroupChat] Failed to load guild groups from disk:', err.message);
+    return false;
+  }
 }
 
 function broadcastToConsole(passportId, message) {
@@ -193,7 +222,13 @@ async function main() {
   agentsOnline = true;
 
   // ── Create NIP-29 Group Chat Guild Rooms ──────────
-  async function createGuildGroupChats(agents) {
+  async function ensureGuildGroupChats(agents) {
+    // Try loading cached groups from disk first — skip creation if we have them
+    if (loadGuildGroupsFromDisk()) {
+      console.log(`[GroupChat] Using cached guild groups from disk`);
+      return;
+    }
+
     const { verificationAgent } = agents;
     const gc = verificationAgent.sphere?.groupChat;
     if (!gc) {
@@ -202,52 +237,103 @@ async function main() {
     }
 
     try {
-      // Wait for groupchat:ready event before creating groups
+      // Wait for connection if not yet ready
       if (!gc.getConnectionStatus()) {
         await new Promise((resolve) => {
-          verificationAgent.sphere.on('groupchat:ready', () => {
-            console.log('[GroupChat] Module ready');
-            resolve();
-          });
-          // Timeout fallback after 15s
-          setTimeout(() => {
+          const readyTimeout = setTimeout(() => {
             console.warn('[GroupChat] Timeout waiting for groupchat:ready — proceeding anyway');
             resolve();
           }, 15000);
+          verificationAgent.sphere.on('groupchat:ready', () => {
+            clearTimeout(readyTimeout);
+            console.log('[GroupChat] Module ready');
+            resolve();
+          });
         });
       }
 
-      console.log('[GroupChat] Creating guild chat rooms...');
+      // Connect explicitly
+      try { await gc.connect(); } catch (e) { /* already connected */ }
+
+      // Check what groups already exist on the relay
+      let existingGroups = [];
+      try { existingGroups = await gc.fetchAvailableGroups(); } catch (e) { /* ignore */ }
+      const existingGroupNames = new Map();
+      for (const g of existingGroups) {
+        if (g.name) existingGroupNames.set(g.name, g);
+      }
+
+      console.log(`[GroupChat] Found ${existingGroupNames.size} existing group(s) on relay`);
+      console.log('[GroupChat] Creating/verifying guild chat rooms...');
 
       const guildNames = Object.values(GUILDS); // ['explorer', 'builder', 'creator', 'research']
+      let created = 0;
 
       for (const guildName of guildNames) {
         const groupName = `${guildName}-guild`;
-        const group = await gc.createGroup({
-          name: groupName,
-          description: `${guildName.charAt(0).toUpperCase() + guildName.slice(1)} guild — quest chat room`,
-          visibility: GroupVisibility.PUBLIC,
-        });
 
-        if (group) {
+        // Check if group already exists on relay
+        const existing = existingGroupNames.get(groupName);
+        if (existing) {
           guildGroupChats.set(guildName, {
-            groupId: group.id,
-            relayUrl: group.relayUrl,
+            groupId: existing.id,
+            relayUrl: existing.relayUrl || gc.relayUrl,
           });
-          console.log(`[GroupChat] ✓ Guild room created: ${groupName} (id: ${group.id})`);
-        } else {
-          console.warn(`[GroupChat] ✗ Failed to create group: ${groupName}`);
+          console.log(`[GroupChat] ✓ Found existing room: ${groupName} (id: ${existing.id})`);
+          continue;
+        }
+
+        // Create new group
+        try {
+          const group = await gc.createGroup({
+            name: groupName,
+            description: `${guildName.charAt(0).toUpperCase() + guildName.slice(1)} guild — quest chat room`,
+            visibility: GroupVisibility.PUBLIC,
+          });
+
+          if (group) {
+            guildGroupChats.set(guildName, {
+              groupId: group.id,
+              relayUrl: group.relayUrl,
+            });
+            console.log(`[GroupChat] ✓ Created guild room: ${groupName} (id: ${group.id})`);
+            created++;
+          } else {
+            console.warn(`[GroupChat] ✗ Failed to create group: ${groupName} (no response)`);
+          }
+        } catch (err) {
+          if (err.message?.includes('already exists')) {
+            // Race condition — try fetching available groups again
+            try {
+              const refreshed = await gc.fetchAvailableGroups();
+              const found = refreshed.find(g => g.name === groupName);
+              if (found) {
+                guildGroupChats.set(guildName, {
+                  groupId: found.id,
+                  relayUrl: found.relayUrl || gc.relayUrl,
+                });
+                console.log(`[GroupChat] ✓ Found existing room (retry): ${groupName} (id: ${found.id})`);
+                continue;
+              }
+            } catch { /* fall through */ }
+            console.warn(`[GroupChat] ✗ Group already exists but couldn't resolve: ${groupName}`);
+          } else {
+            console.error(`[GroupChat] Error creating group ${groupName}:`, err.message);
+          }
         }
       }
 
-      console.log(`[GroupChat] All ${guildNames.length} guild rooms created`);
+      // Persist to disk so we don't need to recreate on restart
+      saveGuildGroupsToDisk();
+
+      console.log(`[GroupChat] ${guildGroupChats.size}/${guildNames.length} guild rooms ready (${created} new)`);
     } catch (err) {
-      console.error('[GroupChat] Error creating guild rooms:', err.message);
+      console.error('[GroupChat] Error ensuring guild rooms:', err.message);
     }
   }
 
-  // Fire and forget — guild rooms are created asynchronously
-  createGuildGroupChats(agents);
+  // Fire and forget — guild rooms are ensured asynchronously
+  ensureGuildGroupChats(agents);
 
   // Link verification agent to passport manager
   verificationAgent.registerPassport = (passport) => {
@@ -588,6 +674,16 @@ async function main() {
 
       // GET /health
       if (url.pathname === '/health') {
+        // Ping Supabase to prevent free-tier auto-pause (7-day inactivity)
+        if (passportManager.supabase) {
+          passportManager.supabase
+            .from('passports')
+            .select('id', { count: 'exact', head: true })
+            .then(({ error }) => {
+              if (error) console.warn('[Health] Supabase ping failed:', error.message);
+            })
+            .catch(() => {});
+        }
         res.end(JSON.stringify({
           status: 'ok',
           agents: 4,
@@ -672,6 +768,114 @@ async function main() {
 
   console.log(`WebSocket bridge on port ${WSS_PORT}`);
   console.log('\nAgent Relay is running. Press Ctrl+C to stop.');
+
+  // ── Graceful Shutdown ──────────────────────────────
+  const shutdown = async (signal) => {
+    console.log(`\n[Shutdown] Received ${signal}. Shutting down gracefully...`);
+
+    // Persist guild groups
+    saveGuildGroupsToDisk();
+
+    // Stop all in-app agents
+    for (const [pid, agent] of inAppAgents) {
+      try {
+        agent.stop();
+        console.log(`[Shutdown] Stopped in-app agent: ${pid}`);
+      } catch (e) {
+        console.warn(`[Shutdown] Error stopping in-app agent ${pid}:`, e.message);
+      }
+    }
+
+    // Stop quest agents
+    for (const [name, agent] of Object.entries(agents)) {
+      try {
+        if (typeof agent.stop === 'function') {
+          await agent.stop();
+          console.log(`[Shutdown] Stopped ${name}`);
+        }
+      } catch (e) {
+        console.warn(`[Shutdown] Error stopping ${name}:`, e.message);
+      }
+    }
+
+    // Close HTTP server
+    try {
+      await new Promise((resolve) => httpServer.close(resolve));
+      console.log('[Shutdown] HTTP server closed');
+    } catch (e) {
+      console.warn('[Shutdown] Error closing HTTP server:', e.message);
+    }
+
+    // Close WebSocket server
+    try {
+      wss.close();
+      console.log('[Shutdown] WebSocket server closed');
+    } catch (e) {
+      console.warn('[Shutdown] Error closing WebSocket server:', e.message);
+    }
+
+    console.log('[Shutdown] Goodbye.');
+    process.exit(0);
+  };
+
+  process.on('SIGINT', () => shutdown('SIGINT'));
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
+
+  // ── Reconnection Watchdog ──────────────────────────
+  // Periodically check agent connections and reconnect if needed
+  const RECONNECT_INTERVAL = 30000; // 30 seconds
+  const MAX_RECONNECT_ATTEMPTS = 5;
+
+  async function checkAgentConnections() {
+    const agentNames = ['verificationAgent', 'puzzleAgent', 'loreAgent', 'treasuryAgent'];
+
+    for (const name of agentNames) {
+      const agent = agents[name];
+      if (!agent) continue;
+
+      const sphere = agent.sphere;
+      if (!sphere || !sphere.client) continue;
+
+      const connected = sphere.client.connected || sphere.client.connecting;
+      if (!connected) {
+        console.warn(`[Reconnect] ${name} Sphere disconnected. Attempting reconnect...`);
+        try {
+          await sphere.client.connect();
+          console.log(`[Reconnect] ${name} Sphere reconnected successfully`);
+        } catch (err) {
+          console.error(`[Reconnect] Failed to reconnect ${name}:`, err.message);
+        }
+      }
+    }
+  }
+
+  // Start the reconnection watchdog
+  const reconnectTimer = setInterval(checkAgentConnections, RECONNECT_INTERVAL);
+
+  // Also attempt to re-create guild rooms if they were lost during reconnect
+  async function reensureGuildGroups() {
+    if (guildGroupChats.size === 0 && agents.verificationAgent?.sphere?.groupChat) {
+      console.log('[GroupChat] No cached guild groups — attempting recreation...');
+      await ensureGuildGroupChats(agents);
+    }
+  }
+
+  // Run guild group recovery on a longer interval (every 5 min)
+  const guildRecoveryTimer = setInterval(reensureGuildGroups, 300000);
+
+  // Clear reconnect timers on shutdown (prevents hanging)
+  const originalExit = shutdown;
+  const shutdownWithTimers = async (signal) => {
+    clearInterval(reconnectTimer);
+    clearInterval(guildRecoveryTimer);
+    await originalExit(signal);
+  };
+
+  // Override the shutdown handler to clean up timers first
+  process.listeners('SIGINT').forEach((l) => process.removeListener('SIGINT', l));
+  process.listeners('SIGTERM').forEach((l) => process.removeListener('SIGTERM', l));
+  process.on('SIGINT', () => shutdownWithTimers('SIGINT'));
+  process.on('SIGTERM', () => shutdownWithTimers('SIGTERM'));
 }
 
 function parseBody(req) {

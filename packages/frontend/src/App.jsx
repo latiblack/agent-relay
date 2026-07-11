@@ -1065,6 +1065,12 @@ function DashboardView({ passport, wallet, identity, pendingDeepLink, setPending
       fontFamily: "'Mona Sans', sans-serif",
       position: 'relative',
     }}>
+      {/* Terminal scan line overlay */}
+      <div style={{
+        position: 'fixed', inset: 0, zIndex: 50,
+        pointerEvents: 'none',
+        background: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 4px)',
+      }} />
       {/* Hamburger button / Logo toggle */}
       <div style={{
         position: 'fixed', top: 12, left: 12, zIndex: 200,
