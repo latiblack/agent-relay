@@ -1031,6 +1031,14 @@ function DashboardView({ passport, wallet, identity, pendingDeepLink, setPending
   const [deployingQuest, setDeployingQuest] = useState(null);
   const [completedQuests, setCompletedQuests] = useState(new Set());
 
+  // On mount, restore completed quests from passport data
+  useEffect(() => {
+    if (passport?.questsCompleted > 0) {
+      // signal-hunt-01 is the only available quest — mark it done if user has completions
+      setCompletedQuests(new Set(['signal-hunt-01']));
+    }
+  }, [passport?.passportId, passport?.questsCompleted]);
+
   // Auto-refresh passport data (re-reads from server on mount / when stats change)
   const [passportData, setPassportData] = useState(null);
   useEffect(() => {
