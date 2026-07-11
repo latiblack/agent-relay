@@ -1338,10 +1338,12 @@ function QuestsPage({ onDeploy, messages, connected, questState, passportId, onS
           display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
           gap: 20,
         }}>
-          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" style={{ animation: 'spin 0.8s linear infinite' }}>
-            <circle cx="12" cy="12" r="10" stroke="#FF6F00" strokeWidth="3" opacity="0.25" />
-            <path d="M12 2a10 10 0 0 1 10 10" stroke="#FF6F00" strokeWidth="3" strokeLinecap="round" />
-          </svg>
+          <div style={{ animation: 'spin 0.8s linear infinite' }}>
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none">
+              <circle cx="12" cy="12" r="10" stroke="#FF6F00" strokeWidth="3" opacity="0.25" />
+              <path d="M12 2a10 10 0 0 1 10 10" stroke="#FF6F00" strokeWidth="3" strokeLinecap="round" />
+            </svg>
+          </div>
           <div style={{
             fontFamily: "'JetBrains Mono', monospace",
             fontSize: 13, color: '#FF6F00', fontWeight: 600,
