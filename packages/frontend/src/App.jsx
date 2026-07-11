@@ -2004,13 +2004,7 @@ function GuildChatPage({ passport, tag, identity }) {
     if (!chatInput.trim() || !wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
     const msg = chatInput.trim();
     wsRef.current.send(JSON.stringify({ type: 'chat', message: msg, userTag: tag }));
-    setChatMessages(prev => [...prev, {
-      id: Date.now(),
-      from: tag || 'You',
-      message: msg,
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      system: false,
-    }]);
+    // Don't add locally — server broadcasts back to everyone including sender
     setChatInput('');
   };
 
