@@ -756,11 +756,28 @@ async function main() {
     console.log(`  GET  /health             - Health check`);
   });
 
-  // ── WebSocket Server (Agent Console) ──────────────
+  // ── WebSocket Server (Quest Console + Guild Chat) ──
+  // Both share port 3105 — routed by request path
 
   const wss = new WebSocketServer({ port: WSS_PORT });
 
+  // Guild chat rooms: guildName -> Map<id, { ws, userTag }>
+  const guildChatRooms = new Map();
+
   wss.on('connection', (ws, req) => {
+    const url = new URL(req.url, `http://localhost:${PORT}`);
+    const path = url.pathname;
+
+    // Guild chat connections (arrives as /guild-chat — Caddy strips /relay/ws prefix)
+    if (path === '/guild-chat' || path === '/ws/guild-chat') {
+      return handleGuildChat(ws, req);
+    }
+
+    // Default: quest console (path /ws or /)
+    handleQuestConsole(ws, req);
+  });
+
+  function handleQuestConsole(ws, req) {
     let authenticatedPassport = null;
 
     ws.on('message', async (raw) => {
@@ -779,7 +796,6 @@ async function main() {
             break;
 
           case 'deploy':
-            // Deploy a quest from the console
             if (authenticatedPassport) {
               ws.send(JSON.stringify({
                 type: 'info',
@@ -805,9 +821,97 @@ async function main() {
       }
       console.log('[WS] Console disconnected');
     });
-  });
+  }
+
+  function handleGuildChat(ws, req) {
+    let userInfo = null;
+
+    ws.on('message', async (raw) => {
+      try {
+        const msg = JSON.parse(raw.toString());
+
+        switch (msg.type) {
+          case 'join': {
+            const guild = msg.guild || 'explorer';
+            const guildName = guild.charAt(0).toUpperCase() + guild.slice(1);
+            userInfo = { passportId: msg.passportId, userTag: msg.userTag, guild };
+
+            if (!guildChatRooms.has(guildName)) {
+              guildChatRooms.set(guildName, new Map());
+            }
+            guildChatRooms.get(guildName).set(msg.passportId || msg.userTag, { ws, userTag: msg.userTag });
+            console.log(`[GuildChat] ${msg.userTag} joined ${guildName}`);
+
+            const room = guildChatRooms.get(guildName);
+            const joinMsg = JSON.stringify({
+              type: 'system',
+              message: `${msg.userTag || 'Someone'} joined the ${guildName}`,
+              time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+              system: true,
+            });
+            for (const [_, member] of room) {
+              try { member.ws.send(joinMsg); } catch {}
+            }
+            break;
+          }
+
+          case 'chat': {
+            if (!userInfo) {
+              ws.send(JSON.stringify({ type: 'error', message: 'Join a room first' }));
+              return;
+            }
+            const guildName = userInfo.guild.charAt(0).toUpperCase() + userInfo.guild.slice(1);
+            const room = guildChatRooms.get(guildName);
+            if (!room) return;
+
+            const broadcast = JSON.stringify({
+              type: 'chat',
+              from: msg.userTag || userInfo.userTag || 'Agent',
+              message: msg.message,
+              time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+              system: false,
+            });
+            for (const [_, member] of room) {
+              try { member.ws.send(broadcast); } catch {}
+            }
+            break;
+          }
+
+          default:
+            ws.send(JSON.stringify({ type: 'error', message: `Unknown guild chat type: ${msg.type}` }));
+        }
+      } catch {
+        ws.send(JSON.stringify({ type: 'error', message: 'Invalid message format' }));
+      }
+    });
+
+    ws.on('close', () => {
+      if (userInfo) {
+        const guildName = userInfo.guild.charAt(0).toUpperCase() + userInfo.guild.slice(1);
+        const room = guildChatRooms.get(guildName);
+        if (room) {
+          room.delete(userInfo.passportId || userInfo.userTag);
+          if (room.size === 0) guildChatRooms.delete(guildName);
+        }
+        if (room) {
+          const leaveMsg = JSON.stringify({
+            type: 'system',
+            message: `${userInfo.userTag} left the ${guildName}`,
+            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            system: true,
+          });
+          for (const [_, member] of room) {
+            try { member.ws.send(leaveMsg); } catch {}
+          }
+        }
+        console.log(`[GuildChat] ${userInfo.userTag} left ${guildName}`);
+      }
+    });
+  }
 
   console.log(`WebSocket bridge on port ${WSS_PORT}`);
+  console.log('  /ws              - Quest console');
+  console.log('  /ws/guild-chat   - Guild chat');
   console.log('\nAgent Relay is running. Press Ctrl+C to stop.');
 
   // ── Graceful Shutdown ──────────────────────────────

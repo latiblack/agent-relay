@@ -1945,7 +1945,7 @@ function GuildChatPage({ passport, tag, identity }) {
       ws.onopen = () => {
         setWsConnected(true);
         // Send join message
-        ws.send(JSON.stringify({ type: 'join', passportId: passport.passportId, userTag: tag }));
+        ws.send(JSON.stringify({ type: 'join', passportId: passport.passportId, userTag: tag, guild: passport.guild }));
       };
 
       ws.onmessage = (event) => {
