@@ -1378,6 +1378,8 @@ function QuestsPage({ onDeploy, messages, connected, questState, passportId, onS
   }, [messages.length, typingIdx]);
 
   // ── Determine which flow segment to highlight from the currently-typing message ──
+  const userTagNormalized = tag ? `@${tag.replace(/^@/, '')}` : '@user';
+  const isUserRef = (name) => !name || name === 'SYSTEM' || name === '@user' || name === userTagNormalized;
   const getNodeX = (name) => {
     const map = {
       '@ar-verify': 192,
@@ -1385,8 +1387,7 @@ function QuestsPage({ onDeploy, messages, connected, questState, passportId, onS
       '@agentrelay-puzzle': 412,
       '@agentrelay-treasury': 522,
     };
-    // User = their tag or '@lati'
-    if (!name || name === 'SYSTEM' || name === '@user' || name.startsWith('@lati')) return 48;
+    if (isUserRef(name)) return 48;
     return map[name] || null;
   };
 
@@ -1589,10 +1590,10 @@ function QuestsPage({ onDeploy, messages, connected, questState, passportId, onS
                 { cx: 522, label: '🏆', sub: 'reward', key: '@agentrelay-treasury' },
               ].map((node) => {
                 const isFrom = activeMessage && (node.key === 'user'
-                  ? (!activeMessage.from || activeMessage.from === 'SYSTEM' || activeMessage.from.startsWith('@lati'))
+                  ? isUserRef(activeMessage.from)
                   : activeMessage.from === node.key);
                 const isTo = activeMessage && (node.key === 'user'
-                  ? (!activeMessage.to || activeMessage.to === 'SYSTEM' || activeMessage.to.startsWith('@lati'))
+                  ? isUserRef(activeMessage.to)
                   : activeMessage.to === node.key);
                 const active = isFrom || isTo;
                 return (
