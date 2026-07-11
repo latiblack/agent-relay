@@ -92,7 +92,7 @@ function parseQuestMd(content, defaultId) {
       else if (secName === 'final answer') {
         const answerLine = lines[lines.indexOf(line) + 1];
         if (answerLine && answerLine.startsWith('**Answer:**')) {
-          quest.answer = answerLine.replace('**Answer:**', '').trim().toLowerCase();
+          quest.answer = answerLine.replace('**Answer:**', '').trim().toLowerCase().replace(/^`(.+)`$/, '$1');
         }
         section = null;
       }
@@ -119,7 +119,7 @@ function parseQuestMd(content, defaultId) {
     // Check for final answer pattern
     const finalAnswerMatch = line.match(/^\*\*Answer:\*\*\s*(.+)/);
     if (finalAnswerMatch && quest.answer === '') {
-      quest.answer = finalAnswerMatch[1].trim().toLowerCase();
+      quest.answer = finalAnswerMatch[1].trim().toLowerCase().replace(/^`(.+)`$/, '$1');
       continue;
     }
 
@@ -140,7 +140,7 @@ function parseQuestMd(content, defaultId) {
   while ((match = fragmentRegex.exec(content)) !== null) {
     quest.fragments.push({
       clue: match[1].trim(),
-      answer: match[2].trim().toLowerCase(),
+      answer: match[2].trim().toLowerCase().replace(/^`(.+)`$/, '$1'),
     });
   }
 

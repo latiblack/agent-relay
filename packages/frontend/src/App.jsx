@@ -881,7 +881,7 @@ function ConnectView({ wallet, onConnect, onPassportFound }) {
         fontSize: 11, color: A, fontFamily: "'JetBrains Mono', monospace", marginBottom: 32,
       }}>
         <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#22c55e', display: 'inline-block' }} />
-        Unicity Testnet2 · Chain ID 4
+        Unicity Testnet2
       </div>
       <div
         onClick={wallet.status === 'connecting' ? undefined : onConnect}
