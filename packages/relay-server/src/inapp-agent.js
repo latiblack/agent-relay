@@ -154,29 +154,27 @@ export class InAppAgent {
 
     // Step 2: Request narrative from Lore agent
     this.phase = 'lore';
-    this._emit(this.userTag, AGENT_REGISTRY.LORE,
-      `[REQUEST] Need narrative context for "${this.quest.title}"`,
+    // Emit lore immediately — it's static text, no need to wait for a DM round-trip
+    this._emit(AGENT_REGISTRY.LORE, this.userTag,
+      `[LORE] ${this.quest.lore.intro}`,
       'lore');
-
-    try {
-      const loreResp = await this._sendAndWait(
-        AGENT_REGISTRY.LORE,
-        {
-          action: 'get_story',
-          data: { questId: this.questId, chapter: 'intro' },
-          questId: this.questId,
-        },
-        'story'
-      );
-
-      const loreContent = loreResp?.payload?.data?.content || this.quest.lore.intro;
-      this._emit(AGENT_REGISTRY.LORE, this.userTag,
-        `[LORE] ${loreContent}`,
-        'lore');
-    } catch (err) {
-      this._emit(AGENT_REGISTRY.LORE, this.userTag,
-        `[LORE] ${this.quest.lore.intro}`, 'lore');
-    }
+    // Fire DM in background (fire-and-forget) so the agent still logs it
+    this._sendAndWait(
+      AGENT_REGISTRY.LORE,
+      {
+        action: 'get_story',
+        data: { questId: this.questId, chapter: 'intro' },
+        questId: this.questId,
+      },
+      'story'
+    ).then(loreResp => {
+      const loreContent = loreResp?.payload?.data?.content;
+      if (loreContent && loreContent !== this.quest.lore.intro) {
+        this._emit(AGENT_REGISTRY.LORE, this.userTag,
+          `[LORE] ${loreContent}`,
+          'lore');
+      }
+    }).catch(() => {});
 
     // Step 3: Puzzle — present first clue via DM to Puzzle agent
     this.phase = 'puzzle';

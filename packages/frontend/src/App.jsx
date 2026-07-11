@@ -1328,67 +1328,67 @@ function QuestsPage({ onDeploy, messages, connected, questState, passportId, onS
     onDeploy(qId);
   };
 
-  // ── Sequential typing animation — each message types out one at a time ──
+  // ── Sequential typing animation — single persistent interval (survives message arrivals) ──
   const [typingLen, setTypingLen] = useState(0);
   const [typingIdx, setTypingIdx] = useState(-1);
-  const typingTimerRef = useRef(null);
   const typedSetRef = useRef(new Set());
   const messagesRef = useRef(messages);
+  const holdUntilRef = useRef(0);
+  const typingIdxRef = useRef(-1);      // ref copy so interval can read current value
+  const typingLenRef = useRef(0);        // ref copy for same reason
   messagesRef.current = messages;
 
+  // Track refs from state
+  if (typingIdx !== typingIdxRef.current) typingIdxRef.current = typingIdx;
+  if (typingLen !== typingLenRef.current) typingLenRef.current = typingLen;
+
+  // Persistent ticker — runs once, lives forever, looks at refs for current state
   useEffect(() => {
-    // Reset typed set when messages are cleared (new quest deploy)
-    if (messages.length === 0) {
-      typedSetRef.current = new Set();
-      return;
-    }
-
-    // Find the next untyped message
-    let nextIdx = -1;
-    for (let i = 0; i < messages.length; i++) {
-      if (!typedSetRef.current.has(i) && messages[i]?.message) {
-        nextIdx = i;
-        break;
-      }
-    }
-
-    if (nextIdx === -1) return;
-
-    // If another message is already being typed, don't interrupt
-    if (typingIdx >= 0 && typingLen > 0) return;
-
-    // Start typing this message
-    if (typingTimerRef.current) clearInterval(typingTimerRef.current);
-    setTypingIdx(nextIdx);
-    setTypingLen(0);
-
-    const idx = nextIdx;
-    let intervalEndTimer = null;
-    const timer = setInterval(() => {
-      const latest = messagesRef.current;
-      const msg = latest[idx]?.message;
-      if (!msg) { clearInterval(timer); return; }
-      setTypingLen(prev => {
-        const next = prev + 1;
-        if (next >= msg.length) {
-          clearInterval(timer);
-          typedSetRef.current.add(idx);
-          intervalEndTimer = setTimeout(() => {
-            setTypingIdx(-1);
-            setTypingLen(0);
-          }, 600);
-          return msg.length;
+    const tick = () => {
+      const msgs = messagesRef.current;
+      // Find first untyped message with content
+      let nextIdx = -1;
+      for (let i = 0; i < msgs.length; i++) {
+        if (!typedSetRef.current.has(i) && msgs[i]?.message) {
+          nextIdx = i;
+          break;
         }
-        return next;
-      });
-    }, 55);
-    typingTimerRef.current = timer;
+      }
+      if (nextIdx === -1) return;
 
-    return () => {
-      clearInterval(timer);
-      if (intervalEndTimer) clearTimeout(intervalEndTimer);
+      // Hold period — wait before revealing next message
+      if (holdUntilRef.current > Date.now()) return;
+
+      const currentIdx = typingIdxRef.current;
+      const currentLen = typingLenRef.current;
+
+      // If nothing currently typing, start the next untyped message
+      if (currentIdx === -1) {
+        setTypingLen(0);
+        setTypingIdx(nextIdx);
+        return;
+      }
+
+      // If the current message is done, clear so next tick can advance
+      if (typedSetRef.current.has(currentIdx)) {
+        setTypingIdx(-1);
+        return;
+      }
+
+      // Typing the current message — advance one character
+      const msg = msgs[currentIdx]?.message;
+      if (!msg) return;
+      const nextLen = currentLen + 1;
+      if (nextLen >= msg.length) {
+        typedSetRef.current.add(currentIdx);
+        holdUntilRef.current = Date.now() + 600;
+      }
+      setTypingLen(nextLen);
     };
-  }, [messages.length, typingIdx]);
+
+    const interval = setInterval(tick, 55);
+    return () => clearInterval(interval);
+  }, []); // runs once, lives forever
 
   const phaseColor = (p) => {
     const colors = { deploying: A, verifying: '#3b82f6', lore: '#a855f7', puzzle: A, lore_complete: '#a855f7', rewarding: '#22c55e', completed: '#22c55e', error: '#ef4444' };
