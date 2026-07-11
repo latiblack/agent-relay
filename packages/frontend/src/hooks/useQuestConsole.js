@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 
-const WS_URL = import.meta.env.VITE_WS_URL || 'wss://api.virtusub.xyz:3105';
+const WS_URL = import.meta.env.VITE_WS_URL || 'wss://api.virtusub.xyz/relay/ws';
 
 export function useQuestConsole(passportId) {
   const [messages, setMessages] = useState([]);
