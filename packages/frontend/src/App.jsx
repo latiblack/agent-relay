@@ -1015,6 +1015,7 @@ function DashboardView({ passport, wallet, identity, pendingDeepLink, setPending
   const tag = identity ? formatUserTag(identity) : null;
 
   const { messages, connected, questState, clearMessages } = useQuestConsole(passport?.passportId);
+  const [deployingQuest, setDeployingQuest] = useState(null);
 
   // Auto-deploy deep link quest when passport is ready
   useEffect(() => {
@@ -1025,16 +1026,30 @@ function DashboardView({ passport, wallet, identity, pendingDeepLink, setPending
     }
   }, [pendingDeepLink, passport?.passportId]);
 
+  // Clear deploying state when WebSocket connects or messages arrive
+  useEffect(() => {
+    if (deployingQuest && (connected || messages.length > 0)) {
+      setDeployingQuest(null);
+    }
+  }, [connected, messages.length > 0]);
+
   const deployQuest = async (questId) => {
+    setDeployingQuest(questId);
     try {
       clearMessages();
-      await fetch(`${RELAY_SERVER}/quest/deploy`, {
+      const res = await fetch(`${RELAY_SERVER}/quest/deploy`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ passportId: passport.passportId, questId, userTag: tag }),
       });
+      // If the server responds with an error, clear loading state
+      if (!res.ok) {
+        console.error('Deploy failed:', res.status);
+        setDeployingQuest(null);
+      }
     } catch (err) {
       console.error('Failed to deploy quest:', err);
+      setDeployingQuest(null);
     }
   };
 
@@ -1185,7 +1200,7 @@ function DashboardView({ passport, wallet, identity, pendingDeepLink, setPending
       {/* Main content */}
       <div style={{ padding: '48px 20px 40px', maxWidth: 800, margin: '0 auto' }}>
         {page === 'overview' && <OverviewPage passport={passport} tag={tag} />}
-        {page === 'quests' && <QuestsPage onDeploy={deployQuest} messages={messages} connected={connected} questState={questState} passportId={passport?.passportId} onSubmitAnswer={submitAnswer} onBackToQuests={() => { clearMessages(); }} />}
+        {page === 'quests' && <QuestsPage onDeploy={deployQuest} messages={messages} connected={connected} questState={questState} passportId={passport?.passportId} onSubmitAnswer={submitAnswer} onBackToQuests={() => { clearMessages(); }} deployingQuest={deployingQuest} />}
         {page === 'guild-chat' && <GuildChatPage passport={passport} tag={tag} identity={identity} />}
         {page === 'profile' && <ProfilePage passport={passport} tag={tag} identity={identity} onPassportUpdate={onPassportUpdate} />}
       </div>
@@ -1269,7 +1284,7 @@ function OverviewPage({ passport, tag }) {
   );
 }
 
-function QuestsPage({ onDeploy, messages, connected, questState, passportId, onSubmitAnswer, onBackToQuests }) {
+function QuestsPage({ onDeploy, messages, connected, questState, passportId, onSubmitAnswer, onBackToQuests, deployingQuest }) {
   const [answer, setAnswer] = useState('');
   const [activeQuest, setActiveQuest] = useState(null);
   const bottomRef = useRef(null);
@@ -1354,10 +1369,34 @@ function QuestsPage({ onDeploy, messages, connected, questState, passportId, onS
                   <div style={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace", color: 'rgba(255,255,255,0.25)' }}>Agent: {q.agent}</div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                     {q.status === 'available' && (
-                      <button onClick={() => handleDeploy(q.id)} style={{ ...btnGrad, height: 32, padding: '0 16px', fontSize: 12, borderRadius: 8 }}>
-                        <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontFamily: "'Mona Sans', sans-serif" }}>
-                          Deploy Agent
-                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                      <button
+                        onClick={() => handleDeploy(q.id)}
+                        disabled={deployingQuest === q.id}
+                        style={{
+                          ...btnGrad,
+                          height: 32,
+                          padding: deployingQuest === q.id ? '0 14px' : '0 16px',
+                          fontSize: 12,
+                          borderRadius: 8,
+                          opacity: deployingQuest === q.id ? 0.8 : 1,
+                          cursor: deployingQuest === q.id ? 'wait' : 'pointer',
+                        }}
+                      >
+                        <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontFamily: "'Mona Sans', sans-serif" }}>
+                          {deployingQuest === q.id ? (
+                            <>
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" style={{ animation: 'spin 0.8s linear infinite' }}>
+                                <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.25" />
+                                <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                              </svg>
+                              Deploying...
+                            </>
+                          ) : (
+                            <>
+                              Deploy Agent
+                              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                            </>
+                          )}
                         </span>
                       </button>
                     )}
@@ -1916,6 +1955,10 @@ function RelayNetworkBg() {
             @keyframes glowPulseNav {
               0%, 100% { box-shadow: 0 0 15px rgba(255,111,0,0.06); }
               50% { box-shadow: 0 0 30px rgba(255,111,0,0.12); }
+            }
+            @keyframes spin {
+              0% { transform: rotate(0deg); }
+              100% { transform: rotate(360deg); }
             }
             .glow-card {
               box-shadow: 0 0 12px rgba(255,111,0,0.06), 0 0 25px rgba(255,111,0,0.03) !important;
