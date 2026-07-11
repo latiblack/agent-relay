@@ -1329,17 +1329,13 @@ function QuestsPage({ onDeploy, messages, connected, questState, passportId, onS
   };
 
   // ── Sequential typing animation — each message types out one at a time ──
-  const [typingIdx, setTypingIdx] = useState(-1);
   const [typingLen, setTypingLen] = useState(0);
+  const [typingIdx, setTypingIdx] = useState(-1);
   const typingTimerRef = useRef(null);
-  const typedSetRef = useRef(new Set()); // indices fully typed
+  const typedSetRef = useRef(new Set());
 
-  // When messages change, find untyped ones and start typing
-  const prevCountRef = useRef(0);
   useEffect(() => {
     if (messages.length === 0) return;
-    const prevCount = prevCountRef.current;
-    prevCountRef.current = messages.length;
 
     // Find the next untyped message
     let nextIdx = -1;
@@ -1350,43 +1346,35 @@ function QuestsPage({ onDeploy, messages, connected, questState, passportId, onS
       }
     }
 
-    if (nextIdx === -1) return; // nothing to type
+    if (nextIdx === -1) return;
 
-    // If already typing something else, don't interrupt
-    if (typingIdx >= 0 && typingIdx < messages.length && typingLen < (messages[typingIdx]?.message?.length || 0)) {
-      return;
-    }
+    // If another message is already being typed, don't interrupt
+    if (typingIdx >= 0 && typingIdx < messages.length && typingLen > 0) return;
 
     // Start typing this message
     if (typingTimerRef.current) clearInterval(typingTimerRef.current);
     setTypingIdx(nextIdx);
     setTypingLen(0);
 
-    typingTimerRef.current = setInterval(() => {
-      const currentMessage = messages[nextIdx]?.message;
-      if (!currentMessage) {
-        clearInterval(typingTimerRef.current);
-        typingTimerRef.current = null;
-        return;
-      }
+    const idx = nextIdx;
+    const timer = setInterval(() => {
+      const msg = messages[idx]?.message;
+      if (!msg) { clearInterval(timer); return; }
       setTypingLen(prev => {
         const next = prev + 3;
-        if (next >= currentMessage.length) {
-          clearInterval(typingTimerRef.current);
-          typingTimerRef.current = null;
-          typedSetRef.current.add(nextIdx);
-          // Trigger re-check for next untyped message
+        if (next >= msg.length) {
+          clearInterval(timer);
+          typedSetRef.current.add(idx);
           setTypingIdx(-1);
           setTypingLen(0);
-          return currentMessage.length;
+          return msg.length;
         }
         return next;
       });
     }, 16);
+    typingTimerRef.current = timer;
 
-    return () => {
-      if (typingTimerRef.current) clearInterval(typingTimerRef.current);
-    };
+    return () => { clearInterval(timer); };
   }, [messages.length, typingIdx]);
 
   // ── Determine which flow segment to highlight from phase ──
