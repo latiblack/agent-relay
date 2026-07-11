@@ -3,7 +3,7 @@
 **Quest ID:** signal-hunt-01
 **Guild:** Explorer
 **Difficulty:** Easy
-**Reward:** 50 XP
+**Reward:** 50 XP + 1 UCT
 
 ---
 

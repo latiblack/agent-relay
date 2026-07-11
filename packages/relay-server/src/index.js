@@ -468,6 +468,7 @@ async function main() {
       }
 
       // POST /quest/deploy — Deploy a quest. Spawns user's in-app agent.
+      // Requires 0.1 UCT payment (deducted client-side via Sphere Connect)
       if (url.pathname === '/quest/deploy' && req.method === 'POST') {
         const body = await parseBody(req);
         const { passportId, questId, userTag } = body;
@@ -620,6 +621,7 @@ async function main() {
       }
 
       // POST /quest/complete — Record quest completion and persist to Supabase
+      // Also credits UCT reward to passport balance
       if (url.pathname === '/quest/complete' && req.method === 'POST') {
         const body = await parseBody(req);
         const { passportId, questId, xpEarned } = body;
@@ -634,14 +636,21 @@ async function main() {
           res.end(JSON.stringify({ error: 'Passport not found' }));
           return;
         }
+        // Credit UCT reward if quest has one
+        const quest = QUESTS[questId];
+        let uctAwarded = '0';
+        if (quest && quest.reward.uct && quest.reward.uct !== '0') {
+          await passportManager.appendUctReward(passportId, quest.reward.uct);
+          uctAwarded = quest.reward.uct;
+        }
         // Broadcast updated passport state to console
         broadcastToConsole(passportId, {
           from: 'SYSTEM', to: 'user',
-          message: `[STATS] Quests: ${passport.questsCompleted} | Total XP: ${passport.totalXp}`,
+          message: `[STATS] Quests: ${passport.questsCompleted} | Total XP: ${passport.totalXp} | UCT: +${uctAwarded}`,
           phase: 'stats',
-          data: { questsCompleted: passport.questsCompleted, totalXp: passport.totalXp },
+          data: { questsCompleted: passport.questsCompleted, totalXp: passport.totalXp, uctAwarded },
         });
-        res.end(JSON.stringify({ success: true, passport: { questsCompleted: passport.questsCompleted, totalXp: passport.totalXp } }));
+        res.end(JSON.stringify({ success: true, passport: { questsCompleted: passport.questsCompleted, totalXp: passport.totalXp, uctBalance: passport.uctBalance } }));
         return;
       }
 

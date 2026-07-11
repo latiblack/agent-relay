@@ -103,6 +103,6 @@ export const QUESTS = {
       mid: 'The fragments are aligning. The signal grows stronger with each piece recovered.',
       complete: 'The signal has been decoded. The network hums with a new voice. Welcome to the relay.',
     },
-    reward: { xp: 50 },
+    reward: { xp: 50, uct: '1' },
   },
 };

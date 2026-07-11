@@ -33,7 +33,7 @@ function parseQuestMd(content, defaultId) {
     fragments: [],
     lore: { intro: '', mid: '', complete: '' },
     hints: [],
-    reward: { xp: 50 },
+    reward: { xp: 50, uct: '0' },
   };
 
   let section = null;
@@ -73,6 +73,8 @@ function parseQuestMd(content, defaultId) {
       else if (key === 'reward') {
         const xpMatch = val.match(/(\d+)\s*XP/);
         if (xpMatch) quest.reward.xp = parseInt(xpMatch[1]);
+        const uctMatch = val.match(/(\d+(?:\.\d+)?)\s*UCT/);
+        if (uctMatch) quest.reward.uct = uctMatch[1];
       }
       continue;
     }

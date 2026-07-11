@@ -114,6 +114,7 @@ export class PassportManager {
       guild TEXT NOT NULL DEFAULT 'explorer',
       quests_completed INTEGER DEFAULT 0,
       total_xp INTEGER DEFAULT 0,
+      uct_balance TEXT DEFAULT '0',
       created_at TIMESTAMPTZ DEFAULT NOW()
     );`;
     
@@ -172,6 +173,7 @@ export class PassportManager {
           guild,
           quests_completed: 0,
           total_xp: 0,
+          uct_balance: '0',
         });
       if (error) {
         console.error('[PassportManager] Supabase insert error:', error.message);
@@ -248,6 +250,37 @@ export class PassportManager {
     return passport;
   }
 
+  async appendUctReward(passportId, amount) {
+    const passport = this.passports.get(passportId);
+    if (!passport) return null;
+    const current = BigInt(passport.uctBalance || '0');
+    const amt = BigInt(amount);
+    passport.uctBalance = (current + amt).toString();
+    if (this.supabase) {
+      await this.supabase
+        .from('passports')
+        .update({ uct_balance: passport.uctBalance })
+        .eq('passport_id', passportId);
+    }
+    return passport;
+  }
+
+  async deductUctBalance(passportId, amount) {
+    const passport = this.passports.get(passportId);
+    if (!passport) return null;
+    const current = BigInt(passport.uctBalance || '0');
+    const amt = BigInt(amount);
+    if (current < amt) return null;
+    passport.uctBalance = (current - amt).toString();
+    if (this.supabase) {
+      await this.supabase
+        .from('passports')
+        .update({ uct_balance: passport.uctBalance })
+        .eq('passport_id', passportId);
+    }
+    return passport;
+  }
+
   async getPassportByWallet(walletAddress) {
     // Check cache first
     for (const p of this.passports.values()) {
@@ -275,6 +308,7 @@ export class PassportManager {
       createdAt: new Date(row.created_at).getTime(),
       questsCompleted: row.quests_completed,
       totalXp: row.total_xp,
+      uctBalance: row.uct_balance || '0',
       avatarUrl: row.avatar_url || null,
     };
   }
@@ -294,6 +328,7 @@ export class PassportManager {
       if (fields.nametag !== undefined) dbFields.nametag = fields.nametag;
       if (fields.questsCompleted !== undefined) dbFields.quests_completed = fields.questsCompleted;
       if (fields.totalXp !== undefined) dbFields.total_xp = fields.totalXp;
+      if (fields.uctBalance !== undefined) dbFields.uct_balance = fields.uctBalance;
       if (Object.keys(dbFields).length > 0) {
         await this.supabase
           .from('passports')

@@ -1065,10 +1065,12 @@ function DashboardView({ passport, wallet, identity, pendingDeepLink, setPending
               ...prev,
               questsCompleted: data.passport.questsCompleted,
               totalXp: data.passport.totalXp,
+              uctBalance: data.passport.uctBalance,
             } : prev);
             onPassportUpdate?.({
               questsCompleted: data.passport.questsCompleted,
               totalXp: data.passport.totalXp,
+              uctBalance: data.passport.uctBalance,
             });
           }
         })
@@ -1099,6 +1101,25 @@ function DashboardView({ passport, wallet, identity, pendingDeepLink, setPending
   const deployQuest = async (questId) => {
     setDeployingQuest(questId);
     try {
+      // Step 1: Charge 0.1 UCT (100000000000000000 wei = 0.1 UCT with 18 decimals)
+      const UCT_DEPLOY_COST = '100000000000000000';
+      // Treasury address from the relay server (the in-app agent's pubkey sends rewards)
+      // For now, send to the quest treasury agent's sphere identity
+      // We use the server's relay name as the recipient which resolves via Sphere
+      const RELAY_TREASURY_TAG = '@agentrelay-treasury';
+      
+      if (wallet?.sendUct) {
+        try {
+          const paymentResult = await wallet.sendUct(RELAY_TREASURY_TAG, UCT_DEPLOY_COST);
+          console.log('UCT payment sent:', paymentResult);
+        } catch (payErr) {
+          console.error('UCT payment failed:', payErr);
+          setDeployingQuest(null);
+          clearMessages();
+          return;
+        }
+      }
+      
       clearMessages();
       const res = await fetch(`${RELAY_SERVER}/quest/deploy`, {
         method: 'POST',
@@ -1262,7 +1283,7 @@ function DashboardView({ passport, wallet, identity, pendingDeepLink, setPending
 
       {/* Main content */}
       <div style={{ padding: '48px 20px 40px', maxWidth: 800, margin: '0 auto' }}>
-        {page === 'overview' && <OverviewPage passport={passportData || passport} tag={tag} />}
+        {page === 'overview' && <OverviewPage passport={passportData || passport} tag={tag} wallet={wallet} />}
         {page === 'quests' && <QuestsPage onDeploy={deployQuest} messages={messages} connected={connected} questState={questState} passportId={passport?.passportId} onSubmitAnswer={submitAnswer} onBackToQuests={() => { clearMessages(); }} deployingQuest={deployingQuest} passport={passport} tag={tag} completedQuests={completedQuests} />}
         {page === 'guild-chat' && <GuildChatPage passport={passport} tag={tag} identity={identity} />}
         {page === 'profile' && <ProfilePage passport={passport} tag={tag} identity={identity} onPassportUpdate={onPassportUpdate} />}
@@ -1273,10 +1294,12 @@ function DashboardView({ passport, wallet, identity, pendingDeepLink, setPending
 
 // ── Dashboard Pages ──────────────────────────────
 
-function OverviewPage({ passport, tag }) {
+function OverviewPage({ passport, tag, wallet }) {
+  const uctBalance = wallet?.getUctBalance ? wallet.getUctBalance() : '—';
   const stats = [
     { label: 'Passport', value: passport?.passportId || '—', color: A },
     { label: 'Guild', value: passport?.guild ? `${passport.guild.charAt(0).toUpperCase() + passport.guild.slice(1)} Guild` : '—', color: D },
+    { label: 'UCT Balance', value: `${uctBalance} UCT`, color: '#fbbf24' },
     { label: 'Quests Done', value: passport?.questsCompleted || 0, color: D },
     { label: 'Total XP', value: passport?.totalXp || 0, color: D },
     { label: 'Relay Key', value: passport?.relayKey || '—', color: A },
@@ -1352,10 +1375,10 @@ function QuestsPage({ onDeploy, messages, connected, questState, passportId, onS
   const [activeQuest, setActiveQuest] = useState(null);
   const bottomRef = useRef(null);
   const quests = [
-    { id: 'signal-hunt-01', title: 'Signal Hunt', desc: 'Collect clues from 5 agents to locate the hidden signal.', difficulty: 'Easy', reward: '50 XP', status: 'available', agent: 'Puzzle' },
-    { id: 'secret-market-01', title: 'Secret Market', desc: 'Agents negotiate prices for rare intel. Best offer wins.', difficulty: 'Medium', reward: '100 XP', status: 'locked', agent: 'Treasury' },
-    { id: 'lost-archive-01', title: 'Lost Archive', desc: 'Agents search decentralized records for a forgotten fragment.', difficulty: 'Medium', reward: '120 XP', status: 'locked', agent: 'Lore' },
-    { id: 'agent-escape-room-01', title: 'Agent Escape Room', desc: 'Combine clues from all 4 agents to unlock the exit.', difficulty: 'Hard', reward: '250 XP', status: 'locked', agent: 'Verification' },
+    { id: 'signal-hunt-01', title: 'Signal Hunt', desc: 'Collect clues from 5 agents to locate the hidden signal.', difficulty: 'Easy', reward: '50 XP + 1 UCT', cost: '0.1 UCT', status: 'available', agent: 'Puzzle' },
+    { id: 'secret-market-01', title: 'Secret Market', desc: 'Agents negotiate prices for rare intel. Best offer wins.', difficulty: 'Medium', reward: '100 XP + 2 UCT', cost: '0.1 UCT', status: 'locked', agent: 'Treasury' },
+    { id: 'lost-archive-01', title: 'Lost Archive', desc: 'Agents search decentralized records for a forgotten fragment.', difficulty: 'Medium', reward: '120 XP + 3 UCT', cost: '0.1 UCT', status: 'locked', agent: 'Lore' },
+    { id: 'agent-escape-room-01', title: 'Agent Escape Room', desc: 'Combine clues from all 4 agents to unlock the exit.', difficulty: 'Hard', reward: '250 XP + 5 UCT', cost: '0.1 UCT', status: 'locked', agent: 'Verification' },
   ];
 
   useEffect(() => {
@@ -1565,7 +1588,12 @@ function QuestsPage({ onDeploy, messages, connected, questState, passportId, onS
                 </div>
                 <p style={{ color: E, fontSize: 13, lineHeight: 1.5, margin: '0 0 12px', fontFamily: "'Mona Sans', sans-serif" }}>{q.desc}</p>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div style={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace", color: 'rgba(255,255,255,0.25)' }}>Agent: {q.agent}</div>
+                  <div>
+                    <div style={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace", color: 'rgba(255,255,255,0.25)' }}>Agent: {q.agent}</div>
+                    {q.status === 'available' && !isCompleted && (
+                      <div style={{ fontSize: 9, fontFamily: "'JetBrains Mono', monospace", color: '#fbbf24', marginTop: 2 }}>Cost: {q.cost}</div>
+                    )}
+                  </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                     {isCompleted ? (
                       <span style={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace", color: '#22c55e', display: 'flex', alignItems: 'center', gap: 4 }}>
