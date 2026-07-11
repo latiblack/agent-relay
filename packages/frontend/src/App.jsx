@@ -1951,6 +1951,13 @@ function GuildChatPage({ passport, tag, identity }) {
       ws.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
+
+          if (data.type === 'history') {
+            // Prepend history messages (sent on join)
+            setChatMessages(data.messages || []);
+            return;
+          }
+
           if (data.type === 'chat' || data.message) {
             setChatMessages(prev => [...prev, {
               id: Date.now() + Math.random(),

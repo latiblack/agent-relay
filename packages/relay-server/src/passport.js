@@ -27,6 +27,7 @@ export class PassportManager {
     // Auto-create the passports table if it doesn't exist
     if (this.supabase) {
       await this._ensureTable();
+      await this._ensureGuildMessagesTable();
     }
 
     // Warm cache from Supabase on startup
@@ -301,6 +302,95 @@ export class PassportManager {
       }
     }
     return passport || this.passports.get(passportId);
+  }
+
+  // ── Guild Chat Messages ──────────────────────────
+
+  async _ensureGuildMessagesTable() {
+    if (!this.supabase) return;
+    try {
+      const { error } = await this.supabase
+        .from('guild_messages')
+        .select('id', { count: 'exact', head: true });
+      if (error && error.message?.includes('relation')) {
+        console.log('[PassportManager] Creating guild_messages table...');
+        await this._createGuildMessagesTableViaPsql();
+        this.supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+        await new Promise(r => setTimeout(r, 1000));
+      }
+    } catch (err) {
+      console.warn('[PassportManager] guild_messages table check error:', err.message);
+    }
+  }
+
+  async _createGuildMessagesTableViaPsql() {
+    const { spawn } = await import('child_process');
+    const sql = `CREATE TABLE IF NOT EXISTS guild_messages (
+      id BIGSERIAL PRIMARY KEY,
+      guild TEXT NOT NULL DEFAULT 'explorer',
+      user_tag TEXT NOT NULL,
+      message TEXT NOT NULL,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS idx_guild_messages_guild ON guild_messages(guild);
+    CREATE INDEX IF NOT EXISTS idx_guild_messages_created ON guild_messages(created_at);`;
+    const password = process.env.SUPABASE_DB_PASSWORD;
+    if (!password) return;
+    const host = process.env.SUPABASE_DB_HOST || 'aws-1-eu-north-1.pooler.supabase.com';
+    const port = process.env.SUPABASE_DB_PORT || '6543';
+    const user = process.env.SUPABASE_DB_USER || 'postgres.deginpwtznmdwnnnbwsj';
+    return new Promise(resolve => {
+      const p = spawn('psql', [
+        `postgresql://${user}:***@${host}:${port}/postgres`,
+        '-c', sql
+      ], {
+        env: { ...process.env, PGPASSWORD: password },
+        stdio: ['ignore', 'pipe', 'pipe'],
+      });
+      let err = '';
+      p.stderr.on('data', d => err += d);
+      p.on('close', code => {
+        if (code === 0) console.log('[PassportManager] guild_messages table created via psql');
+        else console.log(`[PassportManager] psql exit ${code} (guild_messages): ${err.slice(0, 100)}`);
+        resolve();
+      });
+    });
+  }
+
+  async saveGuildMessage(guild, userTag, message) {
+    if (!this.supabase) return null;
+    const { data, error } = await this.supabase
+      .from('guild_messages')
+      .insert({ guild, user_tag: userTag, message })
+      .select('id, guild, user_tag, message, created_at')
+      .single();
+    if (error) {
+      console.warn('[PassportManager] Failed to save guild message:', error.message);
+      return null;
+    }
+    return data;
+  }
+
+  async getGuildMessages(guild, limit = 50) {
+    if (!this.supabase) return [];
+    const { data, error } = await this.supabase
+      .from('guild_messages')
+      .select('id, guild, user_tag, message, created_at')
+      .eq('guild', guild)
+      .order('created_at', { ascending: true })
+      .limit(limit);
+    if (error) {
+      console.warn('[PassportManager] Failed to load guild messages:', error.message);
+      return [];
+    }
+    return data.map(r => ({
+      id: r.id,
+      guild: r.guild,
+      from: r.user_tag,
+      message: r.message,
+      time: new Date(r.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      system: false,
+    }));
   }
 
   _generatePassportId() {

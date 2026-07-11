@@ -842,6 +842,11 @@ async function main() {
             guildChatRooms.get(guildName).set(msg.passportId || msg.userTag, { ws, userTag: msg.userTag });
             console.log(`[GuildChat] ${msg.userTag} joined ${guildName}`);
 
+            // Send history from Supabase
+            passportManager.getGuildMessages(guild).then(history => {
+              ws.send(JSON.stringify({ type: 'history', messages: history }));
+            });
+
             const room = guildChatRooms.get(guildName);
             const joinMsg = JSON.stringify({
               type: 'system',
@@ -864,16 +869,23 @@ async function main() {
             const room = guildChatRooms.get(guildName);
             if (!room) return;
 
-            const broadcast = JSON.stringify({
-              type: 'chat',
-              from: msg.userTag || userInfo.userTag || 'Agent',
-              message: msg.message,
-              time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-              system: false,
+            const userTag = msg.userTag || userInfo.userTag || 'Agent';
+            const text = msg.message;
+
+            // Save to Supabase, then broadcast with DB id
+            passportManager.saveGuildMessage(userInfo.guild, userTag, text).then(saved => {
+              const broadcast = JSON.stringify({
+                type: 'chat',
+                id: saved?.id || Date.now(),
+                from: userTag,
+                message: text,
+                time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                system: false,
+              });
+              for (const [_, member] of room) {
+                try { member.ws.send(broadcast); } catch {}
+              }
             });
-            for (const [_, member] of room) {
-              try { member.ws.send(broadcast); } catch {}
-            }
             break;
           }
 
