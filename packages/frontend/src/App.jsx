@@ -1332,7 +1332,6 @@ function QuestsPage({ onDeploy, messages, connected, questState, passportId, onS
   const [typingLen, setTypingLen] = useState(0);
   const [typingIdx, setTypingIdx] = useState(-1);
   const typingTimerRef = useRef(null);
-  const flowSegmentRef = useRef(null);
   const typedSetRef = useRef(new Set());
   const messagesRef = useRef(messages);
   messagesRef.current = messages;
@@ -1390,34 +1389,6 @@ function QuestsPage({ onDeploy, messages, connected, questState, passportId, onS
       if (intervalEndTimer) clearTimeout(intervalEndTimer);
     };
   }, [messages.length, typingIdx]);
-
-  // ── Determine which flow segment to highlight from the currently-typing message ──
-  const userTagNormalized = tag ? `@${tag.replace(/^@/, '')}` : '@user';
-  const isUserRef = (name) => !name || name === 'SYSTEM' || name === 'user' || name === '@user' || name === userTagNormalized;
-  const getNodeX = (name) => {
-    const map = {
-      '@ar-verify': 192,
-      '@agentrelay-lore': 302,
-      '@agentrelay-puzzle': 412,
-      '@agentrelay-treasury': 522,
-    };
-    if (isUserRef(name)) return 48;
-    return map[name] || null;
-  };
-
-  const activeMessage = (typingIdx >= 0 && messages[typingIdx]) ? messages[typingIdx] : null;
-  const flowFrom = activeMessage ? getNodeX(activeMessage.from) : null;
-  const flowTo = activeMessage ? getNodeX(activeMessage.to) : null;
-  // Keep the last valid segment alive even between messages for visual continuity
-  if (flowFrom !== null && flowTo !== null && flowFrom !== flowTo) {
-    flowSegmentRef.current = [flowFrom, flowTo];
-  }
-  // Only clear if typing has fully stopped and there's no next message pending
-  const activeFlowSegment = (flowFrom !== null && flowTo !== null && flowFrom !== flowTo)
-    ? [flowFrom, flowTo]
-    : (flowSegmentRef.current
-      ? flowSegmentRef.current
-      : null);
 
   const phaseColor = (p) => {
     const colors = { deploying: A, verifying: '#3b82f6', lore: '#a855f7', puzzle: A, lore_complete: '#a855f7', rewarding: '#22c55e', completed: '#22c55e', error: '#ef4444' };
@@ -1567,97 +1538,6 @@ function QuestsPage({ onDeploy, messages, connected, questState, passportId, onS
                 📋 Copy Log
               </button>
             </div>
-          </div>
-
-          {/* Agent flow animation — visual topology of the relay chain */}
-          <div style={{
-            ...glassCard,
-            marginBottom: 12,
-            padding: '12px 16px',
-            overflow: 'hidden',
-          }}>
-            <svg width="100%" height="32" viewBox="0 0 640 32" preserveAspectRatio="xMidYMid meet" style={{ display: 'block' }}>
-              {/* Define animated dash pattern */}
-              <defs>
-                <linearGradient id="flow-grad" x1="0%" y1="0%" x2="100%" y2="0%">
-                  <stop offset="0%" stopColor="#FF6F00" stopOpacity="0" />
-                  <stop offset="50%" stopColor="#FF6F00" stopOpacity="0.6" />
-                  <stop offset="100%" stopColor="#FF6F00" stopOpacity="0" />
-                </linearGradient>
-                <filter id="flow-glow">
-                  <feGaussianBlur stdDeviation="1.5" result="blur" />
-                  <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
-                </filter>
-                <clipPath id="user-clip">
-                  <circle cx="48" cy="16" r="12" />
-                </clipPath>
-              </defs>
-
-              {/* Connecting lines between nodes (static faint) */}
-              <line x1="82" y1="16" x2="192" y2="16" stroke="rgba(255,111,0,0.08)" strokeWidth="1.5" strokeDasharray="4 4" />
-              <line x1="192" y1="16" x2="302" y2="16" stroke="rgba(255,111,0,0.08)" strokeWidth="1.5" strokeDasharray="4 4" />
-              <line x1="302" y1="16" x2="412" y2="16" stroke="rgba(255,111,0,0.08)" strokeWidth="1.5" strokeDasharray="4 4" />
-              <line x1="412" y1="16" x2="522" y2="16" stroke="rgba(255,111,0,0.08)" strokeWidth="1.5" strokeDasharray="4 4" />
-
-              {/* Active segment — moving dots only (solid orange so visible) */}
-              {activeFlowSegment && (
-                <>
-                  <circle r="3" fill="#FF6F00" filter="url(#flow-glow)">
-                    <animateMotion dur="1.5s" repeatCount="indefinite" path={`M${activeFlowSegment[0]},16 L${activeFlowSegment[1]},16`} />
-                  </circle>
-                  <circle r="2" fill="#FF6F00" filter="url(#flow-glow)">
-                    <animateMotion dur="1.5s" repeatCount="indefinite" begin="0.3s" path={`M${activeFlowSegment[0]},16 L${activeFlowSegment[1]},16`} />
-                  </circle>
-                  <circle r="1.5" fill="#FF6F00" filter="url(#flow-glow)">
-                    <animateMotion dur="1.5s" repeatCount="indefinite" begin="0.6s" path={`M${activeFlowSegment[0]},16 L${activeFlowSegment[1]},16`} />
-                  </circle>
-                </>
-              )}
-
-              {/* Agent nodes — with dynamic glow on active sender/receiver */}
-              {[{ cx: 48, label: tag?.replace(/^@/, '').slice(0, 3).toUpperCase() || 'YOU', key: 'user' },
-                { cx: 192, label: '🛡️', key: '@ar-verify' },
-                { cx: 302, label: '📜', key: '@agentrelay-lore' },
-                { cx: 412, label: '🧩', key: '@agentrelay-puzzle' },
-                { cx: 522, label: '🏆', key: '@agentrelay-treasury' },
-              ].map((node) => {
-                const isFrom = activeMessage && (node.key === 'user'
-                  ? isUserRef(activeMessage.from)
-                  : activeMessage.from === node.key);
-                const isTo = activeMessage && (node.key === 'user'
-                  ? isUserRef(activeMessage.to)
-                  : activeMessage.to === node.key);
-                const active = isFrom || isTo;
-                return (
-                  <g key={node.key}>
-                    {/* Glow ring when active */}
-                    {active && (
-                      <circle cx={node.cx} cy={16} r="18" fill="none" stroke="#FF6F00" strokeWidth="1.5"
-                        opacity={0.2} style={{ animation: 'glowPulseNav 1.2s ease-in-out infinite' }} />
-                    )}
-                    {isFrom && (
-                      <circle cx={node.cx} cy={16} r="15" fill="none" stroke="#FF6F00" strokeWidth="2"
-                        opacity={0.35} style={{ animation: 'glowPulse 1.2s ease-in-out infinite' }} />
-                    )}
-                    <circle cx={node.cx} cy={16} r="14" fill={node.key === 'user' ? '#1a1a1e' : '#FF6F00'} stroke="#FF6F00" strokeWidth={active ? 2.5 : 1.5} />
-                    {/* User: avatar or text */}
-                    {node.key === 'user' && passport?.avatarUrl ? (
-                      <image href={passport.avatarUrl} x={node.cx - 12} y="4" width="24" height="24"
-                        clipPath="url(#user-clip)" preserveAspectRatio="xMidYMid slice" />
-                    ) : node.key === 'user' ? (
-                      <text x={node.cx} y="20" textAnchor="middle" fill="#FF6F00" fontSize="10" fontWeight="700" fontFamily="'JetBrains Mono', monospace">
-                        {node.label}
-                      </text>
-                    ) : (
-                      <text x={node.cx} y="20" textAnchor="middle" fill="#fff" fontSize="9" fontFamily="'JetBrains Mono', monospace" opacity="0.6">{node.label}</text>
-                    )}
-                  </g>
-                );
-              })}
-
-              {/* Arrow head on last segment */}
-              <polygon points="530,16 522,12 522,20" fill="#FF6F00" opacity="0.3" />
-            </svg>
           </div>
 
           {/* Console feed */}
