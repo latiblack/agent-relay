@@ -324,7 +324,29 @@ export class PassportManager {
   }
 
   async _createGuildMessagesTableViaPsql() {
-    const { spawn } = await import('child_process');
+    // Use pg library directly since psql may not be available
+    const password = process.env.SUPABASE_DB_PASSWORD;
+    if (!password) return;
+    const projectRef = (process.env.SUPABASE_URL || '').match(/https:\/\/(.+)\.supabase\.co/)?.[1];
+    if (!projectRef) {
+      console.warn('[PassportManager] Could not determine project ref from SUPABASE_URL');
+      return;
+    }
+    const host = process.env.SUPABASE_DB_HOST || `aws-1-eu-north-1.pooler.supabase.com`;
+    const port = process.env.SUPABASE_DB_PORT || '6543';
+    const user = process.env.SUPABASE_DB_USER || `postgres.${projectRef}`;
+
+    const { default: pg } = await import('pg');
+    const pool = new pg.Pool({
+      host,
+      port: parseInt(port),
+      user,
+      password,
+      database: 'postgres',
+      ssl: { rejectUnauthorized: false },
+      connectionTimeoutMillis: 5000,
+    });
+
     const sql = `CREATE TABLE IF NOT EXISTS guild_messages (
       id BIGSERIAL PRIMARY KEY,
       guild TEXT NOT NULL DEFAULT 'explorer',
@@ -334,27 +356,15 @@ export class PassportManager {
     );
     CREATE INDEX IF NOT EXISTS idx_guild_messages_guild ON guild_messages(guild);
     CREATE INDEX IF NOT EXISTS idx_guild_messages_created ON guild_messages(created_at);`;
-    const password = process.env.SUPABASE_DB_PASSWORD;
-    if (!password) return;
-    const host = process.env.SUPABASE_DB_HOST || 'aws-1-eu-north-1.pooler.supabase.com';
-    const port = process.env.SUPABASE_DB_PORT || '6543';
-    const user = process.env.SUPABASE_DB_USER || 'postgres.deginpwtznmdwnnnbwsj';
-    return new Promise(resolve => {
-      const p = spawn('psql', [
-        `postgresql://${user}:***@${host}:${port}/postgres`,
-        '-c', sql
-      ], {
-        env: { ...process.env, PGPASSWORD: password },
-        stdio: ['ignore', 'pipe', 'pipe'],
-      });
-      let err = '';
-      p.stderr.on('data', d => err += d);
-      p.on('close', code => {
-        if (code === 0) console.log('[PassportManager] guild_messages table created via psql');
-        else console.log(`[PassportManager] psql exit ${code} (guild_messages): ${err.slice(0, 100)}`);
-        resolve();
-      });
-    });
+
+    try {
+      await pool.query(sql);
+      console.log('[PassportManager] guild_messages table created via pg');
+    } catch (err) {
+      console.warn('[PassportManager] Failed to create guild_messages table:', err.message);
+    } finally {
+      await pool.end();
+    }
   }
 
   async saveGuildMessage(guild, userTag, message) {
