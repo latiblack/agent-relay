@@ -1200,7 +1200,7 @@ function DashboardView({ passport, wallet, identity, pendingDeepLink, setPending
       {/* Main content */}
       <div style={{ padding: '48px 20px 40px', maxWidth: 800, margin: '0 auto' }}>
         {page === 'overview' && <OverviewPage passport={passport} tag={tag} />}
-        {page === 'quests' && <QuestsPage onDeploy={deployQuest} messages={messages} connected={connected} questState={questState} passportId={passport?.passportId} onSubmitAnswer={submitAnswer} onBackToQuests={() => { clearMessages(); }} deployingQuest={deployingQuest} />}
+        {page === 'quests' && <QuestsPage onDeploy={deployQuest} messages={messages} connected={connected} questState={questState} passportId={passport?.passportId} onSubmitAnswer={submitAnswer} onBackToQuests={() => { clearMessages(); }} deployingQuest={deployingQuest} passport={passport} tag={tag} />}
         {page === 'guild-chat' && <GuildChatPage passport={passport} tag={tag} identity={identity} />}
         {page === 'profile' && <ProfilePage passport={passport} tag={tag} identity={identity} onPassportUpdate={onPassportUpdate} />}
       </div>
@@ -1284,7 +1284,7 @@ function OverviewPage({ passport, tag }) {
   );
 }
 
-function QuestsPage({ onDeploy, messages, connected, questState, passportId, onSubmitAnswer, onBackToQuests, deployingQuest }) {
+function QuestsPage({ onDeploy, messages, connected, questState, passportId, onSubmitAnswer, onBackToQuests, deployingQuest, passport, tag }) {
   const [answer, setAnswer] = useState('');
   const [activeQuest, setActiveQuest] = useState(null);
   const bottomRef = useRef(null);
@@ -1529,9 +1529,20 @@ function QuestsPage({ onDeploy, messages, connected, questState, passportId, onS
               </circle>
 
               {/* Agent nodes */}
-              {/* 1. User */}
-              <circle cx="48" cy="16" r="14" fill="rgba(255,111,0,0.08)" stroke="#FF6F00" strokeWidth="1.5" opacity="0.6" />
-              <text x="48" y="20" textAnchor="middle" fill="#FF6F00" fontSize="11" fontFamily="'JetBrains Mono', monospace">YOU</text>
+              {/* 1. User — render avatar or tag initials */}
+              <circle cx="48" cy="16" r="14" fill="#1a1a1e" stroke="#FF6F00" strokeWidth="1.5" />
+              {passport?.avatarUrl ? (
+                <>
+                  <clipPath id="user-clip">
+                    <circle cx="48" cy="16" r="12" />
+                  </clipPath>
+                  <image href={passport.avatarUrl} x="36" y="4" width="24" height="24" clipPath="url(#user-clip)" preserveAspectRatio="xMidYMid slice" />
+                </>
+              ) : (
+                <text x="48" y="20" textAnchor="middle" fill="#FF6F00" fontSize="10" fontWeight="700" fontFamily="'JetBrains Mono', monospace">
+                  {tag?.replace(/^@/, '').slice(0, 3).toUpperCase() || 'YOU'}
+                </text>
+              )}
 
               {/* 2. Verify */}
               <circle cx="192" cy="16" r="14" fill="#1a1a1e" stroke="#FF6F00" strokeWidth="1.5" />
