@@ -1456,6 +1456,108 @@ function QuestsPage({ onDeploy, messages, connected, questState, passportId, onS
             </div>
           </div>
 
+          {/* Agent flow animation — visual topology of the relay chain */}
+          <div style={{
+            ...glassCard,
+            marginBottom: 12,
+            padding: '12px 16px',
+            overflow: 'hidden',
+          }}>
+            <svg width="100%" height="32" viewBox="0 0 640 32" preserveAspectRatio="xMidYMid meet" style={{ display: 'block' }}>
+              {/* Define animated dash pattern */}
+              <defs>
+                <linearGradient id="flow-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stopColor="#FF6F00" stopOpacity="0" />
+                  <stop offset="50%" stopColor="#FF6F00" stopOpacity="0.6" />
+                  <stop offset="100%" stopColor="#FF6F00" stopOpacity="0" />
+                </linearGradient>
+                <filter id="flow-glow">
+                  <feGaussianBlur stdDeviation="1.5" result="blur" />
+                  <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+                </filter>
+              </defs>
+
+              {/* Connecting lines between nodes (static faint) */}
+              <line x1="82" y1="16" x2="192" y2="16" stroke="rgba(255,111,0,0.08)" strokeWidth="1.5" strokeDasharray="4 4" />
+              <line x1="192" y1="16" x2="302" y2="16" stroke="rgba(255,111,0,0.08)" strokeWidth="1.5" strokeDasharray="4 4" />
+              <line x1="302" y1="16" x2="412" y2="16" stroke="rgba(255,111,0,0.08)" strokeWidth="1.5" strokeDasharray="4 4" />
+              <line x1="412" y1="16" x2="522" y2="16" stroke="rgba(255,111,0,0.08)" strokeWidth="1.5" strokeDasharray="4 4" />
+
+              {/* Animated flow dots — 3 dots per segment */}
+              {/* Segment 1: User → Verify */}
+              <circle r="3" fill="url(#flow-grad)" filter="url(#flow-glow)">
+                <animateMotion dur="2s" repeatCount="indefinite" path="M82,16 L192,16" />
+              </circle>
+              <circle r="2" fill="url(#flow-grad)" filter="url(#flow-glow)">
+                <animateMotion dur="2s" repeatCount="indefinite" begin="0.4s" path="M82,16 L192,16" />
+              </circle>
+              <circle r="1.5" fill="url(#flow-grad)" filter="url(#flow-glow)">
+                <animateMotion dur="2s" repeatCount="indefinite" begin="0.8s" path="M82,16 L192,16" />
+              </circle>
+
+              {/* Segment 2: Verify → Lore */}
+              <circle r="3" fill="url(#flow-grad)" filter="url(#flow-glow)">
+                <animateMotion dur="2.5s" repeatCount="indefinite" begin="0.5s" path="M192,16 L302,16" />
+              </circle>
+              <circle r="2" fill="url(#flow-grad)" filter="url(#flow-glow)">
+                <animateMotion dur="2.5s" repeatCount="indefinite" begin="0.9s" path="M192,16 L302,16" />
+              </circle>
+              <circle r="1.5" fill="url(#flow-grad)" filter="url(#flow-glow)">
+                <animateMotion dur="2.5s" repeatCount="indefinite" begin="1.3s" path="M192,16 L302,16" />
+              </circle>
+
+              {/* Segment 3: Lore → Puzzle */}
+              <circle r="3" fill="url(#flow-grad)" filter="url(#flow-glow)">
+                <animateMotion dur="2s" repeatCount="indefinite" begin="1s" path="M302,16 L412,16" />
+              </circle>
+              <circle r="2" fill="url(#flow-grad)" filter="url(#flow-glow)">
+                <animateMotion dur="2s" repeatCount="indefinite" begin="1.4s" path="M302,16 L412,16" />
+              </circle>
+              <circle r="1.5" fill="url(#flow-grad)" filter="url(#flow-glow)">
+                <animateMotion dur="2s" repeatCount="indefinite" begin="1.8s" path="M302,16 L412,16" />
+              </circle>
+
+              {/* Segment 4: Puzzle → Treasury */}
+              <circle r="3" fill="url(#flow-grad)" filter="url(#flow-glow)">
+                <animateMotion dur="2.5s" repeatCount="indefinite" begin="1.5s" path="M412,16 L522,16" />
+              </circle>
+              <circle r="2" fill="url(#flow-grad)" filter="url(#flow-glow)">
+                <animateMotion dur="2.5s" repeatCount="indefinite" begin="1.9s" path="M412,16 L522,16" />
+              </circle>
+              <circle r="1.5" fill="url(#flow-grad)" filter="url(#flow-glow)">
+                <animateMotion dur="2.5s" repeatCount="indefinite" begin="2.3s" path="M412,16 L522,16" />
+              </circle>
+
+              {/* Agent nodes */}
+              {/* 1. User */}
+              <circle cx="48" cy="16" r="14" fill="rgba(255,111,0,0.08)" stroke="#FF6F00" strokeWidth="1.5" opacity="0.6" />
+              <text x="48" y="20" textAnchor="middle" fill="#FF6F00" fontSize="11" fontFamily="'JetBrains Mono', monospace">YOU</text>
+
+              {/* 2. Verify */}
+              <circle cx="192" cy="16" r="14" fill="rgba(255,111,0,0.08)" stroke="#FF6F00" strokeWidth="1.5" />
+              <text x="192" y="20" textAnchor="middle" fill="#fff" fontSize="9" fontFamily="'JetBrains Mono', monospace" opacity="0.5">🛡️</text>
+              <text x="192" y="30" textAnchor="middle" fill="rgba(255,255,255,0.2)" fontSize="7" fontFamily="'JetBrains Mono', monospace">verify</text>
+
+              {/* 3. Lore */}
+              <circle cx="302" cy="16" r="14" fill="rgba(255,111,0,0.08)" stroke="#FF6F00" strokeWidth="1.5" />
+              <text x="302" y="20" textAnchor="middle" fill="#fff" fontSize="9" fontFamily="'JetBrains Mono', monospace" opacity="0.5">📜</text>
+              <text x="302" y="30" textAnchor="middle" fill="rgba(255,255,255,0.2)" fontSize="7" fontFamily="'JetBrains Mono', monospace">lore</text>
+
+              {/* 4. Puzzle */}
+              <circle cx="412" cy="16" r="14" fill="rgba(255,111,0,0.08)" stroke="#FF6F00" strokeWidth="1.5" />
+              <text x="412" y="20" textAnchor="middle" fill="#fff" fontSize="9" fontFamily="'JetBrains Mono', monospace" opacity="0.5">🧩</text>
+              <text x="412" y="30" textAnchor="middle" fill="rgba(255,255,255,0.2)" fontSize="7" fontFamily="'JetBrains Mono', monospace">puzzle</text>
+
+              {/* 5. Treasury */}
+              <circle cx="522" cy="16" r="14" fill="rgba(255,111,0,0.08)" stroke="#FF6F00" strokeWidth="1.5" />
+              <text x="522" y="20" textAnchor="middle" fill="#fff" fontSize="9" fontFamily="'JetBrains Mono', monospace" opacity="0.5">🏆</text>
+              <text x="522" y="30" textAnchor="middle" fill="rgba(255,255,255,0.2)" fontSize="7" fontFamily="'JetBrains Mono', monospace">reward</text>
+
+              {/* Arrow head on last segment */}
+              <polygon points="530,16 522,12 522,20" fill="#FF6F00" opacity="0.3" />
+            </svg>
+          </div>
+
           {/* Console feed */}
           <div style={{ ...glassCard, padding: 0, overflow: 'hidden' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px', borderBottom: '1px solid rgba(255,255,255,0.04)', background: 'rgba(255,111,0,0.03)' }}>
