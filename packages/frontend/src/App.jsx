@@ -1590,17 +1590,17 @@ function QuestsPage({ onDeploy, messages, connected, questState, passportId, onS
               value={answer}
               onChange={(e) => setAnswer(e.target.value)}
               placeholder={questState?.phase === 'puzzle' ? `Type answer for ${activeQuest}...` : 'Waiting for system...'}
-              disabled={questState?.phase !== 'puzzle'}
+              disabled={questState?.phase !== 'puzzle' || typingIdx >= 0}
               style={{
                 flex: 1, padding: '10px 14px', borderRadius: 8,
                 background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
                 color: D, fontSize: 13, fontFamily: "'JetBrains Mono', monospace",
-                outline: 'none', opacity: questState?.phase !== 'puzzle' ? 0.4 : 1,
+                outline: 'none', opacity: questState?.phase !== 'puzzle' || typingIdx >= 0 ? 0.4 : 1,
               }}
             />
-            <button type="submit" disabled={questState?.phase !== 'puzzle'} style={{
+            <button type="submit" disabled={questState?.phase !== 'puzzle' || typingIdx >= 0} style={{
               ...btnGrad, height: 40, padding: '0 20px', fontSize: 13, borderRadius: 8,
-              opacity: questState?.phase !== 'puzzle' ? 0.4 : 1,
+              opacity: questState?.phase !== 'puzzle' || typingIdx >= 0 ? 0.4 : 1,
             }}>
               Send
             </button>
