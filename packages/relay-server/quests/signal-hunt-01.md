@@ -58,13 +58,15 @@ The user's AI must combine all 5 fragments in order, joined by underscores:
 
 ## Lore Responses
 
-### Intro
+## Intro
+
 "An ancient transmission has been detected at the edge of the network. Five beacon nodes are broadcasting fragments of a forgotten frequency. Decode them all to unlock the signal."
 
-### Mid-progress
+## Mid-progress
+
 "The fragments are aligning. The signal grows stronger with each piece recovered."
 
-### On completion
+## On completion
 "The signal has been decoded. The network hums with a new voice. Welcome to the relay."
 
 ---
