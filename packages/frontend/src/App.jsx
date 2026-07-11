@@ -1377,22 +1377,23 @@ function QuestsPage({ onDeploy, messages, connected, questState, passportId, onS
     return () => { clearInterval(timer); };
   }, [messages.length, typingIdx]);
 
-  // ── Determine which flow segment to highlight from phase ──
-  const activeFlowSegment = (() => {
-    const phase = questState?.phase;
-    if (!phase) return null;
-    const segments = {
-      init: [48, 192],
-      deploying: [48, 192],
-      verifying: [192, 302],
-      lore_intro: [302, 412],
-      lore: [302, 412],
-      puzzle: [412, 522],
-      lore_complete: [522, 522],
-      rewarding: [522, 530],
+  // ── Determine which flow segment to highlight from the currently-typing message ──
+  const getNodeX = (name) => {
+    const map = {
+      '@ar-verify': 192,
+      '@agentrelay-lore': 302,
+      '@agentrelay-puzzle': 412,
+      '@agentrelay-treasury': 522,
     };
-    return segments[phase] || null;
-  })();
+    // User = their tag or '@lati'
+    if (!name || name === 'SYSTEM' || name === '@user' || name.startsWith('@lati')) return 48;
+    return map[name] || null;
+  };
+
+  const activeMessage = (typingIdx >= 0 && messages[typingIdx]) ? messages[typingIdx] : null;
+  const flowFrom = activeMessage ? getNodeX(activeMessage.from) : null;
+  const flowTo = activeMessage ? getNodeX(activeMessage.to) : null;
+  const activeFlowSegment = (flowFrom !== null && flowTo !== null && flowFrom !== flowTo) ? [flowFrom, flowTo] : null;
 
   const phaseColor = (p) => {
     const colors = { deploying: A, verifying: '#3b82f6', lore: '#a855f7', puzzle: A, lore_complete: '#a855f7', rewarding: '#22c55e', completed: '#22c55e', error: '#ef4444' };
@@ -1554,6 +1555,9 @@ function QuestsPage({ onDeploy, messages, connected, questState, passportId, onS
                   <feGaussianBlur stdDeviation="1.5" result="blur" />
                   <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
                 </filter>
+                <clipPath id="user-clip">
+                  <circle cx="48" cy="16" r="12" />
+                </clipPath>
               </defs>
 
               {/* Connecting lines between nodes (static faint) */}
@@ -1577,41 +1581,49 @@ function QuestsPage({ onDeploy, messages, connected, questState, passportId, onS
                 </>
               )}
 
-              {/* Agent nodes */}
-              {/* 1. User — render avatar or tag initials */}
-              <circle cx="48" cy="16" r="14" fill="#1a1a1e" stroke="#FF6F00" strokeWidth="1.5" />
-              {passport?.avatarUrl ? (
-                <>
-                  <clipPath id="user-clip">
-                    <circle cx="48" cy="16" r="12" />
-                  </clipPath>
-                  <image href={passport.avatarUrl} x="36" y="4" width="24" height="24" clipPath="url(#user-clip)" preserveAspectRatio="xMidYMid slice" />
-                </>
-              ) : (
-                <text x="48" y="20" textAnchor="middle" fill="#FF6F00" fontSize="10" fontWeight="700" fontFamily="'JetBrains Mono', monospace">
-                  {tag?.replace(/^@/, '').slice(0, 3).toUpperCase() || 'YOU'}
-                </text>
-              )}
-
-              {/* 2. Verify */}
-              <circle cx="192" cy="16" r="14" fill="#FF6F00" stroke="#FF6F00" strokeWidth="1.5" />
-              <text x="192" y="20" textAnchor="middle" fill="#fff" fontSize="9" fontFamily="'JetBrains Mono', monospace" opacity="0.5">🛡️</text>
-              <text x="192" y="30" textAnchor="middle" fill="rgba(255,255,255,0.2)" fontSize="7" fontFamily="'JetBrains Mono', monospace">verify</text>
-
-              {/* 3. Lore */}
-              <circle cx="302" cy="16" r="14" fill="#FF6F00" stroke="#FF6F00" strokeWidth="1.5" />
-              <text x="302" y="20" textAnchor="middle" fill="#fff" fontSize="9" fontFamily="'JetBrains Mono', monospace" opacity="0.5">📜</text>
-              <text x="302" y="30" textAnchor="middle" fill="rgba(255,255,255,0.2)" fontSize="7" fontFamily="'JetBrains Mono', monospace">lore</text>
-
-              {/* 4. Puzzle */}
-              <circle cx="412" cy="16" r="14" fill="#FF6F00" stroke="#FF6F00" strokeWidth="1.5" />
-              <text x="412" y="20" textAnchor="middle" fill="#fff" fontSize="9" fontFamily="'JetBrains Mono', monospace" opacity="0.5">🧩</text>
-              <text x="412" y="30" textAnchor="middle" fill="rgba(255,255,255,0.2)" fontSize="7" fontFamily="'JetBrains Mono', monospace">puzzle</text>
-
-              {/* 5. Treasury */}
-              <circle cx="522" cy="16" r="14" fill="#FF6F00" stroke="#FF6F00" strokeWidth="1.5" />
-              <text x="522" y="20" textAnchor="middle" fill="#fff" fontSize="9" fontFamily="'JetBrains Mono', monospace" opacity="0.5">🏆</text>
-              <text x="522" y="30" textAnchor="middle" fill="rgba(255,255,255,0.2)" fontSize="7" fontFamily="'JetBrains Mono', monospace">reward</text>
+              {/* Agent nodes — with dynamic glow on active sender/receiver */}
+              {[{ cx: 48, label: tag?.replace(/^@/, '').slice(0, 3).toUpperCase() || 'YOU', key: 'user' },
+                { cx: 192, label: '🛡️', sub: 'verify', key: '@ar-verify' },
+                { cx: 302, label: '📜', sub: 'lore', key: '@agentrelay-lore' },
+                { cx: 412, label: '🧩', sub: 'puzzle', key: '@agentrelay-puzzle' },
+                { cx: 522, label: '🏆', sub: 'reward', key: '@agentrelay-treasury' },
+              ].map((node) => {
+                const isFrom = activeMessage && (node.key === 'user'
+                  ? (!activeMessage.from || activeMessage.from === 'SYSTEM' || activeMessage.from.startsWith('@lati'))
+                  : activeMessage.from === node.key);
+                const isTo = activeMessage && (node.key === 'user'
+                  ? (!activeMessage.to || activeMessage.to === 'SYSTEM' || activeMessage.to.startsWith('@lati'))
+                  : activeMessage.to === node.key);
+                const active = isFrom || isTo;
+                return (
+                  <g key={node.key}>
+                    {/* Glow ring when active */}
+                    {active && (
+                      <circle cx={node.cx} cy={16} r="18" fill="none" stroke="#FF6F00" strokeWidth="1.5"
+                        opacity={0.2} style={{ animation: 'glowPulseNav 1.2s ease-in-out infinite' }} />
+                    )}
+                    {isFrom && (
+                      <circle cx={node.cx} cy={16} r="15" fill="none" stroke="#FF6F00" strokeWidth="2"
+                        opacity={0.35} style={{ animation: 'glowPulse 1.2s ease-in-out infinite' }} />
+                    )}
+                    <circle cx={node.cx} cy={16} r="14" fill={node.key === 'user' ? '#1a1a1e' : '#FF6F00'} stroke="#FF6F00" strokeWidth={active ? 2.5 : 1.5} />
+                    {/* User: avatar or text */}
+                    {node.key === 'user' && passport?.avatarUrl ? (
+                      <image href={passport.avatarUrl} x={node.cx - 12} y="4" width="24" height="24"
+                        clipPath="url(#user-clip)" preserveAspectRatio="xMidYMid slice" />
+                    ) : node.key === 'user' ? (
+                      <text x={node.cx} y="20" textAnchor="middle" fill="#FF6F00" fontSize="10" fontWeight="700" fontFamily="'JetBrains Mono', monospace">
+                        {node.label}
+                      </text>
+                    ) : (
+                      <text x={node.cx} y="20" textAnchor="middle" fill="#fff" fontSize="9" fontFamily="'JetBrains Mono', monospace" opacity="0.6">{node.label}</text>
+                    )}
+                    {node.sub && (
+                      <text x={node.cx} y="30" textAnchor="middle" fill="rgba(255,255,255,0.2)" fontSize="7" fontFamily="'JetBrains Mono', monospace">{node.sub}</text>
+                    )}
+                  </g>
+                );
+              })}
 
               {/* Arrow head on last segment */}
               <polygon points="530,16 522,12 522,20" fill="#FF6F00" opacity="0.3" />
