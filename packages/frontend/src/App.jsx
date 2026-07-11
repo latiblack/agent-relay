@@ -1329,6 +1329,34 @@ function QuestsPage({ onDeploy, messages, connected, questState, passportId, onS
 
   return (
     <div>
+      {/* Full-screen loading overlay when deploying */}
+      {deployingQuest && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 9999,
+          background: 'rgba(10,10,10,0.85)',
+          backdropFilter: 'blur(8px)',
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+          gap: 20,
+        }}>
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" style={{ animation: 'spin 0.8s linear infinite' }}>
+            <circle cx="12" cy="12" r="10" stroke="#FF6F00" strokeWidth="3" opacity="0.25" />
+            <path d="M12 2a10 10 0 0 1 10 10" stroke="#FF6F00" strokeWidth="3" strokeLinecap="round" />
+          </svg>
+          <div style={{
+            fontFamily: "'JetBrains Mono', monospace",
+            fontSize: 13, color: '#FF6F00', fontWeight: 600,
+            letterSpacing: '0.08em',
+          }}>
+            DEPLOYING AGENTS...
+          </div>
+          <div style={{
+            fontFamily: "'Mona Sans', sans-serif",
+            fontSize: 12, color: 'rgba(255,255,255,0.4)',
+          }}>
+            Establishing relay handshake
+          </div>
+        </div>
+      )}
       {/* Page header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
         <h2 style={{ fontFamily: "'Hubot Sans', sans-serif", fontSize: 24, fontWeight: 600, margin: 0 }}>Quests</h2>
@@ -1369,34 +1397,10 @@ function QuestsPage({ onDeploy, messages, connected, questState, passportId, onS
                   <div style={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace", color: 'rgba(255,255,255,0.25)' }}>Agent: {q.agent}</div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                     {q.status === 'available' && (
-                      <button
-                        onClick={() => handleDeploy(q.id)}
-                        disabled={deployingQuest === q.id}
-                        style={{
-                          ...btnGrad,
-                          height: 32,
-                          padding: deployingQuest === q.id ? '0 14px' : '0 16px',
-                          fontSize: 12,
-                          borderRadius: 8,
-                          opacity: deployingQuest === q.id ? 0.8 : 1,
-                          cursor: deployingQuest === q.id ? 'wait' : 'pointer',
-                        }}
-                      >
-                        <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontFamily: "'Mona Sans', sans-serif" }}>
-                          {deployingQuest === q.id ? (
-                            <>
-                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" style={{ animation: 'spin 0.8s linear infinite' }}>
-                                <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.25" />
-                                <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-                              </svg>
-                              Deploying...
-                            </>
-                          ) : (
-                            <>
-                              Deploy Agent
-                              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
-                            </>
-                          )}
+                      <button onClick={() => handleDeploy(q.id)} style={{ ...btnGrad, height: 32, padding: '0 16px', fontSize: 12, borderRadius: 8 }}>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontFamily: "'Mona Sans', sans-serif" }}>
+                          Deploy Agent
+                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
                         </span>
                       </button>
                     )}
