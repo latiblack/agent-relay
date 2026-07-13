@@ -691,10 +691,10 @@ function OnboardingPage({ wallet, onPassportReady }) {
   const handleWalletConnect = async () => {
     setStep('connect');
     setRelayDown(false);
-    await wallet.connect();
-    if (wallet.status === 'connected' && wallet.identity?.directAddress) {
+    const identity = await wallet.connect();
+    if (identity?.directAddress) {
       try {
-        const res = await fetch(`${RELAY_SERVER}/passport/wallet/${encodeURIComponent(wallet.identity.directAddress)}`);
+        const res = await fetch(`${RELAY_SERVER}/passport/wallet/${encodeURIComponent(identity.directAddress)}`);
         if (res.ok) {
           const data = await res.json();
           if (data.success && data.passport) {

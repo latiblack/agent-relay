@@ -84,10 +84,14 @@ export function useWallet() {
       } catch (err) {
         console.warn('Failed to fetch wallet assets:', err);
       }
+
+      // Return identity so callers don't need stale state
+      return result.connection.identity;
     } catch (err) {
       console.error('Wallet connection failed:', err);
       setError(err.message || 'Failed to connect wallet');
       setStatus('error');
+      return null;
     }
   }, []);
 
