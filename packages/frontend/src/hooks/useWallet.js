@@ -27,6 +27,7 @@ export function useWallet() {
   const [error, setError] = useState(null);
   const [assets, setAssets] = useState([]);
   const clientRef = useRef(null);
+  const connectImpl = useRef(null); // holds the raw connect function for reconnection
 
   // Cleanup on unmount
   const cleanup = useCallback(() => {
@@ -74,6 +75,7 @@ export function useWallet() {
       setClient(result.client);
       setIdentity(result.connection.identity);
       setStatus('connected');
+      connectImpl.current = connect; // store for reconnection
 
       // Fetch balance after connection
       try {
@@ -90,6 +92,54 @@ export function useWallet() {
     } catch (err) {
       console.error('Wallet connection failed:', err);
       setError(err.message || 'Failed to connect wallet');
+      setStatus('error');
+      return null;
+    }
+  }, []);
+
+  // Force fresh reconnect — kills the current session and re-prompt for permissions
+  const forceReconnect = useCallback(async () => {
+    // Disconnect old client
+    try { clientRef.current?.disconnect?.(); } catch {}
+    clientRef.current = null;
+    setClient(null);
+    setIdentity(null);
+    setAssets([]);
+    setStatus('connecting');
+    setError(null);
+
+    try {
+      const { autoConnect } = await import('@unicitylabs/sphere-sdk/connect/browser');
+
+      const result = await autoConnect({
+        dapp: {
+          name: 'Agent Relay',
+          url: window.location.origin,
+          icon: `${window.location.origin}/icon.svg`,
+        },
+        walletUrl: SPHERE_WALLET_URL,
+        network: SPHERE_NETWORK,
+        permissions: [...REQUIRED_PERMISSIONS],
+      });
+
+      clientRef.current = result.client;
+      setClient(result.client);
+      setIdentity(result.connection.identity);
+      setStatus('connected');
+
+      try {
+        const assetList = await result.client.query('sphere_getAssets');
+        if (Array.isArray(assetList)) {
+          setAssets(assetList);
+        }
+      } catch (err) {
+        console.warn('Failed to fetch wallet assets:', err);
+      }
+
+      return result.connection.identity;
+    } catch (err) {
+      console.error('Wallet reconnect failed:', err);
+      setError(err.message || 'Failed to reconnect wallet');
       setStatus('error');
       return null;
     }
@@ -118,7 +168,8 @@ export function useWallet() {
   const sendUct = useCallback(async (recipient, amountWei) => {
     const c = clientRef.current;
     if (!c) throw new Error('Wallet not connected');
-    return c.intent('transfer:request', {
+    // The 'send' intent action requires 'transfer:request' permission in the Sphere SDK
+    return c.intent('send', {
       recipient,
       amount: amountWei.toString(),
       coinId: UCT_COIN_ID,
@@ -129,5 +180,5 @@ export function useWallet() {
     return () => cleanup();
   }, [cleanup]);
 
-  return { status, identity, client, error, connect, disconnect, assets, fetchBalance, getUctBalance, sendUct };
+  return { status, identity, client, error, connect, disconnect, forceReconnect, assets, fetchBalance, getUctBalance, sendUct };
 }

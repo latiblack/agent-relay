@@ -1115,12 +1115,33 @@ function DashboardView({ passport, wallet, identity, pendingDeepLink, setPending
         try {
           await wallet.sendUct(RELAY_TREASURY_TAG, UCT_DEPLOY_COST);
         } catch (payErr) {
-          console.error('UCT payment failed:', payErr);
-          setDeployError(`Deploy payment failed: ${payErr?.message || payErr || 'Unknown error'}`);
-          setDeployingQuest(null);
-          clearMessages();
-          return;
-        }
+            console.error('UCT payment failed:', payErr);
+            // Permission denied typically means a stale wallet session — force reconnect
+            const msg = payErr?.message || String(payErr);
+            if (msg.includes('Permission denied')) {
+              setDeployError('Wallet needs fresh permissions. Reconnecting...');
+              setDeployingQuest(null);
+              clearMessages();
+              // Force fresh reconnect which prompts user to approve permissions again
+              await wallet.forceReconnect();
+              // Retry deploy after reconnect
+              setDeployingQuest(questId);
+              try {
+                await wallet.sendUct(RELAY_TREASURY_TAG, UCT_DEPLOY_COST);
+              } catch (retryErr) {
+                console.error('Retry UCT payment failed:', retryErr);
+                setDeployError(`Deploy payment failed: ${retryErr?.message || retryErr || 'Unknown error'}`);
+                setDeployingQuest(null);
+                clearMessages();
+                return;
+              }
+            } else {
+              setDeployError(`Deploy payment failed: ${payErr?.message || payErr || 'Unknown error'}`);
+              setDeployingQuest(null);
+              clearMessages();
+              return;
+            }
+          }
       }
       
       clearMessages();
