@@ -118,7 +118,7 @@ export function useWallet() {
   const sendUct = useCallback(async (recipient, amountWei) => {
     const c = clientRef.current;
     if (!c) throw new Error('Wallet not connected');
-    return c.intent('send', {
+    return c.intent('transfer:request', {
       recipient,
       amount: amountWei.toString(),
       coinId: UCT_COIN_ID,
