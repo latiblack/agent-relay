@@ -1426,6 +1426,21 @@ function QuestsPage({ onDeploy, messages, connected, questState, passportId, onS
   };
 
   // ── Confirm a pending user action (user clicks to send their agent's message) ──
+
+  // Reset typing state when messages get cleared (new quest deployment / page switch)
+  useEffect(() => {
+    if (messages.length === 0) {
+      setPendingAction(null);
+      setConfirming(false);
+      setTypingIdx(-1);
+      setTypingLen(0);
+      typedSetRef.current = new Set();
+      holdUntilRef.current = 0;
+      typingIdxRef.current = -1;
+      typingLenRef.current = 0;
+    }
+  }, [messages.length === 0]);
+
   const [confirming, setConfirming] = useState(false);
   const confirmingRef = useRef(false);
   const handleConfirmAction = () => {
