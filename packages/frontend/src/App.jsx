@@ -1446,8 +1446,13 @@ function QuestsPage({ onDeploy, messages, connected, questState, passportId, onS
   if (typingIdx !== typingIdxRef.current) typingIdxRef.current = typingIdx;
   if (typingLen !== typingLenRef.current) typingLenRef.current = typingLen;
 
-  const userTagNormalized = tag ? `@${tag.replace(/^@/, '')}` : '@user';
-  const isUserFrom = (from) => from === 'user' || from === '@user' || from === userTagNormalized;
+
+  const isUserFrom = (from) => {
+    const clean = (s) => (s || '').replace(/^@/, '').toLowerCase();
+    const fromClean = clean(from);
+    const tagClean = clean(tag);
+    return fromClean === 'user' || fromClean === tagClean || fromClean === '';
+  };
 
   // ── Reset on new quest ──
   useEffect(() => {
