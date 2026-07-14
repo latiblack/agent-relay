@@ -1427,7 +1427,7 @@ function QuestsPage({ onDeploy, messages, connected, questState, passportId, onS
 
   // ── Confirm a pending user action (user clicks to send their agent's message) ──
 
-  // Reset typing state when messages get cleared (new quest deployment / page switch)
+  // Reset typing state when messages get cleared
   useEffect(() => {
     if (messages.length === 0) {
       setPendingAction(null);
@@ -1440,6 +1440,29 @@ function QuestsPage({ onDeploy, messages, connected, questState, passportId, onS
       typingLenRef.current = 0;
     }
   }, [messages.length === 0]);
+
+  // Direct CTA detection — when a new message arrives that originates from the user,
+  // immediately show it as a pending action card (bypasses ticker timing races)
+  useEffect(() => {
+    if (messages.length === 0) return;
+    // Only set pending if nothing is currently pending and nothing is typing
+    const userTagNorm = tag ? `@${tag.replace(/^@/, '')}` : '@user';
+    const isUserMsg = (from) => from === 'user' || from === '@user' || from === userTagNorm;
+    // Find first untyped message that's from the user
+    for (let i = 0; i < messages.length; i++) {
+      if (!typedSetRef.current.has(i) && isUserMsg(messages[i].from)) {
+        // Only set if no existing pending action and no active typing
+        setPendingAction(prev => prev ? prev : {
+          idx: i,
+          from: messages[i].from,
+          to: messages[i].to,
+          message: messages[i].message,
+          phase: messages[i].phase,
+        });
+        break;
+      }
+    }
+  }, [messages, tag]);
 
   const [confirming, setConfirming] = useState(false);
   const confirmingRef = useRef(false);
@@ -1504,15 +1527,8 @@ function QuestsPage({ onDeploy, messages, connected, questState, passportId, onS
       const currentLen = typingLenRef.current;
       const nextMsg = msgs[nextIdx];
 
-      // If the next message is from the user → preload as pending action
+      // If the next message is from the user → skip, the CTA effect handles it
       if (isUserFrom(nextMsg.from) && currentIdx === -1) {
-        setPendingAction({
-          idx: nextIdx,
-          from: nextMsg.from,
-          to: nextMsg.to,
-          message: nextMsg.message,
-          phase: nextMsg.phase,
-        });
         return;
       }
 
