@@ -170,7 +170,7 @@ export function useWallet() {
     if (!c) throw new Error('Wallet not connected');
     // The 'send' intent action requires 'transfer:request' permission in the Sphere SDK
     return c.intent('send', {
-      recipient,
+      to: recipient,
       amount: amountWei.toString(),
       coinId: UCT_COIN_ID,
     });
