@@ -1775,7 +1775,7 @@ function QuestsPage({ onDeploy, messages, connected, questState, passportId, onS
                 {pendingAction.message.startsWith('[VERIFY]') ? 'Verify →' :
                  pendingAction.message.startsWith('[REQUEST]') ? 'Request →' :
                  pendingAction.message.startsWith('[READY]') ? 'Ready →' :
-                 pendingAction.message.startsWith('[ANSWER]') ? 'Answer →' :
+                 pendingAction.message.startsWith('[ANSWER]') ? 'Submit →' :
                  pendingAction.message.startsWith('[CLAIM]') ? 'Claim →' :
                  'Confirm →'}
               </button>
