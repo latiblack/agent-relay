@@ -1772,7 +1772,12 @@ function QuestsPage({ onDeploy, messages, connected, questState, passportId, onS
                 <div style={{ color: 'rgba(255,255,255,0.7)', marginTop: 4, fontSize: 11 }}>{pendingAction.message}</div>
               </div>
               <button onClick={handleConfirmAction} style={{ ...btnGrad, height: 36, padding: '0 20px', fontSize: 12, borderRadius: 8, whiteSpace: 'nowrap' }}>
-                {pendingAction.to.includes('verify') || pendingAction.to.includes('lore') || pendingAction.to.includes('puzzle') || pendingAction.to.includes('treasury') ? 'Verify →' : 'Confirm →'}
+                {pendingAction.message.startsWith('[VERIFY]') ? 'Verify →' :
+                 pendingAction.message.startsWith('[REQUEST]') ? 'Request →' :
+                 pendingAction.message.startsWith('[READY]') ? 'Ready →' :
+                 pendingAction.message.startsWith('[ANSWER]') ? 'Answer →' :
+                 pendingAction.message.startsWith('[CLAIM]') ? 'Claim →' :
+                 'Confirm →'}
               </button>
             </div>
           ) : questState?.phase === 'puzzle' || questState?.phase === 'ready' ? (
