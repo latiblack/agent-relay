@@ -1116,7 +1116,7 @@ function DashboardView({ passport, wallet, identity, pendingDeepLink, setPending
           await wallet.sendUct(RELAY_TREASURY_TAG, UCT_DEPLOY_COST);
         } catch (payErr) {
           console.error('UCT payment failed:', payErr);
-          setDeployError('Deploy requires 0.1 UCT. Get some from the faucet or complete your first quest.');
+          setDeployError(`Deploy payment failed: ${payErr?.message || payErr || 'Unknown error'}`);
           setDeployingQuest(null);
           clearMessages();
           return;
