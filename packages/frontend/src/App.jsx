@@ -1441,31 +1441,31 @@ function QuestsPage({ onDeploy, messages, connected, questState, passportId, onS
     }
   }, [messages.length === 0]);
 
-  // Direct CTA detection — when a new message arrives that originates from the user,
-  // immediately show it as a pending action card (bypasses ticker timing races)
-  useEffect(() => {
-    if (messages.length === 0) return;
-    // Only set pending if nothing is currently pending and nothing is typing
-    const userTagNorm = tag ? `@${tag.replace(/^@/, '')}` : '@user';
-    const isUserMsg = (from) => from === 'user' || from === '@user' || from === userTagNorm;
-    // Find first untyped message that's from the user
-    for (let i = 0; i < messages.length; i++) {
-      if (!typedSetRef.current.has(i) && isUserMsg(messages[i].from)) {
-        // Only set if no existing pending action and no active typing
-        setPendingAction(prev => prev ? prev : {
-          idx: i,
-          from: messages[i].from,
-          to: messages[i].to,
-          message: messages[i].message,
-          phase: messages[i].phase,
-        });
-        break;
-      }
-    }
-  }, [messages, tag]);
+  // ── CTA & Typing animation ──
+  // Data (not state — live refs so the ticker can read them without re-creating)
+  const typedSetRef = useRef(new Set());
+  const messagesRef = useRef(messages);
+  const holdUntilRef = useRef(0);
+  const typingIdxRef = useRef(-1);
+  const typingLenRef = useRef(0);
+  messagesRef.current = messages;
 
+  const isUserFromMsg = (from) => {
+    const normalizedTag = tag ? `@${tag.replace(/^@/, '')}` : '@user';
+    return from === 'user' || from === '@user' || from === normalizedTag;
+  };
+
+  // Typing state (drives the UI)
+  const [typingLen, setTypingLen] = useState(0);
+  const [typingIdx, setTypingIdx] = useState(-1);
+  const [pendingAction, setPendingAction] = useState(null);
   const [confirming, setConfirming] = useState(false);
   const confirmingRef = useRef(false);
+
+  // Sync refs for ticker
+  if (typingIdx !== typingIdxRef.current) typingIdxRef.current = typingIdx;
+  if (typingLen !== typingLenRef.current) typingLenRef.current = typingLen;
+
   const handleConfirmAction = () => {
     if (!pendingAction || confirmingRef.current) return;
     confirmingRef.current = true;
@@ -1478,30 +1478,40 @@ function QuestsPage({ onDeploy, messages, connected, questState, passportId, onS
     }, 1200);
   };
 
-  // ── Sequential typing animation — single persistent interval (survives message arrivals) ──
-  const [typingLen, setTypingLen] = useState(0);
-  const [typingIdx, setTypingIdx] = useState(-1);
-  const [pendingAction, setPendingAction] = useState(null);
-  const typedSetRef = useRef(new Set());
-  const messagesRef = useRef(messages);
-  const holdUntilRef = useRef(0);
-  const typingIdxRef = useRef(-1);
-  const typingLenRef = useRef(0);
-  const pendingRef = useRef(null); // ref copy so interval reads latest
-  messagesRef.current = messages;
-  pendingRef.current = pendingAction;
+  // ── Reset on new quest ──
+  useEffect(() => {
+    if (messages.length === 0) {
+      setPendingAction(null);
+      setConfirming(false);
+      setTypingIdx(-1);
+      setTypingLen(0);
+      typedSetRef.current = new Set();
+      holdUntilRef.current = 0;
+      typingIdxRef.current = -1;
+      typingLenRef.current = 0;
+    }
+  }, [messages.length === 0]);
 
-  if (typingIdx !== typingIdxRef.current) typingIdxRef.current = typingIdx;
-  if (typingLen !== typingLenRef.current) typingLenRef.current = typingLen;
+  // ── CTA effect — immediately shows user-originating messages as a confirmable card ──
+  useEffect(() => {
+    if (messages.length === 0) return;
+    for (let i = 0; i < messages.length; i++) {
+      if (!typedSetRef.current.has(i) && isUserFromMsg(messages[i].from)) {
+        setPendingAction(prev => prev ? prev : { idx: i, from: messages[i].from, to: messages[i].to, message: messages[i].message, phase: messages[i].phase });
+        return;
+      }
+    }
+  }, [messages, tag]);
 
-  const userTagNormalized = tag ? `@${tag.replace(/^@/, '')}` : '@user';
-  const isUserFrom = (from) => from === 'user' || from === '@user' || from === userTagNormalized;
-
-  // Persistent ticker — runs once, lives forever, looks at refs for current state
+  // ── Typing ticker — auto-types agent/SYSTEM messages one char at a time ──
+  // Stops on pendingAction so the user gets control before their line.
   useEffect(() => {
     const tick = () => {
+      // If a CTA is pending, stop everything
+      if (pendingAction || confirmingRef.current) return;
+
       const msgs = messagesRef.current;
-      // Find first untyped message with content
+      // Find first untyped message that won't be handled by CTA
       let nextIdx = -1;
       for (let i = 0; i < msgs.length; i++) {
         if (!typedSetRef.current.has(i) && msgs[i]?.message) {
@@ -1517,25 +1527,19 @@ function QuestsPage({ onDeploy, messages, connected, questState, passportId, onS
         return;
       }
 
-      // If there's a pending user action, don't advance
-      if (pendingRef.current) return;
-
-      // Hold period
       if (holdUntilRef.current > Date.now()) return;
 
       const currentIdx = typingIdxRef.current;
       const currentLen = typingLenRef.current;
-      const nextMsg = msgs[nextIdx];
 
-      // If the next message is from the user → skip, the CTA effect handles it
-      if (isUserFrom(nextMsg.from) && currentIdx === -1) {
-        return;
-      }
-
-      // Nothing currently typing, start agent message
+      // Nothing currently typing — check if the next msg is SYSTEM/agent
       if (currentIdx === -1) {
-        setTypingLen(0);
-        setTypingIdx(nextIdx);
+        const nextMsg = msgs[nextIdx];
+        // Only auto-type non-user messages (skip user's own tag for CTA)
+        if (nextMsg.from === 'SYSTEM' || (nextMsg.from.startsWith('@') && !isUserFromMsg(nextMsg.from))) {
+          setTypingLen(0);
+          setTypingIdx(nextIdx);
+        }
         return;
       }
 
@@ -1558,7 +1562,7 @@ function QuestsPage({ onDeploy, messages, connected, questState, passportId, onS
 
     const interval = setInterval(tick, 55);
     return () => clearInterval(interval);
-  }, []); // runs once, lives forever
+  }, [pendingAction]);
 
   const phaseColor = (p) => {
     const colors = { deploying: A, verifying: '#3b82f6', lore: '#a855f7', puzzle: A, lore_complete: '#a855f7', rewarding: '#22c55e', completed: '#22c55e', error: '#ef4444' };
