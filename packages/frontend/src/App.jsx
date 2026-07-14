@@ -1097,6 +1097,7 @@ function DashboardView({ passport, wallet, identity, pendingDeepLink, setPending
   useEffect(() => {
     if (deployingQuest && (connected || messages.length > 0)) {
       setDeployingQuest(null);
+      setDeployError(null);
     }
   }, [connected, messages.length > 0]);
 
