@@ -1100,21 +1100,29 @@ function DashboardView({ passport, wallet, identity, pendingDeepLink, setPending
     }
   }, [connected, messages.length > 0]);
 
+  const [deployError, setDeployError] = useState(null);
+
   const deployQuest = async (questId) => {
     setDeployingQuest(questId);
+    setDeployError(null);
     try {
-      // Step 1: Charge 0.1 UCT (100000000000000000 wei = 0.1 UCT with 18 decimals)
-      const UCT_DEPLOY_COST = '100000000000000000';
-      const RELAY_TREASURY_TAG = '@agentrelay-treasury';
-      
-      if (wallet?.sendUct) {
-        try {
-          await wallet.sendUct(RELAY_TREASURY_TAG, UCT_DEPLOY_COST);
-        } catch (payErr) {
-          console.error('UCT payment failed:', payErr);
-          setDeployingQuest(null);
-          clearMessages();
-          return;
+      // First deploy is free — waive UCT cost for users with 0 quests completed
+      const isFirstDeploy = (passport?.questsCompleted || 0) === 0;
+      if (!isFirstDeploy) {
+        // Charge 0.1 UCT (100000000000000000 wei = 0.1 UCT with 18 decimals)
+        const UCT_DEPLOY_COST = '100000000000000000';
+        const RELAY_TREASURY_TAG = '@agentrelay-treasury';
+        
+        if (wallet?.sendUct) {
+          try {
+            await wallet.sendUct(RELAY_TREASURY_TAG, UCT_DEPLOY_COST);
+          } catch (payErr) {
+            console.error('UCT payment failed:', payErr);
+            setDeployError('Deploy requires 0.1 UCT. Get some from the faucet or complete your first quest.');
+            setDeployingQuest(null);
+            clearMessages();
+            return;
+          }
         }
       }
       
@@ -1282,7 +1290,7 @@ function DashboardView({ passport, wallet, identity, pendingDeepLink, setPending
       {/* Main content */}
       <div style={{ padding: '48px 20px 40px', maxWidth: 800, margin: '0 auto' }}>
         {page === 'overview' && <OverviewPage passport={passportData || passport} tag={tag} wallet={wallet} />}
-        {page === 'quests' && <QuestsPage onDeploy={deployQuest} messages={messages} connected={connected} questState={questState} passportId={passport?.passportId} onSubmitAnswer={submitAnswer} onBackToQuests={() => { clearMessages(); }} deployingQuest={deployingQuest} passport={passport} tag={tag} completedQuests={completedQuests} />}
+        {page === 'quests' && <QuestsPage onDeploy={deployQuest} messages={messages} connected={connected} questState={questState} passportId={passport?.passportId} onSubmitAnswer={submitAnswer} onBackToQuests={() => { clearMessages(); setDeployError(null); }} deployingQuest={deployingQuest} deployError={deployError} passport={passport} tag={tag} completedQuests={completedQuests} />}
         {page === 'guild-chat' && <GuildChatPage passport={passport} tag={tag} identity={identity} />}
         {page === 'profile' && <ProfilePage passport={passport} tag={tag} identity={identity} onPassportUpdate={onPassportUpdate} />}
       </div>
@@ -1368,7 +1376,7 @@ function OverviewPage({ passport, tag, wallet }) {
   );
 }
 
-function QuestsPage({ onDeploy, messages, connected, questState, passportId, onSubmitAnswer, onBackToQuests, deployingQuest, passport, tag, completedQuests = new Set() }) {
+function QuestsPage({ onDeploy, messages, connected, questState, passportId, onSubmitAnswer, onBackToQuests, deployingQuest, deployError, passport, tag, completedQuests = new Set() }) {
   const [answer, setAnswer] = useState('');
   const [activeQuest, setActiveQuest] = useState(null);
   const bottomRef = useRef(null);
@@ -1563,6 +1571,17 @@ function QuestsPage({ onDeploy, messages, connected, questState, passportId, onS
 
       {!isQuestActive ? (
         <>
+          {deployError && (
+            <div style={{
+              background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.25)',
+              borderRadius: 10, padding: '12px 16px', marginBottom: 20,
+              display: 'flex', alignItems: 'center', gap: 10,
+              fontSize: 12, color: '#ef4444', fontFamily: "'Mona Sans', sans-serif",
+            }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+              <span>{deployError}</span>
+            </div>
+          )}
           <p style={{ color: E, fontSize: 14, marginBottom: 28, fontFamily: "'Mona Sans', sans-serif" }}>
             Your agents are ready. Pick a mission and deploy.
           </p>
