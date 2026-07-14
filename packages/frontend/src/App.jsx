@@ -1426,23 +1426,16 @@ function QuestsPage({ onDeploy, messages, connected, questState, passportId, onS
   };
 
   // ── Confirm a pending user action (user clicks to send their agent's message) ──
+  const handleConfirmAction = () => {
+    if (!pendingAction) return;
+    typedSetRef.current.add(pendingAction.idx);
+    setPendingAction(null);
+  };
 
-  // Reset typing state when messages get cleared
-  useEffect(() => {
-    if (messages.length === 0) {
-      setPendingAction(null);
-      setConfirming(false);
-      setTypingIdx(-1);
-      setTypingLen(0);
-      typedSetRef.current = new Set();
-      holdUntilRef.current = 0;
-      typingIdxRef.current = -1;
-      typingLenRef.current = 0;
-    }
-  }, [messages.length === 0]);
-
-  // ── CTA & Typing animation ──
-  // Data (not state — live refs so the ticker can read them without re-creating)
+  // ── Sequential typing animation — single persistent interval (survives message arrivals) ──
+  const [typingLen, setTypingLen] = useState(0);
+  const [typingIdx, setTypingIdx] = useState(-1);
+  const [pendingAction, setPendingAction] = useState(null); // {text, from, to, message} waiting for user confirm
   const typedSetRef = useRef(new Set());
   const messagesRef = useRef(messages);
   const holdUntilRef = useRef(0);
@@ -1450,39 +1443,16 @@ function QuestsPage({ onDeploy, messages, connected, questState, passportId, onS
   const typingLenRef = useRef(0);
   messagesRef.current = messages;
 
-  const isUserFromMsg = (from) => {
-    const normalizedTag = tag ? `@${tag.replace(/^@/, '')}` : '@user';
-    return from === 'user' || from === '@user' || from === normalizedTag;
-  };
-
-  // Typing state (drives the UI)
-  const [typingLen, setTypingLen] = useState(0);
-  const [typingIdx, setTypingIdx] = useState(-1);
-  const [pendingAction, setPendingAction] = useState(null);
-  const [confirming, setConfirming] = useState(false);
-  const confirmingRef = useRef(false);
-
-  // Sync refs for ticker
   if (typingIdx !== typingIdxRef.current) typingIdxRef.current = typingIdx;
   if (typingLen !== typingLenRef.current) typingLenRef.current = typingLen;
 
-  const handleConfirmAction = () => {
-    if (!pendingAction || confirmingRef.current) return;
-    confirmingRef.current = true;
-    setConfirming(true);
-    typedSetRef.current.add(pendingAction.idx);
-    setTimeout(() => {
-      confirmingRef.current = false;
-      setConfirming(false);
-      setPendingAction(null);
-    }, 1200);
-  };
+  const userTagNormalized = tag ? `@${tag.replace(/^@/, '')}` : '@user';
+  const isUserFrom = (from) => from === 'user' || from === '@user' || from === userTagNormalized;
 
   // ── Reset on new quest ──
   useEffect(() => {
     if (messages.length === 0) {
       setPendingAction(null);
-      setConfirming(false);
       setTypingIdx(-1);
       setTypingLen(0);
       typedSetRef.current = new Set();
@@ -1492,26 +1462,11 @@ function QuestsPage({ onDeploy, messages, connected, questState, passportId, onS
     }
   }, [messages.length === 0]);
 
-  // ── CTA effect — immediately shows user-originating messages as a confirmable card ──
-  useEffect(() => {
-    if (messages.length === 0) return;
-    for (let i = 0; i < messages.length; i++) {
-      if (!typedSetRef.current.has(i) && isUserFromMsg(messages[i].from)) {
-        setPendingAction(prev => prev ? prev : { idx: i, from: messages[i].from, to: messages[i].to, message: messages[i].message, phase: messages[i].phase });
-        return;
-      }
-    }
-  }, [messages, tag]);
-
-  // ── Typing ticker — auto-types agent/SYSTEM messages one char at a time ──
-  // Stops on pendingAction so the user gets control before their line.
+  // ── Typing ticker — single persistent interval ──
   useEffect(() => {
     const tick = () => {
-      // If a CTA is pending, stop everything
-      if (pendingAction || confirmingRef.current) return;
-
       const msgs = messagesRef.current;
-      // Find first untyped message that won't be handled by CTA
+      // Find first untyped message with content
       let nextIdx = -1;
       for (let i = 0; i < msgs.length; i++) {
         if (!typedSetRef.current.has(i) && msgs[i]?.message) {
@@ -1527,19 +1482,32 @@ function QuestsPage({ onDeploy, messages, connected, questState, passportId, onS
         return;
       }
 
+      // If there's a pending user action, don't advance
+      if (pendingAction) return;
+
+      // Hold period
       if (holdUntilRef.current > Date.now()) return;
 
       const currentIdx = typingIdxRef.current;
       const currentLen = typingLenRef.current;
+      const nextMsg = msgs[nextIdx];
 
-      // Nothing currently typing — check if the next msg is SYSTEM/agent
+      // If the next message is from the user → preload as pending action
+      if (isUserFrom(nextMsg.from) && currentIdx === -1) {
+        setPendingAction({
+          idx: nextIdx,
+          from: nextMsg.from,
+          to: nextMsg.to,
+          message: nextMsg.message,
+          phase: nextMsg.phase,
+        });
+        return;
+      }
+
+      // Nothing currently typing, start agent message
       if (currentIdx === -1) {
-        const nextMsg = msgs[nextIdx];
-        // Only auto-type non-user messages (skip user's own tag for CTA)
-        if (nextMsg.from === 'SYSTEM' || (nextMsg.from.startsWith('@') && !isUserFromMsg(nextMsg.from))) {
-          setTypingLen(0);
-          setTypingIdx(nextIdx);
-        }
+        setTypingLen(0);
+        setTypingIdx(nextIdx);
         return;
       }
 
@@ -1562,7 +1530,7 @@ function QuestsPage({ onDeploy, messages, connected, questState, passportId, onS
 
     const interval = setInterval(tick, 55);
     return () => clearInterval(interval);
-  }, [pendingAction]);
+  }, [pendingAction]); // re-subscribe when pendingAction changes so it can be skipped
 
   const phaseColor = (p) => {
     const colors = { deploying: A, verifying: '#3b82f6', lore: '#a855f7', puzzle: A, lore_complete: '#a855f7', rewarding: '#22c55e', completed: '#22c55e', error: '#ef4444' };
@@ -1798,22 +1766,8 @@ function QuestsPage({ onDeploy, messages, connected, questState, passportId, onS
                 <span style={{ color: '#22c55e' }}>{pendingAction.to}</span>
                 <div style={{ color: 'rgba(255,255,255,0.7)', marginTop: 4, fontSize: 11 }}>{pendingAction.message}</div>
               </div>
-              <button onClick={handleConfirmAction} disabled={confirming} style={{ ...btnGrad, height: 36, padding: '0 20px', fontSize: 12, borderRadius: 8, whiteSpace: 'nowrap', opacity: confirming ? 0.7 : 1, cursor: confirming ? 'not-allowed' : 'pointer' }}>
-                {confirming ? (
-                  <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontFamily: "'Mona Sans', sans-serif" }}>
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" style={{ animation: 'spin 0.8s linear infinite' }}>
-                      <circle cx="12" cy="12" r="10" stroke="currentColor" opacity="0.3" />
-                      <path d="M12 2a10 10 0 0 1 10 10" strokeLinecap="round" />
-                    </svg>
-                    Sending...
-                  </span>
-                ) : (
-                  pendingAction.message.startsWith('[VERIFY]') ? 'Verify →' :
-                  pendingAction.message.startsWith('[REQUEST]') ? 'Request →' :
-                  pendingAction.message.startsWith('[READY]') ? 'Standing by →' :
-                  pendingAction.message.startsWith('[ANSWER]') ? 'Answer →' :
-                  'Send →'
-                )}
+              <button onClick={handleConfirmAction} style={{ ...btnGrad, height: 36, padding: '0 20px', fontSize: 12, borderRadius: 8, whiteSpace: 'nowrap' }}>
+                {pendingAction.to.includes('verify') || pendingAction.to.includes('lore') || pendingAction.to.includes('puzzle') || pendingAction.to.includes('treasury') ? 'Verify →' : 'Confirm →'}
               </button>
             </div>
           ) : questState?.phase === 'puzzle' || questState?.phase === 'ready' ? (
