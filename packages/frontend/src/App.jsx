@@ -1563,13 +1563,21 @@ function QuestsPage({ onDeploy, messages, connected, questState, passportId, onS
             fontSize: 13, color: '#FF6F00', fontWeight: 600,
             letterSpacing: '0.08em',
           }}>
-            DEPLOYING AGENTS...
+            APPROVE PAYMENT
           </div>
           <div style={{
             fontFamily: "'Mona Sans', sans-serif",
-            fontSize: 12, color: 'rgba(255,255,255,0.4)',
+            fontSize: 13, color: 'rgba(255,255,255,0.5)',
+            textAlign: 'center', maxWidth: 280, lineHeight: 1.5,
           }}>
-            Establishing relay handshake
+            Check your wallet popup to approve<br/>the <strong style={{color: '#fbbf24'}}>0.1 UCT</strong> deploy fee
+          </div>
+          <div style={{
+            fontFamily: "'Mona Sans', sans-serif",
+            fontSize: 11, color: 'rgba(255,255,255,0.25)',
+            marginTop: 8,
+          }}>
+            Return to this page after approving
           </div>
         </div>
       )}
