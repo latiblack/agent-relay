@@ -1107,23 +1107,19 @@ function DashboardView({ passport, wallet, identity, pendingDeepLink, setPending
     setDeployingQuest(questId);
     setDeployError(null);
     try {
-      // First deploy is free — waive UCT cost for users with 0 quests completed
-      const isFirstDeploy = (passport?.questsCompleted || 0) === 0;
-      if (!isFirstDeploy) {
-        // Charge 0.1 UCT (100000000000000000 wei = 0.1 UCT with 18 decimals)
-        const UCT_DEPLOY_COST = '100000000000000000';
-        const RELAY_TREASURY_TAG = '@agentrelay-treasury';
-        
-        if (wallet?.sendUct) {
-          try {
-            await wallet.sendUct(RELAY_TREASURY_TAG, UCT_DEPLOY_COST);
-          } catch (payErr) {
-            console.error('UCT payment failed:', payErr);
-            setDeployError('Deploy requires 0.1 UCT. Get some from the faucet or complete your first quest.');
-            setDeployingQuest(null);
-            clearMessages();
-            return;
-          }
+      // Step 1: Charge 0.1 UCT (100000000000000000 wei = 0.1 UCT with 18 decimals)
+      const UCT_DEPLOY_COST = '100000000000000000';
+      const RELAY_TREASURY_TAG = '@agentrelay-treasury';
+      
+      if (wallet?.sendUct) {
+        try {
+          await wallet.sendUct(RELAY_TREASURY_TAG, UCT_DEPLOY_COST);
+        } catch (payErr) {
+          console.error('UCT payment failed:', payErr);
+          setDeployError('Deploy requires 0.1 UCT. Get some from the faucet or complete your first quest.');
+          setDeployingQuest(null);
+          clearMessages();
+          return;
         }
       }
       
