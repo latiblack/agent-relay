@@ -1029,28 +1029,7 @@ function DashboardView({ passport, wallet, identity, pendingDeepLink, setPending
 
   const { messages, connected, questState, clearMessages } = useQuestConsole(passport?.passportId);
   const [deployingQuest, setDeployingQuest] = useState(null);
-  const [completedQuests, setCompletedQuests] = useState(() => {
-    // Restore from localStorage on mount
-    if (typeof window !== 'undefined') {
-      try {
-        const saved = localStorage.getItem('agent-relay-completed');
-        if (saved) return new Set(JSON.parse(saved));
-      } catch {}
-    }
-    return new Set();
-  });
-
-  // On mount, restore completed quests from passport data
-  useEffect(() => {
-    if (passport?.questsCompleted > 0) {
-      setCompletedQuests(prev => {
-        const next = new Set(prev);
-        next.add('signal-hunt-01');
-        localStorage.setItem('agent-relay-completed', JSON.stringify([...next]));
-        return next;
-      });
-    }
-  }, [passport?.passportId, passport?.questsCompleted]);
+  const [completedQuests, setCompletedQuests] = useState(new Set());
 
   // Auto-refresh passport data (re-reads from server on mount / when stats change)
   const [passportData, setPassportData] = useState(null);
@@ -1073,11 +1052,7 @@ function DashboardView({ passport, wallet, identity, pendingDeepLink, setPending
         .then(r => r.json())
         .then(data => {
           if (data.success) {
-            setCompletedQuests(prev => {
-              const next = new Set([...prev, qId]);
-              localStorage.setItem('agent-relay-completed', JSON.stringify([...next]));
-              return next;
-            });
+            setCompletedQuests(prev => new Set([...prev, qId]));
             setPassportData(prev => prev ? {
               ...prev,
               questsCompleted: data.passport.questsCompleted,
