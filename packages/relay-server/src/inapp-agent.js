@@ -294,54 +294,22 @@ export class InAppAgent {
       'rewarding',
       { xpAwarded });
 
-    // Fire-and-forget: treasury DM in background
+    // Fire-and-forget: treasury DM in background (handles UCT send from treasury wallet)
     this._sendAndWait(
       AGENT_REGISTRY.TREASURY,
       {
         action: 'claim_reward',
-        data: { questId: this.questId, passportId: this.passport.passportId },
+        data: { questId: this.questId, passportId: this.passport.passportId, walletAddress: this.passport.walletAddress },
         questId: this.questId,
       },
       'reward_issued'
     ).catch(() => {});
 
-    // UCT reward: fire-and-forget mint + send on-chain
-    const uctAmount = this.quest.reward.uct || '0';
-    if (uctAmount !== '0' && this.sphere?.mintFungibleToken) {
-      const UCT_COIN_ID = 'f581d30f593e4b369d684a4563b5246f07b1d265f7178a2c0a82b81f39c24dc0';
-      const amountWei = (BigInt(uctAmount) * 10n ** 18n).toString();
-      this.sphere.mintFungibleToken(UCT_COIN_ID, amountWei)
-        .then(mintResult => {
-          if (!mintResult?.success) {
-            console.warn('[InAppAgent] UCT mint failed:', mintResult?.error);
-            return;
-          }
-          const recipient = this.passport.walletAddress;
-          return this.sphere?.payments?.send({
-            recipient,
-            amount: amountWei,
-            coinId: UCT_COIN_ID,
-          }).then(sendResult => {
-            console.log(`[InAppAgent] Sent ${uctAmount} UCT to ${recipient}:`, sendResult?.transferId || 'ok');
-            this._emit(AGENT_REGISTRY.TREASURY, this.userTag,
-              `[UCT] +${uctAmount} UCT sent to your wallet!`,
-              'rewarding',
-              { uctAwarded: uctAmount });
-          });
-        })
-        .catch(err => {
-          console.warn('[InAppAgent] UCT reward failed:', err.message);
-          this._emit(AGENT_REGISTRY.TREASURY, this.userTag,
-            `[UCT] Could not send UCT reward: ${err.message}`,
-            'rewarding');
-        });
-    }
-
     this.phase = 'completed';
     this._emit('SYSTEM', this.userTag,
       `[QUEST COMPLETE] ${this.quest.title} finished. All agents returning to standby.`,
       'completed',
-      { xpAwarded, questId: this.questId, uctAwarded: uctAmount });
+      { xpAwarded, questId: this.questId, uctAwarded: this.quest.reward.uct || '0' });
 
     if (this.sphere) {
       await this.sphere.destroy();
