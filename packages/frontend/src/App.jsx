@@ -1029,13 +1029,26 @@ function DashboardView({ passport, wallet, identity, pendingDeepLink, setPending
 
   const { messages, connected, questState, clearMessages } = useQuestConsole(passport?.passportId);
   const [deployingQuest, setDeployingQuest] = useState(null);
-  const [completedQuests, setCompletedQuests] = useState(new Set());
+  const [completedQuests, setCompletedQuests] = useState(() => {
+    // Restore from localStorage on mount
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('agent-relay-completed');
+        if (saved) return new Set(JSON.parse(saved));
+      } catch {}
+    }
+    return new Set();
+  });
 
   // On mount, restore completed quests from passport data
   useEffect(() => {
     if (passport?.questsCompleted > 0) {
-      // signal-hunt-01 is the only available quest — mark it done if user has completions
-      setCompletedQuests(new Set(['signal-hunt-01']));
+      setCompletedQuests(prev => {
+        const next = new Set(prev);
+        next.add('signal-hunt-01');
+        localStorage.setItem('agent-relay-completed', JSON.stringify([...next]));
+        return next;
+      });
     }
   }, [passport?.passportId, passport?.questsCompleted]);
 
@@ -1050,7 +1063,7 @@ function DashboardView({ passport, wallet, identity, pendingDeepLink, setPending
   useEffect(() => {
     if (questState?.phase === 'completed' && passport?.passportId && !didComplete.current) {
       didComplete.current = true;
-      const qId = questState.questId || 'signal-hunt-01';
+      const qId = questState.data?.questId || 'signal-hunt-01';
       const xp = questState.data?.xpAwarded || 50;
       fetch(`${RELAY_SERVER}/quest/complete`, {
         method: 'POST',
@@ -1060,7 +1073,11 @@ function DashboardView({ passport, wallet, identity, pendingDeepLink, setPending
         .then(r => r.json())
         .then(data => {
           if (data.success) {
-            setCompletedQuests(prev => new Set([...prev, qId]));
+            setCompletedQuests(prev => {
+              const next = new Set([...prev, qId]);
+              localStorage.setItem('agent-relay-completed', JSON.stringify([...next]));
+              return next;
+            });
             setPassportData(prev => prev ? {
               ...prev,
               questsCompleted: data.passport.questsCompleted,

@@ -263,98 +263,50 @@ export class InAppAgent {
   async _completeQuest() {
     this.phase = 'lore_complete';
 
-    this._emit(this.userTag, AGENT_REGISTRY.LORE,
-      `[DONE] All fragments decoded. Requesting closing narrative.`,
+    this._emit(AGENT_REGISTRY.LORE, this.userTag,
+      `[LORE] ${this.quest.lore.complete}`,
       'lore_complete');
 
-    // Request completion narrative from Lore agent via DM
-    try {
-      const loreResp = await this._sendAndWait(
-        AGENT_REGISTRY.LORE,
-        {
-          action: 'advance_story',
-          data: { questId: this.questId, chapter: 'complete' },
-          questId: this.questId,
-        },
-        'story_advanced'
-      );
-
-      const loreContent = loreResp?.payload?.data?.content || this.quest.lore.complete;
-      this._emit(AGENT_REGISTRY.LORE, this.userTag,
-        `[LORE] ${loreContent}`,
-        'lore_complete');
-    } catch (err) {
-      this._emit(AGENT_REGISTRY.LORE, this.userTag,
-        `[LORE] ${this.quest.lore.complete}`,
-        'lore_complete');
-    }
-
-    // Reward via Treasury agent DM
-    this.phase = 'rewarding';
-
-    this._emit(this.userTag, AGENT_REGISTRY.TREASURY,
-      `[CLAIM] Quest ${this.questId} complete. Requesting reward.`,
-      'rewarding');
-
-    let xpAwarded = this.quest.reward.xp;
-    let uctAwarded = '0';
-
-    try {
-      const rewardResp = await this._sendAndWait(
-        AGENT_REGISTRY.TREASURY,
-        {
-          action: 'claim_reward',
-          data: { questId: this.questId, passportId: this.passport.passportId },
-          questId: this.questId,
-        },
-        'reward_issued'
-      );
-
-      xpAwarded = rewardResp?.payload?.data?.xpAwarded || this.quest.reward.xp;
-      this._emit(AGENT_REGISTRY.TREASURY, this.userTag,
-        `[REWARD] +${xpAwarded} XP awarded!`,
-        'rewarding',
-        { xpAwarded });
-    } catch (err) {
-      this._emit(AGENT_REGISTRY.TREASURY, this.userTag,
-        `[REWARD] +${xpAwarded} XP awarded!`,
-        'rewarding',
-        { xpAwarded });
-    }
-
-    // Real UCT reward: mint on testnet2 and send to user's wallet
-    const UCT_COIN_ID = 'f581d30f593e4b369d684a4563b5246f07b1d265f7178a2c0a82b81f39c24dc0';
-    const uctAmount = this.quest.reward.uct;
-    if (uctAmount && uctAmount !== '0' && this.sphere) {
-      try {
-        const amountWei = (BigInt(uctAmount) * 10n ** 18n).toString();
-        // Mint UCT tokens to this agent's wallet
-        const mintResult = await this.sphere.mintFungibleToken(UCT_COIN_ID, amountWei);
-        if (mintResult?.success) {
-          uctAwarded = uctAmount;
-          // Send the freshly minted tokens to the user's wallet
-          const recipient = this.passport.walletAddress;
-          const sendResult = await this.sphere.payments.send({
-            recipient,
-            amount: amountWei,
-            coinId: UCT_COIN_ID,
-          });
-          console.log(`[InAppAgent] Sent ${uctAmount} UCT to ${recipient}:`, sendResult?.transferId || 'ok');
-          this._emit(AGENT_REGISTRY.TREASURY, this.userTag,
-            `[UCT] +${uctAmount} UCT sent to your wallet!`,
-            'rewarding',
-            { uctAwarded: uctAmount });
-          uctAwarded = uctAmount;
-        } else {
-          console.warn('[InAppAgent] Mint failed:', mintResult?.error);
-        }
-      } catch (err) {
-        console.warn('[InAppAgent] UCT reward failed:', err.message);
-        this._emit(AGENT_REGISTRY.TREASURY, this.userTag,
-          `[UCT] Could not send UCT reward: ${err.message}`,
-          'rewarding');
+    // Fire-and-forget: request lore story in background (don't block rewards)
+    this._sendAndWait(
+      AGENT_REGISTRY.LORE,
+      {
+        action: 'advance_story',
+        data: { questId: this.questId, chapter: 'complete' },
+        questId: this.questId,
+      },
+      'story_advanced'
+    ).then(loreResp => {
+      const loreContent = loreResp?.payload?.data?.content;
+      if (loreContent && loreContent !== this.quest.lore.complete) {
+        this._emit(AGENT_REGISTRY.LORE, this.userTag,
+          `[LORE] ${loreContent}`,
+          'lore_complete');
       }
-    }
+    }).catch(() => {});
+
+    // Reward — emit immediately
+    this.phase = 'rewarding';
+    const xpAwarded = this.quest.reward.xp;
+
+    this._emit(AGENT_REGISTRY.TREASURY, this.userTag,
+      `[REWARD] +${xpAwarded} XP awarded!`,
+      'rewarding',
+      { xpAwarded });
+
+    // Fire-and-forget: treasury DM in background
+    this._sendAndWait(
+      AGENT_REGISTRY.TREASURY,
+      {
+        action: 'claim_reward',
+        data: { questId: this.questId, passportId: this.passport.passportId },
+        questId: this.questId,
+      },
+      'reward_issued'
+    ).catch(() => {});
+
+    // UCT reward is handled server-side by /quest/complete endpoint — skip mint here
+    const uctAwarded = this.quest.reward.uct || '0';
 
     this.phase = 'completed';
     this._emit('SYSTEM', this.userTag,
