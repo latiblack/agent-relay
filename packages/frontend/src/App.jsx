@@ -1031,6 +1031,15 @@ function DashboardView({ passport, wallet, identity, pendingDeepLink, setPending
   const [deployingQuest, setDeployingQuest] = useState(null);
   const [completedQuests, setCompletedQuests] = useState(new Set());
 
+  // Sync completed quests from passport data (Supabase)
+  useEffect(() => {
+    if (passport?.questsCompleted > 0) {
+      // signal-hunt-01 is the only quest — mark it done if user has completions
+      const qId = 'signal-hunt-01';
+      setCompletedQuests(prev => new Set([...prev, qId]));
+    }
+  }, [passport?.passportId, passport?.questsCompleted]);
+
   // Auto-refresh passport data (re-reads from server on mount / when stats change)
   const [passportData, setPassportData] = useState(null);
   useEffect(() => {
