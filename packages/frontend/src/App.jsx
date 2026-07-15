@@ -1040,11 +1040,29 @@ function DashboardView({ passport, wallet, identity, pendingDeepLink, setPending
     }
   }, [passport?.passportId, passport?.questsCompleted]);
 
-  // Auto-refresh passport data (re-reads from server on mount / when stats change)
+  // Auto-refresh passport data (re-reads from server on mount)
   const [passportData, setPassportData] = useState(null);
   useEffect(() => {
     if (passport) setPassportData(passport);
   }, [passport]);
+
+  // Re-fetch passport from server on mount for fresh Supabase data
+  useEffect(() => {
+    if (passport?.passportId) {
+      fetch(`${RELAY_SERVER}/passport/${passport.passportId}`)
+        .then(r => r.json())
+        .then(data => {
+          if (data.valid && data.passport) {
+            setPassportData(data.passport);
+            onPassportUpdate?.({
+              questsCompleted: data.passport.questsCompleted,
+              totalXp: data.passport.totalXp,
+            });
+          }
+        })
+        .catch(() => {});
+    }
+  }, [passport?.passportId]);
 
   // Detect quest completion → persist to server → update local state
   const didComplete = useRef(false);
