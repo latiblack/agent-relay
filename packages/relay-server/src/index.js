@@ -398,10 +398,11 @@ async function main() {
         return;
       }
 
-      // GET /passport/:key — Validate passport/relay key
+      // GET /passport/:key — Validate passport/relay key (add ?refresh=1 to bypass cache)
       if (url.pathname.startsWith('/passport/') && req.method === 'GET') {
         const key = url.pathname.split('/passport/')[1];
-        const result = await passportManager.validatePassport(key);
+        const refresh = url.searchParams.get('refresh') === '1';
+        const result = await passportManager.validatePassport(key, refresh);
         res.writeHead(result.valid ? 200 : 404);
         res.end(JSON.stringify(result));
         return;

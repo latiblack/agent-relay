@@ -1031,25 +1031,24 @@ function DashboardView({ passport, wallet, identity, pendingDeepLink, setPending
   const [deployingQuest, setDeployingQuest] = useState(null);
   const [completedQuests, setCompletedQuests] = useState(new Set());
 
-  // Sync completed quests from passport data (Supabase)
+  // Sync completed quests from passport data (fresh from server fetch)
   useEffect(() => {
-    if (passport?.questsCompleted > 0) {
-      // signal-hunt-01 is the only quest — mark it done if user has completions
+    if (!passportData || !passport?.passportId) return;
+    if (passportData?.questsCompleted > 0) {
       const qId = 'signal-hunt-01';
-      setCompletedQuests(prev => new Set([...prev, qId]));
+      setCompletedQuests(new Set([qId]));
+    } else {
+      setCompletedQuests(new Set());
     }
-  }, [passport?.passportId, passport?.questsCompleted]);
+  }, [passportData?.questsCompleted, passport?.passportId]);
 
-  // Auto-refresh passport data (re-reads from server on mount)
+  // Fresh passport data from server (not the stale prop)
   const [passportData, setPassportData] = useState(null);
-  useEffect(() => {
-    if (passport) setPassportData(passport);
-  }, [passport]);
 
   // Re-fetch passport from server on mount for fresh Supabase data
   useEffect(() => {
     if (passport?.passportId) {
-      fetch(`${RELAY_SERVER}/passport/${passport.passportId}`)
+      fetch(`${RELAY_SERVER}/passport/${passport.passportId}?refresh=1`)
         .then(r => r.json())
         .then(data => {
           if (data.valid && data.passport) {

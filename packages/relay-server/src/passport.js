@@ -188,11 +188,13 @@ export class PassportManager {
     return passport;
   }
 
-  validatePassport(key) {
-    const cached = this.passports.get(key);
-    if (cached) return { valid: true, passport: cached };
+  validatePassport(key, refresh = false) {
+    if (!refresh) {
+      const cached = this.passports.get(key);
+      if (cached) return { valid: true, passport: cached };
+    }
 
-    // Fallback: check Supabase (handles server restart where cache is cold)
+    // Fallback: check Supabase (handles server restart where cache is cold, or refresh=true)
     if (this.supabase) {
       // Try as passport_id first, then relay_key
       return this._lookupFromDb({ passport_id: key }).then((p) => {
