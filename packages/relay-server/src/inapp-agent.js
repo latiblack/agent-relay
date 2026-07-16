@@ -227,7 +227,9 @@ export class InAppAgent {
         'puzzle');
     }
 
-    // Fire DM in background (fire-and-forget) so agent still logs it
+    // Fire DM to puzzle agent in background (fire-and-forget) just so it logs the attempt.
+    // NOTE: local validation above is authoritative — we intentionally do NOT re-emit
+    // CORRECT/INCORRECT here, otherwise late DM responses cause phantom messages.
     this._sendAndWait(
       AGENT_REGISTRY.PUZZLE,
       {
@@ -236,17 +238,7 @@ export class InAppAgent {
         questId: this.questId,
       },
       'puzzle_result'
-    ).then(puzzleResp => {
-      const resultData = puzzleResp?.payload?.data;
-      if (resultData?.correct !== undefined && resultData.correct !== isCorrect) {
-        // DM disagrees with local — emit correction
-        this._emit(AGENT_REGISTRY.PUZZLE, this.userTag,
-          resultData.correct
-            ? `[CORRECT] Fragment ${this.collectedFragments.length + 1}/${this.quest.fragments.length} collected!`
-            : `[INCORRECT] ${resultData.hint || "Doesn't match. Try again."}`,
-          'puzzle');
-      }
-    }).catch(() => {});
+    ).catch(() => {});
   }
 
   // ── Present current clue ──────────────────────────
@@ -283,7 +275,7 @@ export class InAppAgent {
       'rewarding',
       { xpAwarded: this.quest.reward.xp, uctAwarded: this.quest.reward.uct });
 
-    // Fire DM to treasury in background
+    // Fire DM to treasury in background (this triggers the on-chain UCT payout)
     this._sendAndWait(
       AGENT_REGISTRY.TREASURY,
       {
@@ -302,15 +294,9 @@ export class InAppAgent {
       }
     }).catch(() => {});
 
-    this.phase = 'completed';
-    this._emit('SYSTEM', this.userTag,
-      `[QUEST COMPLETE] ${this.quest.title} finished. All agents returning to standby.`,
-      'completed',
-      { xpAwarded: this.quest.reward.xp, questId: this.questId, uctAwarded: this.quest.reward.uct || '0' });
-
-    if (this.sphere) {
-      await this.sphere.destroy();
-    }
+    // NOTE: we do NOT emit [QUEST COMPLETE] / set phase=completed here.
+    // The server (/quest/claim handler) emits [STATS] first, then [QUEST COMPLETE]
+    // with phase=completed, so the trophy banner appears AFTER the STATS line.
     return true;
   }
 

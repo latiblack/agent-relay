@@ -648,11 +648,19 @@ async function main() {
             await passportManager.appendUctReward(passportId, quest.reward.uct);
           }
           if (passport) {
+            // 1) STATS line first
             broadcastToConsole(passportId, {
               from: 'SYSTEM', to: 'user',
               message: `[STATS] Quests: ${passport.questsCompleted} | Total XP: ${passport.totalXp} | UCT: +${quest?.reward?.uct || '0'}`,
               phase: 'stats',
               data: { questsCompleted: passport.questsCompleted, totalXp: passport.totalXp, uctAwarded: quest?.reward?.uct || '0' },
+            });
+            // 2) THEN mark completed — frontend shows the trophy AFTER the STATS line
+            broadcastToConsole(passportId, {
+              from: 'SYSTEM', to: 'user',
+              message: `[QUEST COMPLETE] ${quest?.title || 'Quest'} finished. All agents returning to standby.`,
+              phase: 'completed',
+              data: { xpAwarded: xpEarned, questId: agent.questId, uctAwarded: quest?.reward?.uct || '0' },
             });
           }
         } catch (err) {

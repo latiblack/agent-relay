@@ -1869,8 +1869,8 @@ function QuestsPage({ onDeploy, messages, connected, questState, passportId, onS
             </form>
           ) : null}
 
-          {/* Quest complete banner */}
-          {questState?.phase === 'completed' && (
+          {/* Quest complete banner — shows AFTER the [STATS] line appears */}
+          {messages.some(m => m.message?.startsWith('[STATS]')) && (
             <div style={{ marginTop: 16, padding: 16, ...glassCard, textAlign: 'center' }}>
               <span style={{ fontSize: 24, marginBottom: 8, display: 'block' }}>🏆</span>
               <div style={{ fontFamily: "'Hubot Sans', sans-serif", fontSize: 16, fontWeight: 600, color: '#22c55e' }}>
