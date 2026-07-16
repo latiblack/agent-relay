@@ -1191,6 +1191,18 @@ function DashboardView({ passport, wallet, identity, pendingDeepLink, setPending
     }
   };
 
+  const claimReward = async (questId) => {
+    try {
+      await fetch(`${RELAY_SERVER}/quest/claim`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ passportId: passport.passportId, questId }),
+      });
+    } catch (err) {
+      console.error('Failed to claim reward:', err);
+    }
+  };
+
   const navItems = [
     { id: 'overview', label: 'Overview', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg> },
     { id: 'quests', label: 'Quests', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg> },
@@ -1326,7 +1338,7 @@ function DashboardView({ passport, wallet, identity, pendingDeepLink, setPending
       {/* Main content */}
       <div style={{ padding: '48px 20px 40px', maxWidth: 800, margin: '0 auto' }}>
         {page === 'overview' && <OverviewPage passport={passportData || passport} tag={tag} wallet={wallet} />}
-        {page === 'quests' && <QuestsPage onDeploy={deployQuest} messages={messages} connected={connected} questState={questState} passportId={passport?.passportId} onSubmitAnswer={submitAnswer} onBackToQuests={() => { clearMessages(); setDeployError(null); }} deployingQuest={deployingQuest} deployError={deployError} passport={passport} tag={tag} completedQuests={completedQuests} />}
+        {page === 'quests' && <QuestsPage onDeploy={deployQuest} messages={messages} connected={connected} questState={questState} passportId={passport?.passportId} onSubmitAnswer={submitAnswer} onClaimReward={claimReward} onBackToQuests={() => { clearMessages(); setDeployError(null); }} deployingQuest={deployingQuest} deployError={deployError} passport={passport} tag={tag} completedQuests={completedQuests} />}
         {page === 'guild-chat' && <GuildChatPage passport={passport} tag={tag} identity={identity} />}
         {page === 'profile' && <ProfilePage passport={passport} tag={tag} identity={identity} onPassportUpdate={onPassportUpdate} />}
       </div>
@@ -1412,7 +1424,7 @@ function OverviewPage({ passport, tag, wallet }) {
   );
 }
 
-function QuestsPage({ onDeploy, messages, connected, questState, passportId, onSubmitAnswer, onBackToQuests, deployingQuest, deployError, passport, tag, completedQuests = new Set() }) {
+function QuestsPage({ onDeploy, messages, connected, questState, passportId, onSubmitAnswer, onClaimReward, onBackToQuests, deployingQuest, deployError, passport, tag, completedQuests = new Set() }) {
   const [answer, setAnswer] = useState('');
   const [activeQuest, setActiveQuest] = useState(null);
   const bottomRef = useRef(null);
@@ -1427,14 +1439,32 @@ function QuestsPage({ onDeploy, messages, connected, questState, passportId, onS
     if (questState?.phase) setActiveQuest(questState.questId || 'signal-hunt-01');
   }, [questState]);
 
+  // ── Auto-scroll feed as messages arrive or typing advances ──
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  }, [messages, typingIdx, typingLen]);
+
+  // ── Scroll tick guard to avoid smooth-scroll thrash during rapid ticks ──
+  const scrollTickRef = useRef(0);
+  useEffect(() => {
+    const now = Date.now();
+    if (now - scrollTickRef.current < 80) return;
+    scrollTickRef.current = now;
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, typingLen]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!answer.trim() || !activeQuest) return;
-    onSubmitAnswer(activeQuest, answer.trim());
+    if (!answer.trim() || !activeQuest || pendingAction) return;
+    // Stage the answer locally as a CTA; do NOT submit to the agent yet
+    setPendingAction({
+      local: true,
+      from: tag || 'user',
+      to: '@agentrelay-puzzle',
+      message: `[ANSWER] "${answer.trim()}"`,
+      phase: 'puzzle',
+      data: { answer: answer.trim() },
+    });
     setAnswer('');
   };
 
@@ -1443,10 +1473,20 @@ function QuestsPage({ onDeploy, messages, connected, questState, passportId, onS
     onDeploy(qId);
   };
 
-  // ── Confirm a pending user action (user clicks to send their agent's message) ──
+  // ── Confirm a pending staged action (answer, claim, etc.) ──
   const handleConfirmAction = () => {
     if (!pendingAction) return;
-    typedSetRef.current.add(pendingAction.idx);
+    if (pendingAction.local) {
+      if (pendingAction.message.startsWith('[ANSWER]') && pendingAction.data?.answer) {
+        onSubmitAnswer(activeQuest, pendingAction.data.answer);
+      }
+    } else {
+      const msg = pendingAction.message || '';
+      if (msg.startsWith('[CLAIM]')) {
+        onClaimReward?.(activeQuest);
+      }
+      typedSetRef.current.add(pendingAction.idx);
+    }
     setPendingAction(null);
   };
 
@@ -1514,9 +1554,19 @@ function QuestsPage({ onDeploy, messages, connected, questState, passportId, onS
       const currentIdx = typingIdxRef.current;
       const currentLen = typingLenRef.current;
       const nextMsg = msgs[nextIdx];
+      const userActionPrefixes = ['[VERIFY]', '[REQUEST]', '[READY]'];
+      const isActionable = (msg) => {
+        if (!msg?.message) return false;
+        const text = msg.message;
+        if (msg.from && isUserFrom(msg.from)) {
+          // Stage user-driven actions (but not [ANSWER], which is now handled locally)
+          return userActionPrefixes.some(p => text.startsWith(p));
+        }
+        return text.startsWith('[CLAIM]');
+      };
 
-      // If the next message is from the user → preload as pending action
-      if (isUserFrom(nextMsg.from) && currentIdx === -1) {
+      // If the next message is an actionable CTA → preload as pending action
+      if (currentIdx === -1 && isActionable(nextMsg)) {
         setPendingAction({
           idx: nextIdx,
           from: nextMsg.from,

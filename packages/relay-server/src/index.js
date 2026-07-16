@@ -621,6 +621,48 @@ async function main() {
         return;
       }
 
+      // POST /quest/claim — User claims reward after puzzle is solved
+      if (url.pathname === '/quest/claim' && req.method === 'POST') {
+        const body = await parseBody(req);
+        const { passportId } = body;
+        const agent = inAppAgents.get(passportId);
+        if (!agent) {
+          res.writeHead(400);
+          res.end(JSON.stringify({ error: 'No active quest. Deploy a quest first.' }));
+          return;
+        }
+
+        const claimed = await agent.claimReward();
+        if (!claimed) {
+          res.writeHead(400);
+          res.end(JSON.stringify({ error: 'Quest is not ready to claim' }));
+          return;
+        }
+
+        // Persist completion + UCT credit in Supabase
+        const quest = QUESTS[agent.questId];
+        const xpEarned = quest?.reward?.xp || 50;
+        try {
+          const passport = await passportManager.recordCompletion(passportId, agent.questId, xpEarned);
+          if (passport && quest?.reward?.uct && quest.reward.uct !== '0') {
+            await passportManager.appendUctReward(passportId, quest.reward.uct);
+          }
+          if (passport) {
+            broadcastToConsole(passportId, {
+              from: 'SYSTEM', to: 'user',
+              message: `[STATS] Quests: ${passport.questsCompleted} | Total XP: ${passport.totalXp} | UCT: +${quest?.reward?.uct || '0'}`,
+              phase: 'stats',
+              data: { questsCompleted: passport.questsCompleted, totalXp: passport.totalXp, uctAwarded: quest?.reward?.uct || '0' },
+            });
+          }
+        } catch (err) {
+          console.error('[Claim] Failed to persist completion:', err);
+        }
+
+        res.end(JSON.stringify({ success: true }));
+        return;
+      }
+
       // POST /quest/complete — Record quest completion and persist to Supabase
       // Also credits UCT reward to passport balance
       if (url.pathname === '/quest/complete' && req.method === 'POST') {

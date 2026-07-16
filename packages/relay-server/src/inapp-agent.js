@@ -214,7 +214,10 @@ export class InAppAgent {
         'puzzle');
 
       if (this.collectedFragments.length >= this.quest.fragments.length) {
-        await this._completeQuest();
+        this._emit(AGENT_REGISTRY.PUZZLE, this.userTag,
+          `[SOLVED] All fragments collected. The signal is decoded.`,
+          'puzzle');
+        await this._promptClaim();
       } else {
         this._presentClue();
       }
@@ -259,42 +262,28 @@ export class InAppAgent {
       { fragmentIndex: this.currentClueIndex, total, collected });
   }
 
-  // ── Complete the quest ────────────────────────────
-  async _completeQuest() {
-    this.phase = 'lore_complete';
+  // ── Ask user to claim reward (triggers UCT send + XP record) ───
+  _promptClaim() {
+    this.phase = 'claim';
+    this._emit(AGENT_REGISTRY.TREASURY, this.userTag,
+      `[CLAIM] Submit all fragments to claim ${this.quest.reward.xp} XP and ${this.quest.reward.uct} UCT.`,
+      'rewarding',
+      { action: 'claim_reward', questId: this.questId, reward: this.quest.reward });
+  }
 
-    this._emit(AGENT_REGISTRY.LORE, this.userTag,
-      `[LORE] ${this.quest.lore.complete}`,
-      'lore_complete');
+  // ── Complete the quest after user claims reward ──
+  async claimReward() {
+    if (this.phase !== 'claim' && this.phase !== 'puzzle') return false;
 
-    // Fire-and-forget: request lore story in background (don't block rewards)
-    this._sendAndWait(
-      AGENT_REGISTRY.LORE,
-      {
-        action: 'advance_story',
-        data: { questId: this.questId, chapter: 'complete' },
-        questId: this.questId,
-      },
-      'story_advanced'
-    ).then(loreResp => {
-      const loreContent = loreResp?.payload?.data?.content;
-      if (loreContent && loreContent !== this.quest.lore.complete) {
-        this._emit(AGENT_REGISTRY.LORE, this.userTag,
-          `[LORE] ${loreContent}`,
-          'lore_complete');
-      }
-    }).catch(() => {});
-
-    // Reward — emit immediately
+    // Record completion + credit UCT via server endpoint will be called from frontend after claim CTA
     this.phase = 'rewarding';
-    const xpAwarded = this.quest.reward.xp;
 
     this._emit(AGENT_REGISTRY.TREASURY, this.userTag,
-      `[REWARD] +${xpAwarded} XP awarded!`,
+      `[ISSUING] ${this.quest.reward.xp} XP and ${this.quest.reward.uct} UCT...`,
       'rewarding',
-      { xpAwarded });
+      { xpAwarded: this.quest.reward.xp, uctAwarded: this.quest.reward.uct });
 
-    // Fire-and-forget: treasury DM in background (handles UCT send from treasury wallet)
+    // Fire DM to treasury in background
     this._sendAndWait(
       AGENT_REGISTRY.TREASURY,
       {
@@ -303,17 +292,37 @@ export class InAppAgent {
         questId: this.questId,
       },
       'reward_issued'
-    ).catch(() => {});
+    ).then(treasuryResp => {
+      const data = treasuryResp?.payload?.data;
+      if (data) {
+        this._emit(AGENT_REGISTRY.TREASURY, this.userTag,
+          `[REWARD] ${data.message}`,
+          'rewarding',
+          { xpAwarded: data.xpAwarded, totalXp: data.totalXp, uctSent: data.uctSent });
+      }
+    }).catch(() => {});
 
     this.phase = 'completed';
     this._emit('SYSTEM', this.userTag,
       `[QUEST COMPLETE] ${this.quest.title} finished. All agents returning to standby.`,
       'completed',
-      { xpAwarded, questId: this.questId, uctAwarded: this.quest.reward.uct || '0' });
+      { xpAwarded: this.quest.reward.xp, questId: this.questId, uctAwarded: this.quest.reward.uct || '0' });
 
     if (this.sphere) {
       await this.sphere.destroy();
     }
+    return true;
+  }
+
+  // ── Complete the quest (legacy path, unused) ─────────────────────
+  async _completeQuest() {
+    this.phase = 'lore_complete';
+
+    this._emit(AGENT_REGISTRY.LORE, this.userTag,
+      `[LORE] ${this.quest.lore.complete}`,
+      'lore_complete');
+
+    this.claimReward();
   }
 
   // ── Helpers ───────────────────────────────────────
