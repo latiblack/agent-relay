@@ -1396,7 +1396,7 @@ function DashboardView({ passport, wallet, identity, pendingDeepLink, setPending
 
       {/* Main content */}
       <div style={{ padding: '48px 20px 40px', maxWidth: 800, margin: '0 auto' }}>
-        {page === 'overview' && <OverviewPage passport={passportData || passport} tag={tag} wallet={wallet} />}
+        {page === 'overview' && <OverviewPage passport={passportData || passport} tag={tag} wallet={wallet} agentStatus={agentStatus} />}
         {page === 'quests' && <QuestsPage onDeploy={deployQuest} messages={messages} connected={connected} questState={questState} passportId={passport?.passportId} onSubmitAnswer={submitAnswer} onClaimReward={claimReward} onBackToQuests={() => { clearMessages(); setDeployError(null); }} deployingQuest={deployingQuest} deployError={deployError} passport={passport} tag={tag} completedQuests={completedQuests} />}
         {page === 'guild-chat' && <GuildChatPage passport={passport} tag={tag} identity={identity} />}
         {page === 'profile' && <ProfilePage passport={passport} tag={tag} identity={identity} onPassportUpdate={onPassportUpdate} />}
@@ -1407,7 +1407,7 @@ function DashboardView({ passport, wallet, identity, pendingDeepLink, setPending
 
 // ── Dashboard Pages ──────────────────────────────
 
-function OverviewPage({ passport, tag, wallet }) {
+function OverviewPage({ passport, tag, wallet, agentStatus }) {
   const uctBalance = wallet?.getUctBalance ? wallet.getUctBalance() : '—';
   const stats = [
     { label: 'Passport', value: passport?.passportId || '—', color: A },
@@ -1469,15 +1469,38 @@ function OverviewPage({ passport, tag, wallet }) {
           <SectionLabel>AGENT ACTIVITY</SectionLabel>
           <span style={{ fontSize: 8, color: '#22c55e', fontFamily: "'JetBrains Mono', monospace", display: 'flex', alignItems: 'center', gap: 4 }}>
             <span style={{ width: 4, height: 4, borderRadius: '50%', background: '#22c55e', display: 'inline-block' }} />
-            LIVE
+            {agentStatus?.online ? 'LIVE' : agentStatus ? 'OFFLINE' : 'SYNC'}
           </span>
         </div>
-        <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, lineHeight: 1.8 }}>
-          <span style={{ color: A }}>[VERIFICATION]</span> <span style={{ color: 'rgba(255,255,255,0.25)' }}>Waiting for relay handshake...</span><br />
-          <span style={{ color: A }}>[PUZZLE]</span> <span style={{ color: 'rgba(255,255,255,0.25)' }}>Scanning for quest triggers...</span><br />
-          <span style={{ color: A }}>[LORE]</span> <span style={{ color: 'rgba(255,255,255,0.25)' }}>Awaiting narrative signal...</span><br />
-          <span style={{ color: A }}>[TREASURY]</span> <span style={{ color: 'rgba(255,255,255,0.25)' }}>Standing by for rewards...</span>
+        <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, lineHeight: 1.9 }}>
+          {agentStatus && Array.isArray(agentStatus.agents) && agentStatus.agents.length > 0 ? (
+            agentStatus.agents.map((a) => {
+              const n = a.msgs ?? 0;
+              const idle = n === 0;
+              return (
+                <div key={a.pid} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ width: 5, height: 5, borderRadius: '50%', background: idle ? 'rgba(255,255,255,0.25)' : '#22c55e', display: 'inline-block', flexShrink: 0 }} />
+                  <span style={{ color: A }}>[{a.label.toUpperCase()}]</span>{' '}
+                  <span style={{ color: idle ? 'rgba(255,255,255,0.35)' : '#22c55e' }}>
+                    {idle ? 'idle' : `${n} ${n === 1 ? 'msg' : 'msgs'}`}
+                  </span>
+                </div>
+              );
+            })
+          ) : (
+            <>
+              <span style={{ color: A }}>[VERIFICATION]</span> <span style={{ color: 'rgba(255,255,255,0.25)' }}>connecting to relay…</span><br />
+              <span style={{ color: A }}>[PUZZLE]</span> <span style={{ color: 'rgba(255,255,255,0.25)' }}>connecting to relay…</span><br />
+              <span style={{ color: A }}>[LORE]</span> <span style={{ color: 'rgba(255,255,255,0.25)' }}>connecting to relay…</span><br />
+              <span style={{ color: A }}>[TREASURY]</span> <span style={{ color: 'rgba(255,255,255,0.25)' }}>connecting to relay…</span>
+            </>
+          )}
         </div>
+        {agentStatus?.uptimeMs != null && (
+          <div style={{ marginTop: 12, fontSize: 10, color: 'rgba(255,255,255,0.3)', fontFamily: "'JetBrains Mono', monospace" }}>
+            relay online · uptime {(agentStatus.uptimeMs / 1000 / 86400).toFixed(1)}d
+          </div>
+        )}
       </div>
     </div>
   );
