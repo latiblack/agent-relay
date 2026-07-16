@@ -1086,6 +1086,23 @@ function DashboardView({ passport, wallet, identity, pendingDeepLink, setPending
   const [menuOpen, setMenuOpen] = useState(false);
   const tag = identity ? formatUserTag(identity) : null;
 
+  // Live agent telemetry — fetched from the relay's /agent-status endpoint (shared with OverviewPage).
+  const [agentStatus, setAgentStatus] = useState(null); // { online, uptimeMs, agents: [{id, label, pid, msgs}] }
+  useEffect(() => {
+    let alive = true;
+    const fetchStatus = async () => {
+      try {
+        const res = await fetch(`${RELAY_SERVER}/agent-status`, { cache: 'no-store' });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (alive) setAgentStatus(data);
+      } catch { /* relay offline — leave as null (shows connecting…) */ }
+    };
+    fetchStatus();
+    const t = setInterval(fetchStatus, 5000);
+    return () => { alive = false; clearInterval(t); };
+  }, []);
+
   const { messages, connected, questState, clearMessages } = useQuestConsole(passport?.passportId);
   const [deployingQuest, setDeployingQuest] = useState(null);
   const [completedQuests, setCompletedQuests] = useState(new Set());
