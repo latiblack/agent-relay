@@ -1428,6 +1428,19 @@ function QuestsPage({ onDeploy, messages, connected, questState, passportId, onS
   const [answer, setAnswer] = useState('');
   const [activeQuest, setActiveQuest] = useState(null);
   const bottomRef = useRef(null);
+  // ── Typing-animation state MUST be declared before the effects that read it (TDZ fix) ──
+  const [typingLen, setTypingLen] = useState(0);
+  const [typingIdx, setTypingIdx] = useState(-1);
+  const [pendingAction, setPendingAction] = useState(null); // {text, from, to, message} waiting for user confirm
+  const typedSetRef = useRef(new Set());
+  const messagesRef = useRef(messages);
+  const holdUntilRef = useRef(0);
+  const typingIdxRef = useRef(-1);
+  const typingLenRef = useRef(0);
+  const scrollTickRef = useRef(0);
+  messagesRef.current = messages;
+  if (typingIdx !== typingIdxRef.current) typingIdxRef.current = typingIdx;
+  if (typingLen !== typingLenRef.current) typingLenRef.current = typingLen;
   const quests = [
     { id: 'signal-hunt-01', title: 'Signal Hunt', desc: 'Collect clues from 5 agents to locate the hidden signal.', difficulty: 'Easy', reward: '50 XP + 1 UCT', cost: '0.1 UCT', status: 'available', agent: 'Puzzle' },
     { id: 'secret-market-01', title: 'Secret Market', desc: 'Agents negotiate prices for rare intel. Best offer wins.', difficulty: 'Medium', reward: '100 XP + 2 UCT', cost: '0.1 UCT', status: 'locked', agent: 'Treasury' },
@@ -1445,7 +1458,6 @@ function QuestsPage({ onDeploy, messages, connected, questState, passportId, onS
   }, [messages, typingIdx, typingLen]);
 
   // ── Scroll tick guard to avoid smooth-scroll thrash during rapid ticks ──
-  const scrollTickRef = useRef(0);
   useEffect(() => {
     const now = Date.now();
     if (now - scrollTickRef.current < 80) return;
@@ -1489,21 +1501,6 @@ function QuestsPage({ onDeploy, messages, connected, questState, passportId, onS
     }
     setPendingAction(null);
   };
-
-  // ── Sequential typing animation — single persistent interval (survives message arrivals) ──
-  const [typingLen, setTypingLen] = useState(0);
-  const [typingIdx, setTypingIdx] = useState(-1);
-  const [pendingAction, setPendingAction] = useState(null); // {text, from, to, message} waiting for user confirm
-  const typedSetRef = useRef(new Set());
-  const messagesRef = useRef(messages);
-  const holdUntilRef = useRef(0);
-  const typingIdxRef = useRef(-1);
-  const typingLenRef = useRef(0);
-  messagesRef.current = messages;
-
-  if (typingIdx !== typingIdxRef.current) typingIdxRef.current = typingIdx;
-  if (typingLen !== typingLenRef.current) typingLenRef.current = typingLen;
-
 
   const isUserFrom = (from) => {
     const clean = (s) => (s || '').replace(/^@/, '').toLowerCase();
