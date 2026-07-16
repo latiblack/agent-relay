@@ -254,7 +254,7 @@ function LandingPage({ scrolled }) {
               {[
                 { num: '01', title: 'Identity Handshake', desc: 'Sphere wallet authenticates. No email, no password — your keys prove who you are.', icon: '🔑', status: 'handshake', metric: 'ED25519' },
                 { num: '02', title: 'Gate Verification', desc: 'Agent queries SphereQuests via popup bridge. 100 XP threshold enforced autonomously.', icon: '⚡', status: 'verify', metric: '~1.2s' },
-                { num: '03', title: 'Guild Assignment', desc: 'Master Agent registers you to a guild, assigns relay key, broadcasts your arrival on the DM network.', icon: '🏰', status: 'assign', metric: 'Nostr DM' },
+                { num: '03', title: 'Guild Assignment', desc: 'Relay registers you to your chosen guild, assigns a relay key, and broadcasts your arrival on the DM network.', icon: '🏰', status: 'assign', metric: 'Nostr DM' },
                 { num: '04', title: 'Passport Issued', desc: 'Relay gateway confirms. Your agents discover your passport and begin queuing quests.', icon: '🪪', status: 'ready', metric: 'active' },
               ].map((f, i) => (
                 <div key={i} style={{
@@ -529,11 +529,11 @@ function LandingPage({ scrolled }) {
               }}>🔗</div>
               <div>
                 <div style={{ fontFamily: "'Hubot Sans', sans-serif", fontSize: 12, fontWeight: 600, marginBottom: 2 }}>
-                  Cross-guild Master Agent Network
+                  Cross-guild Relay Network
                 </div>
                 <div style={{ color: E, fontSize: 12, fontFamily: "'Mona Sans', sans-serif" }}>
-                  Guilds relay quest intel between each other via Sphere SDK Nostr DMs.
-                  Agents in different guilds can cooperate on shared objectives.
+                  Guild chat rooms relay quest intel between each other via Sphere SDK Nostr DMs.
+                  Members in different guilds can cooperate on shared objectives.
                 </div>
               </div>
             </div>
@@ -946,10 +946,10 @@ function ConnectView({ wallet, onConnect, onPassportFound }) {
 
 function GuildSelectView({ onSelect, onCreate, selected }) {
   const guilds = [
-    { id: 'explorer', name: 'Explorer Guild', desc: 'Discovery and recon missions. First to test new quests.', icon: '🔭', color: A, members: 128, quests: 47, xp: '12.4k', iconClass: 'explorer' },
-    { id: 'builder', name: 'Builder Guild', desc: 'Develop and maintain relay infrastructure.', icon: '⚙️', color: '#3b82f6', members: 94, quests: 31, xp: '9.8k', iconClass: 'builder' },
-    { id: 'creator', name: 'Creator Guild', desc: 'Design quest narratives, puzzles, and lore.', icon: '🎨', color: '#a855f7', members: 76, quests: 23, xp: '7.2k', iconClass: 'creator' },
-    { id: 'research', name: 'Research Guild', desc: 'Investigate agent behavior and quest analytics.', icon: '🔬', color: '#22c55e', members: 52, quests: 18, xp: '5.6k', iconClass: 'research' },
+    { id: 'explorer', name: 'Explorer Guild', desc: 'Discovery and recon missions. First to test new quests.', icon: '🔭', color: A, iconClass: 'explorer' },
+    { id: 'builder', name: 'Builder Guild', desc: 'Develop and maintain relay infrastructure.', icon: '⚙️', color: '#3b82f6', iconClass: 'builder' },
+    { id: 'creator', name: 'Creator Guild', desc: 'Design quest narratives, puzzles, and lore.', icon: '🎨', color: '#a855f7', iconClass: 'creator' },
+    { id: 'research', name: 'Research Guild', desc: 'Investigate agent behavior and quest analytics.', icon: '🔬', color: '#22c55e', iconClass: 'research' },
   ];
   return (
     <div style={{ padding: '0 4px' }}>
@@ -975,20 +975,6 @@ function GuildSelectView({ onSelect, onCreate, selected }) {
               <div style={{ fontSize: 16, fontWeight: 600 }}>{g.name}</div>
               <div style={{ fontSize: 12, color: E, marginTop: 2 }}>{g.desc}</div>
             </div>
-          </div>
-          <div style={{
-            display: 'flex', gap: 20, paddingTop: 12, borderTop: '1px solid rgba(255,255,255,0.04)',
-          }}>
-            {[
-              { val: g.members, lbl: 'MEMBERS' },
-              { val: g.quests, lbl: 'QUESTS' },
-              { val: g.xp, lbl: 'TOTAL XP' },
-            ].map((s, i) => (
-              <div key={i} style={{ textAlign: 'center' }}>
-                <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 14, fontWeight: 600, color: A }}>{s.val}</div>
-                <div style={{ fontSize: 9, color: 'rgba(241,245,249,0.3)', letterSpacing: '0.06em', marginTop: 2 }}>{s.lbl}</div>
-              </div>
-            ))}
           </div>
         </div>
       ))}
