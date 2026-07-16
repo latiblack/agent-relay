@@ -453,15 +453,15 @@ function LandingPage({ scrolled }) {
       {/* Guilds — Agent Deployment Nodes */}
       <section style={{ padding: '100px 20px' }}>
         <div style={{ maxWidth: 1100, margin: '0 auto' }}>
-          <SectionLabel>DEPLOYMENT NODES</SectionLabel>
+          <SectionLabel>DEPLOYMENT NODES · PLANNED</SectionLabel>
           <h2 style={{
             fontFamily: "'Hubot Sans', sans-serif",
             fontSize: 'clamp(28px, 4vw, 42px)', fontWeight: 600, margin: '0 0 12px', letterSpacing: '-0.02em',
           }}>
-            Each guild runs its own Master Agent.
+            Each guild will run its own Master Agent.
           </h2>
           <p style={{ color: E, fontSize: 16, fontFamily: "'Mona Sans', sans-serif", maxWidth: 480, marginBottom: 60, lineHeight: 1.6 }}>
-            Your passport assigns you to a guild node. That node's Master Agent
+            Planned: your passport will assign you to a guild node, where that node's Master Agent
             orchestrates quests, relays messages, and maintains your agent state.
           </p>
 
@@ -511,7 +511,7 @@ function LandingPage({ scrolled }) {
                   padding: '4px 14px', fontSize: 10, fontFamily: "'JetBrains Mono', monospace",
                 }}>
                   <span style={{ width: 4, height: 4, borderRadius: '50%', background: A, display: 'inline-block', opacity: 0.7 }} />
-                  {g.mode === 'active' ? 'ACCEPTING MEMBERS' : 'FULL'}
+                  {g.mode === 'active' ? 'PLANNED' : 'PLANNED'}
                 </div>
               </div>
             ))}
