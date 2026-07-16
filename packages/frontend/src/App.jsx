@@ -109,7 +109,7 @@ function LandingPage({ scrolled }) {
     { name: 'Verification', desc: 'Validates passports & relay keys', icon: '🛡️', protocol: 'Key exchange', id: '@ar-verify', pid: '001' },
     { name: 'Puzzle', desc: 'Presents challenges, validates answers', icon: '🧩', protocol: 'Challenge/response', id: '@agentrelay-puzzle', pid: '002' },
     { name: 'Lore', desc: 'Advances narrative, reveals context', icon: '📜', protocol: 'Story progression', id: '@agentrelay-lore', pid: '003' },
-    { name: 'Treasury', desc: 'Awards badges & on-chain rewards', icon: '🏆', protocol: 'Reward distribution', id: '@agentrelay-treasury', pid: '004' },
+    { name: 'Treasury', desc: 'Awards XP & on-chain rewards', icon: '🏆', protocol: 'Reward distribution', id: '@agentrelay-treasury', pid: '004' },
   ];
 
   // Live agent telemetry — fetched from the relay's /agent-status endpoint.
