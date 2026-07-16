@@ -460,21 +460,23 @@ function LandingPage({ scrolled }) {
           }}>
             Four live guilds. Your passport picks one.
           </h2>
-          <p style={{ color: E, fontSize: 16, fontFamily: "'Mona Sans', sans-serif", maxWidth: 480, marginBottom: 60, lineHeight: 1.6 }}>
+          <p style={{ color: E, fontSize: 16, fontFamily: "'Mona Sans', sans-serif", maxWidth: 480, marginBottom: 24, lineHeight: 1.6 }}>
             Every passport is assigned to a guild node — a real Nostr group-chat room on the relay
-            where members coordinate quests and share findings.
+            where members coordinate quests and share findings. Explorer is open to all. Builder, Creator &amp; Research
+            open later by application and proven quest performance, handpicked by the relay.
           </p>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16 }}>
             {[
-              { name: 'Explorer Guild', desc: 'Discovery & recon missions. Chat, team up, and coordinate Signal Hunts.', icon: '🔭', mode: 'active' },
-              { name: 'Builder Guild', desc: 'Development & infrastructure. Build tooling and ship quests together.', icon: '⚒️', mode: 'active' },
-              { name: 'Creator Guild', desc: 'Design & content. Craft lore, visuals, and narratives for the network.', icon: '🎨', mode: 'active' },
-              { name: 'Research Guild', desc: 'Investigation & analysis. Dig into protocol mechanics and share findings.', icon: '🔬', mode: 'active' },
+              { name: 'Explorer Guild', desc: 'Discovery & recon missions. Chat, team up, and coordinate Signal Hunts.', icon: '🔭', mode: 'active', locked: false },
+              { name: 'Builder Guild', desc: 'Development & infrastructure. Build tooling and ship quests together.', icon: '⚒️', mode: 'active', locked: true },
+              { name: 'Creator Guild', desc: 'Design & content. Craft lore, visuals, and narratives for the network.', icon: '🎨', mode: 'active', locked: true },
+              { name: 'Research Guild', desc: 'Investigation & analysis. Dig into protocol mechanics and share findings.', icon: '🔬', mode: 'active', locked: true },
             ].map((g, i) => (
               <div key={i} style={{
                 ...glassCard, textAlign: 'center', padding: '32px 24px',
                 position: 'relative', overflow: 'hidden',
+                opacity: g.locked ? 0.45 : 1,
               }}>
                 {/* Guild header with agent count */}
                 <div style={{
@@ -489,11 +491,12 @@ function LandingPage({ scrolled }) {
                   </div>
                   <div style={{
                     display: 'flex', alignItems: 'center', gap: 5,
-                    background: 'rgba(34,197,94,0.08)', borderRadius: 8,
-                    padding: '4px 10px', fontSize: 11, fontFamily: "'JetBrains Mono', monospace", color: '#22c55e',
+                    background: g.locked ? 'rgba(255,255,255,0.04)' : 'rgba(34,197,94,0.08)', borderRadius: 8,
+                    padding: '4px 10px', fontSize: 11, fontFamily: "'JetBrains Mono', monospace",
+                    color: g.locked ? 'rgba(241,245,249,0.5)' : '#22c55e',
                   }}>
-                    <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#22c55e', display: 'inline-block' }} />
-                    LIVE
+                    {!g.locked && <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#22c55e', display: 'inline-block' }} />}
+                    {g.locked ? 'SOON' : 'LIVE'}
                   </div>
                 </div>
 
@@ -510,8 +513,8 @@ function LandingPage({ scrolled }) {
                   background: 'rgba(255,255,255,0.03)', borderRadius: 9999,
                   padding: '4px 14px', fontSize: 10, fontFamily: "'JetBrains Mono', monospace",
                 }}>
-                  <span style={{ width: 4, height: 4, borderRadius: '50%', background: A, display: 'inline-block', opacity: 0.7 }} />
-                  {g.mode === 'active' ? 'JOIN' : 'FULL'}
+                  <span style={{ width: 4, height: 4, borderRadius: '50%', background: A, display: 'inline-block', opacity: g.locked ? 0 : 0.7 }} />
+                  {g.locked ? 'BY APPLICATION' : (g.mode === 'active' ? 'JOIN' : 'FULL')}
                 </div>
               </div>
             ))}
@@ -959,23 +962,29 @@ function ConnectView({ wallet, onConnect, onPassportFound }) {
 
 function GuildSelectView({ onSelect, onCreate, selected, guildStats }) {
   const guilds = [
-    { id: 'explorer', name: 'Explorer Guild', desc: 'Discovery and recon missions. First to test new quests.', icon: '🔭', color: A, iconClass: 'explorer' },
-    { id: 'builder', name: 'Builder Guild', desc: 'Develop and maintain relay infrastructure.', icon: '⚙️', color: '#3b82f6', iconClass: 'builder' },
-    { id: 'creator', name: 'Creator Guild', desc: 'Design quest narratives, puzzles, and lore.', icon: '🎨', color: '#a855f7', iconClass: 'creator' },
-    { id: 'research', name: 'Research Guild', desc: 'Investigate agent behavior and quest analytics.', icon: '🔬', color: '#22c55e', iconClass: 'research' },
+    { id: 'explorer', name: 'Explorer Guild', desc: 'Discovery and recon missions. First to test new quests.', icon: '🔭', color: A, iconClass: 'explorer', locked: false },
+    { id: 'builder', name: 'Builder Guild', desc: 'Develop and maintain relay infrastructure.', icon: '⚙️', color: '#3b82f6', iconClass: 'builder', locked: true },
+    { id: 'creator', name: 'Creator Guild', desc: 'Design quest narratives, puzzles, and lore.', icon: '🎨', color: '#a855f7', iconClass: 'creator', locked: true },
+    { id: 'research', name: 'Research Guild', desc: 'Investigate agent behavior and quest analytics.', icon: '🔬', color: '#22c55e', iconClass: 'research', locked: true },
   ];
   return (
     <div style={{ padding: '0 4px' }}>
       <h1 style={{ fontFamily: "'Hubot Sans', sans-serif", fontSize: 24, fontWeight: 600, marginBottom: 4 }}>Choose Your Guild</h1>
-      <p style={{ color: E, fontSize: 13, marginBottom: 28, fontFamily: "'Mona Sans', sans-serif" }}>Your guild determines your role in the relay network.</p>
+      <p style={{ color: E, fontSize: 13, marginBottom: 12, fontFamily: "'Mona Sans', sans-serif" }}>Your guild determines your role in the relay network.</p>
+      <p style={{ color: 'rgba(241,245,249,0.45)', fontSize: 11, marginBottom: 24, fontFamily: "'Mona Sans', sans-serif", lineHeight: 1.5 }}>
+        Explorer is open to everyone. Builder, Creator &amp; Research open later by application and proven quest performance — handpicked by the relay.
+      </p>
       {guilds.map((g) => (
         <div key={g.id}
-          onClick={() => onSelect(g.id)}
+          onClick={() => !g.locked && onSelect(g.id)}
           style={{
-            padding: 20, borderRadius: 14, marginBottom: 12, cursor: 'pointer',
+            padding: 20, borderRadius: 14, marginBottom: 12,
+            cursor: g.locked ? 'not-allowed' : 'pointer',
+            opacity: g.locked ? 0.4 : 1,
             background: selected === g.id ? 'rgba(255,111,0,0.06)' : 'rgba(255,255,255,0.03)',
             border: selected === g.id ? `1px solid ${A}` : '1px solid rgba(255,255,255,0.06)',
             transition: 'all 0.2s',
+            position: 'relative',
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 10 }}>
@@ -988,6 +997,13 @@ function GuildSelectView({ onSelect, onCreate, selected, guildStats }) {
               <div style={{ fontSize: 16, fontWeight: 600 }}>{g.name}</div>
               <div style={{ fontSize: 12, color: E, marginTop: 2 }}>{g.desc}</div>
             </div>
+            {g.locked && (
+              <div style={{
+                fontSize: 9, fontFamily: "'JetBrains Mono', monospace", letterSpacing: '0.06em',
+                color: 'rgba(241,245,249,0.5)', border: '1px solid rgba(255,255,255,0.12)',
+                borderRadius: 6, padding: '3px 8px', whiteSpace: 'nowrap',
+              }}>BY APPLICATION</div>
+            )}
           </div>
           {guildStats && guildStats[g.id] ? (
             <div style={{

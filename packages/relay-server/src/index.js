@@ -435,9 +435,18 @@ async function main() {
       // POST /passport — Create passport
       if (url.pathname === '/passport' && req.method === 'POST') {
         const body = await parseBody(req);
+        // Guild onboarding gate: only the Explorer guild is open for self-join.
+        // Builder/Creator/Research are admitted by application (handled off-platform).
+        const OPEN_GUILDS = ['explorer'];
+        const requestedGuild = (body.guild || 'explorer').toLowerCase();
+        if (!OPEN_GUILDS.includes(requestedGuild)) {
+          res.writeHead(403);
+          res.end(JSON.stringify({ success: false, error: 'Guild not open for self-join. Entry by application only.' }));
+          return;
+        }
         const passport = await passportManager.createPassport({
           walletAddress: body.walletAddress,
-          guild: body.guild,
+          guild: requestedGuild,
           nametag: body.nametag,
         });
         verificationAgent.registerPassport(passport);
