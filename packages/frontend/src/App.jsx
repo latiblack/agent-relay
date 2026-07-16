@@ -118,7 +118,7 @@ function LandingPage({ scrolled }) {
     let alive = true;
     const fetchStatus = async () => {
       try {
-        const res = await fetch(`${RELAY_SERVER.replace(/\/relay$/, '')}/agent-status`, { cache: 'no-store' });
+        const res = await fetch(`${RELAY_SERVER}/agent-status`, { cache: 'no-store' });
         if (!res.ok) return;
         const data = await res.json();
         if (alive) setAgentStatus(data);

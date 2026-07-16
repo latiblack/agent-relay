@@ -85,10 +85,13 @@ function broadcastToConsole(passportId, message) {
   const key = agentKeyFrom(message.from);
   if (key) agentMsgCounts[key] += 1;
   const clients = wsClients.get(passportId);
-  if (!clients) return;
-  const payload = JSON.stringify({ type: 'agent_message', ...message, timestamp: Date.now() });
-  for (const ws of clients) {
-    try { ws.send(payload); } catch { /* ignore */ }
+  if (clients && clients.length) {
+    const payload = JSON.stringify({ type: 'agent_message', ...message, timestamp: Date.now() });
+    for (const ws of clients) {
+      try { ws.send(payload); } catch { /* ignore */ }
+    }
+  } else {
+    console.log(`[broadcastToConsole] no clients for ${passportId} (have ${wsClients.size} keys)`);
   }
 }
 
@@ -377,10 +380,35 @@ async function main() {
   // ── HTTP Server ──────────────────────────────────
 
   const httpServer = createServer(async (req, res) => {
+    const url = new URL(req.url, `http://localhost:${PORT}`);
     res.setHeader('Content-Type', 'application/json');
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+    // GET /health — liveness used by the container healthcheck (port 3104)
+    if (url.pathname === '/health' && req.method === 'GET') {
+      res.writeHead(200);
+      res.end(JSON.stringify({ status: 'ok', uptimeMs: Date.now() - SERVER_STARTED_AT, agentsOnline }));
+      return;
+    }
+
+    // GET /agent-status — live per-agent message counters + uptime (port 3104, proxied at /relay)
+    if (url.pathname === '/agent-status' && req.method === 'GET') {
+      const agentMeta = [
+        { id: '@ar-verify', label: 'Verification', pid: '001' },
+        { id: '@agentrelay-puzzle', label: 'Puzzle', pid: '002' },
+        { id: '@agentrelay-lore', label: 'Lore', pid: '003' },
+        { id: '@agentrelay-treasury', label: 'Treasury', pid: '004' },
+      ];
+      res.writeHead(200);
+      res.end(JSON.stringify({
+        online: agentsOnline,
+        uptimeMs: Date.now() - SERVER_STARTED_AT,
+        agents: agentMeta.map(a => ({ ...a, msgs: agentMsgCounts[a.id] || 0 })),
+      }));
+      return;
+    }
 
     if (req.method === 'OPTIONS') {
       res.writeHead(204);
@@ -388,7 +416,6 @@ async function main() {
       return;
     }
 
-    const url = new URL(req.url, `http://localhost:${PORT}`);
 
     try {
       // POST /passport — Create passport
@@ -822,48 +849,6 @@ async function main() {
       res.writeHead(500);
       res.end(JSON.stringify({ error: err.message }));
     }
-  });
-
-  // ── Live agent telemetry endpoints (powers the real agent-status UI) ──
-  // NOTE: these routes are added on a separate server instance so they don't
-  // interfere with the main request handler above.
-  const telemetryServer = createServer((req, res) => {
-    res.setHeader('Content-Type', 'application/json');
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    if (req.method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
-    const url = new URL(req.url, `http://localhost:${PORT}`);
-    if (url.pathname === '/health') {
-      res.writeHead(200);
-      res.end(JSON.stringify({ status: 'ok', uptimeMs: Date.now() - SERVER_STARTED_AT, agentsOnline }));
-      return;
-    }
-    if (url.pathname === '/agent-status') {
-      const agentMeta = [
-        { id: '@ar-verify', label: 'Verification', pid: '001' },
-        { id: '@agentrelay-puzzle', label: 'Puzzle', pid: '002' },
-        { id: '@agentrelay-lore', label: 'Lore', pid: '003' },
-        { id: '@agentrelay-treasury', label: 'Treasury', pid: '004' },
-      ];
-      const payload = {
-        online: agentsOnline,
-        uptimeMs: Date.now() - SERVER_STARTED_AT,
-        agents: agentMeta.map(a => ({
-          id: a.id,
-          label: a.label,
-          pid: a.pid,
-          msgs: agentMsgCounts[a.id] || 0,
-        })),
-      };
-      res.writeHead(200);
-      res.end(JSON.stringify(payload));
-      return;
-    }
-    res.writeHead(404);
-    res.end(JSON.stringify({ error: 'not found' }));
-  });
-  const TELEMETRY_PORT = parseInt(process.env.TELEMETRY_PORT || '3106', 10);
-  telemetryServer.listen(TELEMETRY_PORT, () => {
-    console.log(`Telemetry API on port ${TELEMETRY_PORT} (GET /health, /agent-status)`);
   });
 
   httpServer.listen(PORT, () => {
