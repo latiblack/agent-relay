@@ -1031,6 +1031,9 @@ function DashboardView({ passport, wallet, identity, pendingDeepLink, setPending
   const [deployingQuest, setDeployingQuest] = useState(null);
   const [completedQuests, setCompletedQuests] = useState(new Set());
 
+  // Fresh passport data from server (not the stale prop)
+  const [passportData, setPassportData] = useState(null);
+
   // Sync completed quests from passport data (fresh from server fetch)
   useEffect(() => {
     if (!passportData || !passport?.passportId) return;
@@ -1041,9 +1044,6 @@ function DashboardView({ passport, wallet, identity, pendingDeepLink, setPending
       setCompletedQuests(new Set());
     }
   }, [passportData?.questsCompleted, passport?.passportId]);
-
-  // Fresh passport data from server (not the stale prop)
-  const [passportData, setPassportData] = useState(null);
 
   // Re-fetch passport from server on mount for fresh Supabase data
   useEffect(() => {
