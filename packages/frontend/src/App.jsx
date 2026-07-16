@@ -106,11 +106,28 @@ function App() {
 function LandingPage({ scrolled }) {
   const navigate = useNavigate();
   const agents = [
-    { name: 'Verification', desc: 'Validates passports & relay keys', icon: '🛡️', protocol: 'Key exchange' },
-    { name: 'Puzzle', desc: 'Presents challenges, validates answers', icon: '🧩', protocol: 'Challenge/response' },
-    { name: 'Lore', desc: 'Advances narrative, reveals context', icon: '📜', protocol: 'Story progression' },
-    { name: 'Treasury', desc: 'Awards badges & on-chain rewards', icon: '🏆', protocol: 'Reward distribution' },
+    { name: 'Verification', desc: 'Validates passports & relay keys', icon: '🛡️', protocol: 'Key exchange', id: '@ar-verify', pid: '001' },
+    { name: 'Puzzle', desc: 'Presents challenges, validates answers', icon: '🧩', protocol: 'Challenge/response', id: '@agentrelay-puzzle', pid: '002' },
+    { name: 'Lore', desc: 'Advances narrative, reveals context', icon: '📜', protocol: 'Story progression', id: '@agentrelay-lore', pid: '003' },
+    { name: 'Treasury', desc: 'Awards badges & on-chain rewards', icon: '🏆', protocol: 'Reward distribution', id: '@agentrelay-treasury', pid: '004' },
   ];
+
+  // Live agent telemetry — fetched from the relay's /agent-status endpoint.
+  const [agentStatus, setAgentStatus] = useState(null); // { online, uptimeMs, agents: [{id, label, pid, msgs}] }
+  useEffect(() => {
+    let alive = true;
+    const fetchStatus = async () => {
+      try {
+        const res = await fetch(`${RELAY_SERVER.replace(/\/relay$/, '')}/agent-status`, { cache: 'no-store' });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (alive) setAgentStatus(data);
+      } catch { /* relay offline — leave as null (shows connecting…) */ }
+    };
+    fetchStatus();
+    const t = setInterval(fetchStatus, 5000);
+    return () => { alive = false; clearInterval(t); };
+  }, []);
 
   return (
     <div style={{ fontFamily: "'Mona Sans', sans-serif", backgroundColor: C, color: D, minHeight: '100vh', overflow: 'hidden' }}>
@@ -325,7 +342,11 @@ function LandingPage({ scrolled }) {
           </p>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16 }}>
-            {agents.map((a, i) => (
+            {agents.map((a, i) => {
+              const live = agentStatus?.agents?.find(x => x.id === a.id);
+              const msgs = live?.msgs ?? null;
+              const online = agentStatus?.online ?? null;
+              return (
               <div key={i} style={{
                 ...glassCard, borderTop: `2px solid ${A}40`,
                 position: 'relative', overflow: 'hidden',
@@ -334,14 +355,16 @@ function LandingPage({ scrolled }) {
                 <div style={{
                   position: 'absolute', top: 16, right: 16,
                   display: 'flex', alignItems: 'center', gap: 5,
-                  fontSize: 9, fontFamily: "'JetBrains Mono', monospace", color: '#22c55e',
+                  fontSize: 9, fontFamily: "'JetBrains Mono', monospace",
+                  color: online === false ? '#f59e0b' : '#22c55e',
                 }}>
                   <span style={{
-                    width: 5, height: 5, borderRadius: '50%', background: '#22c55e',
-                    boxShadow: '0 0 6px rgba(34,197,94,0.6)',
+                    width: 5, height: 5, borderRadius: '50%',
+                    background: online === false ? '#f59e0b' : '#22c55e',
+                    boxShadow: online === false ? '0 0 6px rgba(245,158,11,0.6)' : '0 0 6px rgba(34,197,94,0.6)',
                     animation: 'pulseNode 2s infinite',
                   }} />
-                  LIVE
+                  {online === false ? 'CONNECTING' : online === null ? 'SYNC' : 'LIVE'}
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
                   <div style={{
@@ -362,12 +385,13 @@ function LandingPage({ scrolled }) {
                   marginTop: 14, paddingTop: 12, borderTop: '1px solid rgba(255,255,255,0.04)',
                   display: 'flex', gap: 12, fontSize: 10, fontFamily: "'JetBrains Mono', monospace",
                 }}>
-                  <span style={{ color: 'rgba(255,255,255,0.25)' }}>PID:{String(i+1).padStart(3,'0')}</span>
-                  <span style={{ color: '#22c55e' }}>uptime 99.8%</span>
-                  <span style={{ color: 'rgba(255,255,255,0.25)' }}>msgs 0</span>
+                  <span style={{ color: 'rgba(255,255,255,0.25)' }}>PID:{a.pid}</span>
+                  <span style={{ color: '#22c55e' }}>{online === null ? 'uptime —' : `uptime ${(agentStatus.uptimeMs / 1000 / 86400).toFixed(1)}d`}</span>
+                  <span style={{ color: msgs === null ? 'rgba(255,255,255,0.25)' : '#22c55e' }}>msgs {msgs === null ? '—' : msgs}</span>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
 
           {/* Agent Message Feed — live agent-to-agent flow */}

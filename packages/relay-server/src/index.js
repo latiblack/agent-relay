@@ -28,6 +28,24 @@ const WSS_PORT = parseInt(process.env.WSS_PORT || '3105', 10);
 // ── WebSocket clients (Agent Console connections) ──
 const wsClients = new Map(); // { passportId -> [ws, ...] }
 
+// ── Live agent telemetry (replaces hardcoded msgs=0 / uptime on the UI) ──
+const SERVER_STARTED_AT = Date.now();
+// Per-agent live message counters, incremented every time that agent emits a console message.
+const agentMsgCounts = {
+  '@ar-verify': 0,
+  '@agentrelay-puzzle': 0,
+  '@agentrelay-lore': 0,
+  '@agentrelay-treasury': 0,
+};
+function agentKeyFrom(from) {
+  if (!from) return null;
+  if (from === '@ar-verify' || from === 'verification') return '@ar-verify';
+  if (from === '@agentrelay-puzzle' || from === 'puzzle') return '@agentrelay-puzzle';
+  if (from === '@agentrelay-lore' || from === 'lore') return '@agentrelay-lore';
+  if (from === '@agentrelay-treasury' || from === 'treasury') return '@agentrelay-treasury';
+  return null;
+}
+
 // ── NIP-29 Group Chat Guild Rooms ─────────────────
 const GUILD_GROUPS_FILE = path.join(DATA_DIR, 'guild-groups.json');
 const guildGroupChats = new Map(); // guildName -> { groupId, relayUrl }
@@ -64,6 +82,8 @@ function loadGuildGroupsFromDisk() {
 }
 
 function broadcastToConsole(passportId, message) {
+  const key = agentKeyFrom(message.from);
+  if (key) agentMsgCounts[key] += 1;
   const clients = wsClients.get(passportId);
   if (!clients) return;
   const payload = JSON.stringify({ type: 'agent_message', ...message, timestamp: Date.now() });
@@ -802,6 +822,48 @@ async function main() {
       res.writeHead(500);
       res.end(JSON.stringify({ error: err.message }));
     }
+  });
+
+  // ── Live agent telemetry endpoints (powers the real agent-status UI) ──
+  // NOTE: these routes are added on a separate server instance so they don't
+  // interfere with the main request handler above.
+  const telemetryServer = createServer((req, res) => {
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    if (req.method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
+    const url = new URL(req.url, `http://localhost:${PORT}`);
+    if (url.pathname === '/health') {
+      res.writeHead(200);
+      res.end(JSON.stringify({ status: 'ok', uptimeMs: Date.now() - SERVER_STARTED_AT, agentsOnline }));
+      return;
+    }
+    if (url.pathname === '/agent-status') {
+      const agentMeta = [
+        { id: '@ar-verify', label: 'Verification', pid: '001' },
+        { id: '@agentrelay-puzzle', label: 'Puzzle', pid: '002' },
+        { id: '@agentrelay-lore', label: 'Lore', pid: '003' },
+        { id: '@agentrelay-treasury', label: 'Treasury', pid: '004' },
+      ];
+      const payload = {
+        online: agentsOnline,
+        uptimeMs: Date.now() - SERVER_STARTED_AT,
+        agents: agentMeta.map(a => ({
+          id: a.id,
+          label: a.label,
+          pid: a.pid,
+          msgs: agentMsgCounts[a.id] || 0,
+        })),
+      };
+      res.writeHead(200);
+      res.end(JSON.stringify(payload));
+      return;
+    }
+    res.writeHead(404);
+    res.end(JSON.stringify({ error: 'not found' }));
+  });
+  const TELEMETRY_PORT = parseInt(process.env.TELEMETRY_PORT || '3106', 10);
+  telemetryServer.listen(TELEMETRY_PORT, () => {
+    console.log(`Telemetry API on port ${TELEMETRY_PORT} (GET /health, /agent-status)`);
   });
 
   httpServer.listen(PORT, () => {
