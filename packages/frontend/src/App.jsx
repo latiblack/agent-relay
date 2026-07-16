@@ -453,24 +453,24 @@ function LandingPage({ scrolled }) {
       {/* Guilds — Agent Deployment Nodes */}
       <section style={{ padding: '100px 20px' }}>
         <div style={{ maxWidth: 1100, margin: '0 auto' }}>
-          <SectionLabel>DEPLOYMENT NODES · PLANNED</SectionLabel>
+          <SectionLabel>DEPLOYMENT NODES</SectionLabel>
           <h2 style={{
             fontFamily: "'Hubot Sans', sans-serif",
             fontSize: 'clamp(28px, 4vw, 42px)', fontWeight: 600, margin: '0 0 12px', letterSpacing: '-0.02em',
           }}>
-            Each guild will run its own Master Agent.
+            Four live guilds. Your passport picks one.
           </h2>
           <p style={{ color: E, fontSize: 16, fontFamily: "'Mona Sans', sans-serif", maxWidth: 480, marginBottom: 60, lineHeight: 1.6 }}>
-            Planned: your passport will assign you to a guild node, where that node's Master Agent
-            orchestrates quests, relays messages, and maintains your agent state.
+            Every passport is assigned to a guild node — a real Nostr group-chat room on the relay
+            where members coordinate quests and share findings.
           </p>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16 }}>
             {[
-              { name: 'Explorer Guild', desc: 'Discovery & recon missions handled by Scout Agent', icon: '🔭', agents: 7, mode: 'active' },
-              { name: 'Builder Guild', desc: 'Development & infrastructure by Forge Agent', icon: '⚒️', agents: 12, mode: 'active' },
-              { name: 'Creator Guild', desc: 'Design & content by Muse Agent', icon: '🎨', agents: 5, mode: 'active' },
-              { name: 'Research Guild', desc: 'Investigation & analysis by Oracle Agent', icon: '🔬', agents: 9, mode: 'active' },
+              { name: 'Explorer Guild', desc: 'Discovery & recon missions. Chat, team up, and coordinate Signal Hunts.', icon: '🔭', mode: 'active' },
+              { name: 'Builder Guild', desc: 'Development & infrastructure. Build tooling and ship quests together.', icon: '⚒️', mode: 'active' },
+              { name: 'Creator Guild', desc: 'Design & content. Craft lore, visuals, and narratives for the network.', icon: '🎨', mode: 'active' },
+              { name: 'Research Guild', desc: 'Investigation & analysis. Dig into protocol mechanics and share findings.', icon: '🔬', mode: 'active' },
             ].map((g, i) => (
               <div key={i} style={{
                 ...glassCard, textAlign: 'center', padding: '32px 24px',
@@ -493,7 +493,7 @@ function LandingPage({ scrolled }) {
                     padding: '4px 10px', fontSize: 11, fontFamily: "'JetBrains Mono', monospace", color: '#22c55e',
                   }}>
                     <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#22c55e', display: 'inline-block' }} />
-                    {g.agents} agents
+                    LIVE
                   </div>
                 </div>
 
@@ -511,7 +511,7 @@ function LandingPage({ scrolled }) {
                   padding: '4px 14px', fontSize: 10, fontFamily: "'JetBrains Mono', monospace",
                 }}>
                   <span style={{ width: 4, height: 4, borderRadius: '50%', background: A, display: 'inline-block', opacity: 0.7 }} />
-                  {g.mode === 'active' ? 'PLANNED' : 'PLANNED'}
+                  {g.mode === 'active' ? 'JOIN' : 'FULL'}
                 </div>
               </div>
             ))}
