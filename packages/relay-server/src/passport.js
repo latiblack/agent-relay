@@ -252,6 +252,45 @@ export class PassportManager {
     return passport;
   }
 
+  // Aggregate live per-guild stats (members / completed quests / total XP)
+  // from Supabase when available, else from the local passport cache.
+  async getGuildStats() {
+    const GUILDS = ['explorer', 'builder', 'creator', 'research'];
+    const empty = () => ({ members: 0, quests: 0, xp: 0 });
+
+    if (this.supabase) {
+      try {
+        const { data, error } = await this.supabase
+          .from('passports')
+          .select('guild, quests_completed, total_xp');
+        if (!error && data) {
+          const stats = Object.fromEntries(GUILDS.map(g => [g, empty()]));
+          for (const row of data) {
+            const g = (row.guild || 'explorer').toLowerCase();
+            if (!stats[g]) stats[g] = empty();
+            stats[g].members += 1;
+            stats[g].quests += Number(row.quests_completed || 0);
+            stats[g].xp += Number(row.total_xp || 0);
+          }
+          return stats;
+        }
+      } catch (e) {
+        console.warn('[PassportManager] guild-stats Supabase query failed:', e.message);
+      }
+    }
+
+    // Fallback: aggregate from local cache
+    const stats = Object.fromEntries(GUILDS.map(g => [g, empty()]));
+    for (const p of this.passports.values()) {
+      const g = (p.guild || 'explorer').toLowerCase();
+      if (!stats[g]) stats[g] = empty();
+      stats[g].members += 1;
+      stats[g].quests += Number(p.questsCompleted || 0);
+      stats[g].xp += Number(p.totalXp || 0);
+    }
+    return stats;
+  }
+
   async appendUctReward(passportId, amount) {
     const passport = this.passports.get(passportId);
     if (!passport) return null;

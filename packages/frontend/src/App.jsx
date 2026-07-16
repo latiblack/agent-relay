@@ -711,6 +711,19 @@ function OnboardingPage({ wallet, onPassportReady }) {
   const [passport, setPassport] = useState(null);
   const [selectedGuild, setSelectedGuild] = useState(null);
   const [relayDown, setRelayDown] = useState(false);
+  const [guildStats, setGuildStats] = useState(null);
+
+  // Pull live per-guild stats (members / quests / xp) from the relay.
+  useEffect(() => {
+    let alive = true;
+    const load = () => fetch(`${RELAY_SERVER}/guild-stats`, { cache: 'no-store' })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (alive && d) setGuildStats(d); })
+      .catch(() => {});
+    load();
+    const t = setInterval(load, 15000);
+    return () => { alive = false; clearInterval(t); };
+  }, []);
 
   const handleWalletConnect = async () => {
     setStep('connect');
@@ -766,7 +779,7 @@ function OnboardingPage({ wallet, onPassportReady }) {
       <HeaderSmall onBack={() => navigate('/home')} identity={wallet.identity} passport={passport} />
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
         {step === 'connect' && <ConnectView wallet={wallet} onConnect={handleWalletConnect} onPassportFound={(p) => { setPassport(p); onPassportReady(p); navigate('/overview'); }} />}
-        {step === 'guild-select' && <GuildSelectView onSelect={setSelectedGuild} onCreate={handleCreatePassport} selected={selectedGuild} />}
+        {step === 'guild-select' && <GuildSelectView onSelect={setSelectedGuild} onCreate={handleCreatePassport} selected={selectedGuild} guildStats={guildStats} />}
         {step === 'passport' && <PassportView passport={passport} onEnter={() => { onPassportReady(passport); navigate('/overview'); }} />}
       </div>
     </div>
@@ -944,7 +957,7 @@ function ConnectView({ wallet, onConnect, onPassportFound }) {
   );
 }
 
-function GuildSelectView({ onSelect, onCreate, selected }) {
+function GuildSelectView({ onSelect, onCreate, selected, guildStats }) {
   const guilds = [
     { id: 'explorer', name: 'Explorer Guild', desc: 'Discovery and recon missions. First to test new quests.', icon: '🔭', color: A, iconClass: 'explorer' },
     { id: 'builder', name: 'Builder Guild', desc: 'Develop and maintain relay infrastructure.', icon: '⚙️', color: '#3b82f6', iconClass: 'builder' },
@@ -976,6 +989,26 @@ function GuildSelectView({ onSelect, onCreate, selected }) {
               <div style={{ fontSize: 12, color: E, marginTop: 2 }}>{g.desc}</div>
             </div>
           </div>
+          {guildStats && guildStats[g.id] ? (
+            <div style={{
+              display: 'flex', gap: 20, paddingTop: 12, marginTop: 10, borderTop: '1px solid rgba(255,255,255,0.04)',
+            }}>
+              {[
+                { val: guildStats[g.id].members, lbl: 'MEMBERS' },
+                { val: guildStats[g.id].quests, lbl: 'QUESTS' },
+                { val: guildStats[g.id].xp.toLocaleString(), lbl: 'TOTAL XP' },
+              ].map((s, i) => (
+                <div key={i} style={{ textAlign: 'center' }}>
+                  <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 14, fontWeight: 600, color: A }}>{s.val}</div>
+                  <div style={{ fontSize: 9, color: 'rgba(241,245,249,0.3)', letterSpacing: '0.06em', marginTop: 2 }}>{s.lbl}</div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div style={{ paddingTop: 12, marginTop: 10, borderTop: '1px solid rgba(255,255,255,0.04)', fontSize: 11, color: 'rgba(241,245,249,0.25)', fontFamily: "'JetBrains Mono', monospace" }}>
+              loading stats…
+            </div>
+          )}
         </div>
       ))}
       <button

@@ -410,6 +410,20 @@ async function main() {
       return;
     }
 
+    // GET /guild-stats — live per-guild members / completed quests / total XP
+    // (port 3104, proxied at /relay). Returns { explorer:{members,quests,xp}, ... }
+    if (url.pathname === '/guild-stats' && req.method === 'GET') {
+      try {
+        const stats = await passportManager.getGuildStats();
+        res.writeHead(200);
+        res.end(JSON.stringify(stats));
+      } catch (e) {
+        res.writeHead(500);
+        res.end(JSON.stringify({ error: e.message }));
+      }
+      return;
+    }
+
     if (req.method === 'OPTIONS') {
       res.writeHead(204);
       res.end();
