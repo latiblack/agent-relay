@@ -1,8 +1,10 @@
 // Agent Relay - Quest Agent Base Class
 // All quest agents extend this and run as Sphere SDK identities
 
-import { Sphere } from '@unicitylabs/sphere-sdk';
+import { Sphere, WalletApiClient, identityFromMnemonicSync, deriveAddressInfo } from '@unicitylabs/sphere-sdk';
 import { createNodeProviders } from '@unicitylabs/sphere-sdk/impl/nodejs';
+
+const WALLET_API_URL = process.env.SPHERE_WALLET_URL || 'https://sphere.unicity.network';
 
 export class QuestAgent {
   constructor({ nametag, mnemonic, network = 'testnet', dataDir }) {
@@ -26,12 +28,32 @@ export class QuestAgent {
       oracle,
     });
 
+    // Build a wallet-api session so payments.send (on-chain UCT transfers) works
+    // server-side — mirrors how the frontend's Sphere Connect wallet signs sends.
+    let walletApi;
+    try {
+      const masterKey = identityFromMnemonicSync(this.mnemonic);
+      const addr = deriveAddressInfo(masterKey, "m/44'/0'/0'", 0);
+      walletApi = new WalletApiClient({
+        baseUrl: WALLET_API_URL,
+        network: this.network,
+        deviceId: `agent-relay-${this.nametag}`,
+        storage: providers.storage,
+      });
+      walletApi.setIdentity({ privateKey: addr.privateKey, chainPubkey: addr.publicKey });
+      await walletApi.signIn();
+      console.log(`[${this.nametag}] wallet-api session online`);
+    } catch (err) {
+      console.warn(`[${this.nametag}] wallet-api session failed (payments.send will not work): ${err.message}`);
+    }
+
     const { sphere } = await Sphere.init({
       ...providers,
       network: this.network,
       mnemonic: this.mnemonic,
       market: true,
       groupChat: true,
+      ...(walletApi ? { walletApi } : {}),
     });
 
     this.sphere = sphere;
