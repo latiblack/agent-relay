@@ -25,7 +25,7 @@ export class TreasuryAgent extends QuestAgent {
     return this;
   }
 
-  _claimReward(data, msg) {
+  async _claimReward(data, msg) {
     const { questId, walletAddress } = data || {};
     const quest = QUESTS[questId];
     if (!quest) {
@@ -45,21 +45,53 @@ export class TreasuryAgent extends QuestAgent {
     account.completedQuests.push(questId);
     account.totalXp += quest.reward.xp;
 
-    // Send UCT reward from treasury wallet to user's wallet (fire-and-forget)
+    // Send UCT reward from treasury wallet to user's wallet
     const uctAmount = quest.reward.uct;
     const UCT_COIN_ID = 'f581d30f593e4b369d684a4563b5246f07b1d265f7178a2c0a82b81f39c24dc0';
-    if (uctAmount && uctAmount !== '0' && walletAddress && this.sphere?.payments?.send) {
+    let uctSent = '0';
+    if (uctAmount && uctAmount !== '0' && walletAddress) {
+      if (!this.sphere?.payments?.send) {
+        // Surface misconfiguration instead of silently skipping
+        const reason = !this.sphere ? 'this.sphere is undefined' : !this.sphere.payments ? 'this.sphere.payments is undefined' : 'this.sphere.payments.send is not a function';
+        console.error(`[TreasuryAgent] NOT sending ${uctAmount} UCT to ${walletAddress}: ${reason}`);
+        return {
+          action: 'reward_issued',
+          data: {
+            questId,
+            xpAwarded: quest.reward.xp,
+            totalXp: account.totalXp,
+            uctSent: '0',
+            uctError: reason,
+            message: `You earned ${quest.reward.xp} XP, but the UCT payout failed (${reason}).`,
+          },
+        };
+      }
       const amountWei = (BigInt(uctAmount) * 10n ** 18n).toString();
-      this.sphere.payments.send({
-        recipient: walletAddress,
-        amount: amountWei,
-        coinId: UCT_COIN_ID,
-      }).then(sendResult => {
+      try {
+        const sendResult = await this.sphere.payments.send({
+          recipient: walletAddress,
+          amount: amountWei,
+          coinId: UCT_COIN_ID,
+        });
         const transferId = sendResult?.transferId || sendResult?.txHash || 'ok';
+        uctSent = uctAmount;
         console.log(`[TreasuryAgent] Sent ${uctAmount} UCT to ${walletAddress}: ${transferId}`);
-      }).catch(err => {
-        console.warn(`[TreasuryAgent] Failed to send ${uctAmount} UCT to ${walletAddress}:`, err.message);
-      });
+      } catch (err) {
+        // Make the failure VISIBLE instead of swallowing it
+        const detail = err?.stack || err?.message || String(err);
+        console.error(`[TreasuryAgent] FAILED to send ${uctAmount} UCT to ${walletAddress}:`, detail);
+        return {
+          action: 'reward_issued',
+          data: {
+            questId,
+            xpAwarded: quest.reward.xp,
+            totalXp: account.totalXp,
+            uctSent: '0',
+            uctError: err?.message || String(err),
+            message: `You earned ${quest.reward.xp} XP, but the 1 UCT payout failed: ${err?.message || err}. Check relay logs.`,
+          },
+        };
+      }
     }
 
     return {
@@ -68,8 +100,8 @@ export class TreasuryAgent extends QuestAgent {
         questId,
         xpAwarded: quest.reward.xp,
         totalXp: account.totalXp,
-        uctSent: uctAmount || '0',
-        message: `Congratulations! You earned ${quest.reward.xp} XP${uctAmount && uctAmount !== '0' ? ` and ${uctAmount} UCT` : ''}.`,
+        uctSent,
+        message: `Congratulations! You earned ${quest.reward.xp} XP${uctSent && uctSent !== '0' ? ` and ${uctSent} UCT` : ''}.`,
       },
     };
   }
