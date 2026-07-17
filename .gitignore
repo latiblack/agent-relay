@@ -4,3 +4,4 @@ dist/
 *.local
 data/
 .DS_Store
+sphere-tokens/
