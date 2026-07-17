@@ -33,9 +33,12 @@ export class QuestAgent {
     // 2. Add the v2 wallet-api rails (mailbox delivery + token storage + client).
     //    This is what gives the wallet send/receive capability. The identity is
     //    derived internally from the mnemonic passed to Sphere.init below.
+    //    NOTE: the wallet-api layer requires the explicit 'testnet2' network name
+    //    (its challenge is issued for testnet2 even when the base layer uses the
+    //    'testnet' alias).
     const providers = createWalletApiProviders(base, {
       baseUrl: WALLET_API_URL,
-      network: this.network,
+      network: 'testnet2',
       deviceId: `agent-relay-${this.nametag}`,
     });
 
