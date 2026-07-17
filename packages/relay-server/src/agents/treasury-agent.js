@@ -68,6 +68,18 @@ export class TreasuryAgent extends QuestAgent {
       }
       const amountWei = (BigInt(uctAmount) * 10n ** 18n).toString();
       try {
+        // Backend confirmation step: ensure the treasury's incoming tokens are
+        // received/confirmed into the in-memory spendable pool before spending.
+        // This mirrors the user "accepting" a payment in their Sphere wallet on
+        // the deploy-fee path. Without it, pending/lazy tokens never become
+        // spendable and planSend reports "Insufficient balance".
+        if (typeof this.sphere?.payments?.receive === 'function') {
+          try {
+            await this.sphere.payments.receive();
+          } catch (rxErr) {
+            console.warn(`[TreasuryAgent] receive() before send warning (non-fatal):`, rxErr?.message || rxErr);
+          }
+        }
         const sendResult = await this.sphere.payments.send({
           recipient: walletAddress,
           amount: amountWei,
