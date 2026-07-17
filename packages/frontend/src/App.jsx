@@ -1110,16 +1110,15 @@ function DashboardView({ passport, wallet, identity, pendingDeepLink, setPending
   // Fresh passport data from server (not the stale prop)
   const [passportData, setPassportData] = useState(null);
 
-  // Sync completed quests from passport data (fresh from server fetch)
+  // Sync completed quests from passport data (fresh from server fetch).
+  // completedQuests is a per-quest array of quest IDs; membership = completed.
   useEffect(() => {
     if (!passportData || !passport?.passportId) return;
-    if (passportData?.questsCompleted > 0) {
-      const qId = 'signal-hunt-01';
-      setCompletedQuests(new Set([qId]));
-    } else {
-      setCompletedQuests(new Set());
-    }
-  }, [passportData?.questsCompleted, passport?.passportId]);
+    const done = Array.isArray(passportData.completedQuests)
+      ? passportData.completedQuests
+      : (passportData.questsCompleted > 0 ? ['signal-hunt-01'] : []);
+    setCompletedQuests(new Set(done));
+  }, [passportData?.completedQuests, passportData?.questsCompleted, passport?.passportId]);
 
   // Re-fetch passport from server on mount for fresh Supabase data
   useEffect(() => {
@@ -1132,6 +1131,7 @@ function DashboardView({ passport, wallet, identity, pendingDeepLink, setPending
             onPassportUpdate?.({
               questsCompleted: data.passport.questsCompleted,
               totalXp: data.passport.totalXp,
+              completedQuests: data.passport.completedQuests,
             });
           }
         })
@@ -1160,11 +1160,13 @@ function DashboardView({ passport, wallet, identity, pendingDeepLink, setPending
               questsCompleted: data.passport.questsCompleted,
               totalXp: data.passport.totalXp,
               uctBalance: data.passport.uctBalance,
+              completedQuests: data.passport.completedQuests,
             } : prev);
             onPassportUpdate?.({
               questsCompleted: data.passport.questsCompleted,
               totalXp: data.passport.totalXp,
               uctBalance: data.passport.uctBalance,
+              completedQuests: data.passport.completedQuests,
             });
             // Refresh wallet balance to show new UCT
             wallet?.fetchBalance?.();

@@ -723,7 +723,7 @@ async function main() {
               from: 'SYSTEM', to: 'user',
               message: `[STATS] Quests: ${passport.questsCompleted} | Total XP: ${passport.totalXp} | UCT: +${quest?.reward?.uct || '0'}`,
               phase: 'stats',
-              data: { questsCompleted: passport.questsCompleted, totalXp: passport.totalXp, uctAwarded: quest?.reward?.uct || '0' },
+              data: { questsCompleted: passport.questsCompleted, totalXp: passport.totalXp, uctAwarded: quest?.reward?.uct || '0', completedQuests: passport.completedQuests },
             });
             // 2) THEN mark completed — frontend shows the trophy AFTER the STATS line
             broadcastToConsole(passportId, {
@@ -769,9 +769,9 @@ async function main() {
           from: 'SYSTEM', to: 'user',
           message: `[STATS] Quests: ${passport.questsCompleted} | Total XP: ${passport.totalXp} | UCT: +${uctAwarded}`,
           phase: 'stats',
-          data: { questsCompleted: passport.questsCompleted, totalXp: passport.totalXp, uctAwarded },
+          data: { questsCompleted: passport.questsCompleted, totalXp: passport.totalXp, uctAwarded, completedQuests: passport.completedQuests },
         });
-        res.end(JSON.stringify({ success: true, passport: { questsCompleted: passport.questsCompleted, totalXp: passport.totalXp, uctBalance: passport.uctBalance } }));
+        res.end(JSON.stringify({ success: true, passport: { questsCompleted: passport.questsCompleted, totalXp: passport.totalXp, uctBalance: passport.uctBalance, completedQuests: passport.completedQuests } }));
         return;
       }
 

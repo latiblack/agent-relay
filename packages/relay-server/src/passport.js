@@ -91,7 +91,7 @@ export class PassportManager {
           
         if (checkErr && checkErr.message?.includes('relation')) {
           console.warn('[PassportManager] Could not create table automatically.');
-          console.warn('[PassportManager] Run in Supabase SQL Editor: CREATE TABLE IF NOT EXISTS passports (id BIGSERIAL PRIMARY KEY, passport_id TEXT UNIQUE NOT NULL, relay_key TEXT UNIQUE NOT NULL, wallet_address TEXT NOT NULL, nametag TEXT, guild TEXT NOT NULL DEFAULT \'explorer\', quests_completed INTEGER DEFAULT 0, total_xp INTEGER DEFAULT 0, created_at TIMESTAMPTZ DEFAULT NOW());');
+          console.warn('[PassportManager] Run in Supabase SQL Editor: CREATE TABLE IF NOT EXISTS passports (id BIGSERIAL PRIMARY KEY, passport_id TEXT UNIQUE NOT NULL, relay_key TEXT UNIQUE NOT NULL, wallet_address TEXT NOT NULL, nametag TEXT, guild TEXT NOT NULL DEFAULT \'explorer\', quests_completed INTEGER DEFAULT 0, completed_quests JSONB NOT NULL DEFAULT \'[]\'::jsonb, total_xp INTEGER DEFAULT 0, uct_balance TEXT DEFAULT \'0\', created_at TIMESTAMPTZ DEFAULT NOW());');
         } else {
           console.log('[PassportManager] passports table ready');
         }
@@ -113,6 +113,7 @@ export class PassportManager {
       nametag TEXT,
       guild TEXT NOT NULL DEFAULT 'explorer',
       quests_completed INTEGER DEFAULT 0,
+      completed_quests JSONB NOT NULL DEFAULT '[]'::jsonb,
       total_xp INTEGER DEFAULT 0,
       uct_balance TEXT DEFAULT '0',
       created_at TIMESTAMPTZ DEFAULT NOW()
@@ -159,6 +160,7 @@ export class PassportManager {
       createdAt: Date.now(),
       questsCompleted: 0,
       totalXp: 0,
+      completedQuests: [],
     };
 
     // Persist to Supabase
@@ -173,6 +175,7 @@ export class PassportManager {
           guild,
           quests_completed: 0,
           total_xp: 0,
+          completed_quests: '[]',
           uct_balance: '0',
         });
       if (error) {
@@ -235,7 +238,13 @@ export class PassportManager {
     const passport = this.passports.get(passportId);
     if (!passport) return null;
 
-    passport.questsCompleted++;
+    // Track this quest individually (membership = completed). Dedup so a replay
+    // does not inflate the count.
+    const done = Array.isArray(passport.completedQuests) ? [...passport.completedQuests] : [];
+    if (questId && !done.includes(questId)) done.push(questId);
+    passport.completedQuests = done;
+    // Keep the legacy counter in sync as a cached total of the array.
+    passport.questsCompleted = done.length;
     passport.totalXp += xpEarned;
 
     // Update in Supabase
@@ -243,6 +252,7 @@ export class PassportManager {
       await this.supabase
         .from('passports')
         .update({
+          completed_quests: done,
           quests_completed: passport.questsCompleted,
           total_xp: passport.totalXp,
         })
@@ -269,7 +279,8 @@ export class PassportManager {
             const g = (row.guild || 'explorer').toLowerCase();
             if (!stats[g]) stats[g] = empty();
             stats[g].members += 1;
-            stats[g].quests += Number(row.quests_completed || 0);
+            const done = Array.isArray(row.completed_quests) ? row.completed_quests : [];
+            stats[g].quests += done.length;
             stats[g].xp += Number(row.total_xp || 0);
           }
           return stats;
@@ -285,7 +296,8 @@ export class PassportManager {
       const g = (p.guild || 'explorer').toLowerCase();
       if (!stats[g]) stats[g] = empty();
       stats[g].members += 1;
-      stats[g].quests += Number(p.questsCompleted || 0);
+      const done = Array.isArray(p.completedQuests) ? p.completedQuests : [];
+      stats[g].quests += done.length;
       stats[g].xp += Number(p.totalXp || 0);
     }
     return stats;
@@ -349,6 +361,7 @@ export class PassportManager {
       createdAt: new Date(row.created_at).getTime(),
       questsCompleted: row.quests_completed,
       totalXp: row.total_xp,
+      completedQuests: Array.isArray(row.completed_quests) ? row.completed_quests : [],
       uctBalance: row.uct_balance || '0',
       avatarUrl: row.avatar_url || null,
     };
@@ -369,6 +382,7 @@ export class PassportManager {
       if (fields.nametag !== undefined) dbFields.nametag = fields.nametag;
       if (fields.questsCompleted !== undefined) dbFields.quests_completed = fields.questsCompleted;
       if (fields.totalXp !== undefined) dbFields.total_xp = fields.totalXp;
+      if (fields.completedQuests !== undefined) dbFields.completed_quests = fields.completedQuests;
       if (fields.uctBalance !== undefined) dbFields.uct_balance = fields.uctBalance;
       if (Object.keys(dbFields).length > 0) {
         await this.supabase
