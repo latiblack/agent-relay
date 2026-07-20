@@ -1789,7 +1789,7 @@ function QuestsPage({ onDeploy, messages, connected, questState, passportId, onS
             {quests.map((q, i) => {
               const isCompleted = completedQuests.has(q.id);
               return (
-              <div key={i} style={{ ...glassCard, padding: '20px', opacity: q.status === 'locked' ? 0.5 : isCompleted ? 0.4 : 1, filter: isCompleted ? 'grayscale(0.8)' : 'none', pointerEvents: isCompleted ? 'none' : 'auto' }}>
+              <div key={i} style={{ ...glassCard, padding: '20px', opacity: q.status === 'locked' ? 0.5 : 1, filter: 'none', pointerEvents: isCompleted ? 'none' : 'auto', border: isCompleted ? '1px solid rgba(34,197,94,0.3)' : '1px solid rgba(255,255,255,0.06)', boxShadow: isCompleted ? 'inset 0 0 20px rgba(34,197,94,0.04)' : 'none', background: isCompleted ? 'rgba(34,197,94,0.04)' : undefined }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
