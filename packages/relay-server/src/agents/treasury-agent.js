@@ -118,6 +118,38 @@ export class TreasuryAgent extends QuestAgent {
     };
   }
 
+  // ── Direct on-chain UCT send (no DM dependency) ──
+  async sendUctReward(walletAddress, uctAmount) {
+    if (!uctAmount || uctAmount === '0' || !walletAddress) return '0';
+    const UCT_COIN_ID = 'f581d30f593e4b369d684a4563b5246f07b1d265f7178a2c0a82b81f39c24dc0';
+
+    if (!this.sphere?.payments?.send) {
+      const reason = !this.sphere ? 'sphere undefined' : !this.sphere.payments ? 'payments undefined' : 'send not a function';
+      console.error(`[TreasuryAgent] Cannot send ${uctAmount} UCT to ${walletAddress}: ${reason}`);
+      return '0';
+    }
+
+    const amountWei = (BigInt(uctAmount) * 10n ** 18n).toString();
+    try {
+      if (typeof this.sphere?.payments?.receive === 'function') {
+        try { await this.sphere.payments.receive(); } catch (rxErr) {
+          console.warn(`[TreasuryAgent] receive() warning:`, rxErr?.message || rxErr);
+        }
+      }
+      const sendResult = await this.sphere.payments.send({
+        recipient: walletAddress,
+        amount: amountWei,
+        coinId: UCT_COIN_ID,
+      });
+      const transferId = sendResult?.transferId || sendResult?.txHash || 'ok';
+      console.log(`[TreasuryAgent] Sent ${uctAmount} UCT via HTTP to ${walletAddress}: ${transferId}`);
+      return uctAmount;
+    } catch (err) {
+      console.error(`[TreasuryAgent] FAILED HTTP send of ${uctAmount} UCT to ${walletAddress}:`, err?.message || err);
+      return '0';
+    }
+  }
+
   _getBalance(data, msg) {
     const sender = msg.senderNametag || msg.senderPubkey;
     const account = this.rewards.get(sender) || { totalXp: 0, completedQuests: [], tokenBalance: '0' };

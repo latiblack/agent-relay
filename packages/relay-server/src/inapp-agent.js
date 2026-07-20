@@ -275,28 +275,9 @@ export class InAppAgent {
       'rewarding',
       { xpAwarded: this.quest.reward.xp, uctAwarded: this.quest.reward.uct });
 
-    // Fire DM to treasury in background (this triggers the on-chain UCT payout)
-    this._sendAndWait(
-      AGENT_REGISTRY.TREASURY,
-      {
-        action: 'claim_reward',
-        data: { questId: this.questId, passportId: this.passport.passportId, walletAddress: this.passport.walletAddress },
-        questId: this.questId,
-      },
-      'reward_issued'
-    ).then(treasuryResp => {
-      const data = treasuryResp?.payload?.data;
-      if (data) {
-        this._emit(AGENT_REGISTRY.TREASURY, this.userTag,
-          `[REWARD] ${data.message}`,
-          'rewarding',
-          { xpAwarded: data.xpAwarded, totalXp: data.totalXp, uctSent: data.uctSent });
-      }
-    }).catch(() => {});
+    // NOTE: on-chain UCT send now happens DIRECTLY in the /quest/claim HTTP handler
+    // via treasuryAgent.sendUctReward(), not via an unreliable Nostr DM round-trip.
 
-    // NOTE: we do NOT emit [QUEST COMPLETE] / set phase=completed here.
-    // The server (/quest/claim handler) emits [STATS] first, then [QUEST COMPLETE]
-    // with phase=completed, so the trophy banner appears AFTER the STATS line.
     return true;
   }
 

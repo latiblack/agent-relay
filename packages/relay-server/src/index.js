@@ -712,6 +712,14 @@ async function main() {
         // Persist completion + UCT credit in Supabase
         const quest = QUESTS[agent.questId];
         const xpEarned = quest?.reward?.xp || 50;
+        const walletAddress = agent.passport?.walletAddress;
+
+        // Send on-chain UCT directly (not via DM — more reliable)
+        let uctSent = '0';
+        if (quest?.reward?.uct && quest.reward.uct !== '0' && walletAddress) {
+          uctSent = await treasuryAgent.sendUctReward(walletAddress, quest.reward.uct);
+        }
+
         try {
           const passport = await passportManager.recordCompletion(passportId, agent.questId, xpEarned);
           if (passport && quest?.reward?.uct && quest.reward.uct !== '0') {
@@ -721,23 +729,23 @@ async function main() {
             // 1) STATS line first
             broadcastToConsole(passportId, {
               from: 'SYSTEM', to: 'user',
-              message: `[STATS] Quests: ${passport.questsCompleted} | Total XP: ${passport.totalXp} | UCT: +${quest?.reward?.uct || '0'}`,
+              message: `[STATS] Quests: ${passport.questsCompleted} | Total XP: ${passport.totalXp} | UCT: +${uctSent || quest?.reward?.uct || '0'}`,
               phase: 'stats',
-              data: { questsCompleted: passport.questsCompleted, totalXp: passport.totalXp, uctAwarded: quest?.reward?.uct || '0', completedQuests: passport.completedQuests },
+              data: { questsCompleted: passport.questsCompleted, totalXp: passport.totalXp, uctAwarded: uctSent || quest?.reward?.uct || '0', completedQuests: passport.completedQuests },
             });
             // 2) THEN mark completed — frontend shows the trophy AFTER the STATS line
             broadcastToConsole(passportId, {
               from: 'SYSTEM', to: 'user',
               message: `[QUEST COMPLETE] ${quest?.title || 'Quest'} finished. All agents returning to standby.`,
               phase: 'completed',
-              data: { xpAwarded: xpEarned, questId: agent.questId, uctAwarded: quest?.reward?.uct || '0' },
+              data: { xpAwarded: xpEarned, questId: agent.questId, uctAwarded: uctSent || quest?.reward?.uct || '0' },
             });
           }
         } catch (err) {
           console.error('[Claim] Failed to persist completion:', err);
         }
 
-        res.end(JSON.stringify({ success: true }));
+        res.end(JSON.stringify({ success: true, uctSent, walletAddress }));
         return;
       }
 
