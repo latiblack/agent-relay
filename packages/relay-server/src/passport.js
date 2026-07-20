@@ -241,11 +241,13 @@ export class PassportManager {
     // Track this quest individually (membership = completed). Dedup so a replay
     // does not inflate the count.
     const done = Array.isArray(passport.completedQuests) ? [...passport.completedQuests] : [];
-    if (questId && !done.includes(questId)) done.push(questId);
+    if (questId && !done.includes(questId)) {
+      done.push(questId);
+      passport.totalXp += xpEarned;
+    }
     passport.completedQuests = done;
     // Keep the legacy counter in sync as a cached total of the array.
     passport.questsCompleted = done.length;
-    passport.totalXp += xpEarned;
 
     // Update in Supabase
     if (this.supabase) {
